@@ -527,30 +527,21 @@ install_pot_desktop() {
             return 0
         else
             log 1 "发现新版本，开始更新..."
-            # 获取最新的下载链接,要先将之前保存的下载链接清空
-            DOWNLOAD_URL=""
-            get_download_link "https://github.com/pot-app/pot-desktop/releases" "amd64.deb$"
-            # .*：表示任意字符（除换行符外）出现零次或多次。
-            # linux-x86-64：匹配字符串“linux-x86-64”。
-            # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
-            # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
-            # $：表示字符串的结尾。
             pot_desktop_download_link=${DOWNLOAD_URL}
             install_package ${pot_desktop_download_link}
         fi
         return 0
     else
-            log 1 "本地未安装，下载远程最新版并安装..."
-            # 获取最新的下载链接,要先将之前保存的下载链接清空
-            DOWNLOAD_URL=""
-            get_download_link "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$"
-            # .*：表示任意字符（除换行符外）出现零次或多次。
-            # linux-x86-64：匹配字符串“linux-x86-64”。
-            # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
-            # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
-            # $：表示字符串的结尾。
-            pot_desktop_download_link=${DOWNLOAD_URL}
-            install_package ${pot_desktop_download_link}
+        # 获取最新的下载链接,要先将之前保存的下载链接清空
+        DOWNLOAD_URL=""
+        get_download_link "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$"
+        # .*：表示任意字符（除换行符外）出现零次或多次。
+        # linux-x86-64：匹配字符串“linux-x86-64”。
+        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
+        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
+        # $：表示字符串的结尾。
+        pot_desktop_download_link=${DOWNLOAD_URL}
+        install_package ${pot_desktop_download_link}
     fi
 }
 
@@ -1316,6 +1307,121 @@ uninstall_snap() {
     return 0
 }
 
+# 16. 安装telegram-desktop
+install_telegram() {
+    # 检查是否已安装
+    if dpkg -l | grep -q "^ii\s*telegram-desktop"; then
+        log 1 "Telegram 已经安装"
+        return 0
+    fi
+    
+    log 1 "开始安装 Telegram..."
+
+    # 检查依赖
+    local dependencies=("wget" "jq")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 Telegram 依赖失败"
+        return 1
+    fi
+
+    # 创建临时目录
+    local temp_dir
+    temp_dir=$(mktemp -d) || {
+        log 3 "创建临时目录失败"
+        return 1
+    }
+    
+    # 获取最新版本下载链接
+    log 1 "获取 Telegram 最新版本..."
+    local release_url
+    release_url=$(curl -s https://api.github.com/repos/telegramdesktop/tdesktop/releases/latest | \
+                 jq -r '.assets[] | select(.name | contains(".tar.xz")) | .browser_download_url') || {
+        log 3 "获取 Telegram 下载链接失败"
+        rm -rf "$temp_dir"
+        return 1
+    }
+
+    # 下载并解压
+    log 1 "下载 Telegram..."
+    if ! wget -O "$temp_dir/telegram.tar.xz" "$release_url"; then
+        log 3 "下载 Telegram 失败"
+        rm -rf "$temp_dir"
+        return 1
+    fi
+
+    log 1 "解压 Telegram..."
+    if ! tar -xf "$temp_dir/telegram.tar.xz" -C "$temp_dir"; then
+        log 3 "解压 Telegram 失败"
+        rm -rf "$temp_dir"
+        return 1
+    fi
+
+    # 移动到安装目录
+    local telegram_dir
+    telegram_dir=$(ls -d "$temp_dir"/Telegram/ | head -n 1) || {
+        log 3 "找不到 Telegram 目录"
+        rm -rf "$temp_dir"
+        return 1
+    }
+
+    log 1 "安装 Telegram..."
+    if ! sudo mv "$telegram_dir" /opt/telegram; then
+        log 3 "移动 Telegram 到安装目录失败"
+        rm -rf "$temp_dir"
+        return 1
+    fi
+
+    # 创建桌面快捷方式
+    log 1 "创建桌面快捷方式..."
+    cat << EOF | sudo tee /usr/share/applications/telegram-desktop.desktop > /dev/null
+[Desktop Entry]
+Type=Application
+Name=Telegram Desktop
+Exec=/opt/telegram/Telegram
+Icon=/opt/telegram/Telegram
+Terminal=false
+Categories=Network;InstantMessaging;
+EOF
+
+    # 清理临时文件
+    rm -rf "$temp_dir"
+
+    log 1 "Telegram 安装成功"
+    return 0
+}
+
+# 卸载telegram-desktop
+uninstall_telegram() {
+    # 检查是否已安装
+    if ! dpkg -l | grep -q "^ii\s*telegram-desktop" && [ ! -d "/opt/telegram" ]; then
+        log 1 "Telegram 未安装，无需卸载"
+        return 0
+    fi
+
+    log 1 "开始卸载 Telegram..."
+
+    # 删除安装目录
+    if [ -d "/opt/telegram" ]; then
+        if ! sudo rm -rf /opt/telegram; then
+            log 3 "删除 Telegram 安装目录失败"
+            return 1
+        fi
+        log 1 "已删除 Telegram 安装目录"
+    fi
+
+    # 删除桌面快捷方式
+    if [ -f "/usr/share/applications/telegram-desktop.desktop" ]; then
+        if ! sudo rm /usr/share/applications/telegram-desktop.desktop; then
+            log 3 "删除 Telegram 桌面快捷方式失败"
+            return 1
+        fi
+        log 1 "已删除 Telegram 桌面快捷方式"
+    fi
+
+    log 1 "Telegram 卸载成功"
+    return 0
+}
+
 # 生成菜单函数，用于显示菜单
 # 每个菜单项都是一个函数，添加合适的分类
 # 安装和卸载分开
@@ -1368,6 +1474,7 @@ show_menu() {
     green "30. 卸载 Flatpak"
     green "31. 卸载 AB Download Manager"
     green "32. 卸载 LocalSend"
+    green "33. 卸载 Telegram Desktop"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     yellow "0. 退出脚本"
 
@@ -1416,6 +1523,7 @@ handle_menu() {
         30) uninstall_flatpak ;;
         31) uninstall_ab_download_manager ;;
         32) uninstall_localsend ;;
+        33) uninstall_telegram ;;
         0) 
             log 1 "退出脚本"
             exit 0 
