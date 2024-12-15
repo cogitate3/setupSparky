@@ -873,8 +873,6 @@ uninstall_ab_download_manager() {
     return 0
 }
 
-
-
 # 12. GitHub安装和更新localsend的函数
 install_localsend() {
     # 检测是否已经安装了localsend
@@ -928,7 +926,7 @@ uninstall_localsend() {
     return 0
 }
 
-#13. 安装micro软件
+# 13. 安装micro软件
 install_micro() {
     log 1 检查是否已经安装了micro
     if which micro >/dev/null 2>&1; then
@@ -1134,6 +1132,188 @@ uninstall_micro() {
     fi
 
     log 1 "micro 编辑器卸载完成"
+}
+
+# 14. 安装typora软件
+install_typora() {
+    # 检查是否已安装
+    if dpkg -l | grep -q "^ii\s*typora"; then
+        log 1 "Typora 已经安装"
+        return 0
+    fi
+    
+    log 1 "开始安装 Typora..."
+    
+    # Add Typora's GPG key using more secure method
+    if ! curl -fsSL https://typora.io/linux/public-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/typora.gpg; then
+        log 3 "下载并保存 Typora 的 GPG 密钥失败"
+        return 1
+    fi
+    log 1 "已保存 Typora 的 GPG 密钥到 /usr/share/keyrings/typora.gpg"
+
+    # Create and write to typora.list
+    local repo_line="deb [arch=amd64 signed-by=/usr/share/keyrings/typora.gpg] https://typora.io/linux ./"
+    if ! echo "$repo_line" | sudo tee /etc/apt/sources.list.d/typora.list > /dev/null; then
+        log 3 "创建 Typora 软件源文件失败"
+        return 1
+    fi
+    log 1 "已创建 Typora 软件源文件"
+
+    # Update package list
+    if ! sudo apt-get update; then
+        log 3 "更新软件包列表失败"
+        return 1
+    fi
+    log 1 "已更新软件包列表"
+
+    # Install typora
+    if ! sudo apt-get install typora -y; then
+        log 3 "安装 Typora 失败"
+        return 1
+    fi
+
+    log 1 "Typora 安装成功"
+    return 0
+}
+
+# 卸载typora软件
+uninstall_typora() {
+    # 检查是否已安装
+    if ! dpkg -l | grep -q "^ii\s*typora"; then
+        log 1 "Typora 未安装，无需卸载"
+        return 0
+    fi
+
+    log 1 "开始卸载 Typora..."
+    
+    # Remove typora first
+    if ! sudo apt-get remove typora -y; then
+        log 3 "卸载 Typora 失败"
+        return 1
+    fi
+    log 1 "已卸载 Typora"
+
+    # Remove Typora's GPG key if exists
+    if [ -f "/usr/share/keyrings/typora.gpg" ]; then
+        if ! sudo rm /usr/share/keyrings/typora.gpg; then
+            log 3 "删除 Typora 的 GPG 密钥失败"
+            return 1
+        fi
+        log 1 "已删除 Typora 的 GPG 密钥"
+    fi
+
+    # Remove typora.list if exists
+    if [ -f "/etc/apt/sources.list.d/typora.list" ]; then
+        if ! sudo rm /etc/apt/sources.list.d/typora.list; then
+            log 3 "删除 Typora 软件源文件失败"
+            return 1
+        fi
+        log 1 "已删除 Typora 软件源文件"
+    fi
+
+    # Update package list
+    if ! sudo apt-get update; then
+        log 3 "更新软件包列表失败"
+        return 1
+    fi
+    log 1 "已更新软件包列表"
+
+    log 1 "Typora 卸载成功"
+    return 0
+}
+
+# 15. 安装snap和snap-store
+install_snap() {
+    # 检查是否已安装
+    if command -v snap &> /dev/null && dpkg -l | grep -q "^ii\s*snapd"; then
+        log 1 "Snap 已经安装"
+        return 0
+    fi
+
+    log 1 "开始安装 Snap..."
+
+    # 检查并安装依赖
+    local dependencies=("snapd")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 Snap 依赖失败"
+        return 1
+    fi
+
+    # 安装 snapd snap 以获取最新版本
+    if ! sudo snap install snapd; then
+        log 3 "安装 snapd snap 失败"
+        return 1
+    fi
+    log 1 "已安装 snapd snap"
+
+    # 安装并刷新 core snap 以解决潜在的兼容性问题
+    if ! sudo snap install core; then
+        log 3 "安装 core snap 失败"
+        return 1
+    fi
+    log 1 "已安装 core snap"
+
+    if ! sudo snap refresh core; then
+        log 3 "刷新 core snap 失败"
+        return 1
+    fi
+    log 1 "已刷新 core snap"
+
+    # 安装 Snap Store
+    if ! sudo snap install snap-store; then
+        log 3 "安装 Snap Store 失败"
+        return 1
+    fi
+    log 1 "已安装 Snap Store"
+
+    # 测试安装
+    if ! sudo snap install hello-world; then
+        log 3 "安装测试包 hello-world 失败"
+        return 1
+    fi
+
+    if ! hello-world; then
+        log 3 "运行测试包失败"
+        return 1
+    fi
+
+    log 1 "Snap 和 Snap Store 安装成功！"
+    return 0
+}
+
+# 卸载snap和snap-store
+uninstall_snap() {
+    # 检查是否已安装
+    if ! command -v snap &> /dev/null || ! dpkg -l | grep -q "^ii\s*snapd"; then
+        log 1 "Snap 未安装，无需卸载"
+        return 0
+    fi
+
+    log 1 "开始卸载 Snap..."
+
+    # 卸载所有已安装的 snap 包
+    for snap in $(snap list | awk 'NR>1 {print $1}'); do
+        if [ "$snap" != "snapd" ]; then
+            if ! sudo snap remove "$snap"; then
+                log 3 "卸载 snap 包 $snap 失败"
+                return 1
+            fi
+            log 1 "已卸载 snap 包 $snap"
+        fi
+    done
+
+    # 卸载 snapd
+    if ! sudo apt-get remove --purge snapd -y; then
+        log 3 "卸载 snapd 失败"
+        return 1
+    fi
+    log 1 "已卸载 snapd"
+
+    # 清理残留文件
+    sudo rm -rf /snap /var/snap /var/lib/snapd /var/cache/snapd /root/snap
+
+    log 1 "Snap 卸载成功"
+    return 0
 }
 
 # 生成菜单函数，用于显示菜单

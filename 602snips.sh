@@ -1,3 +1,63 @@
+#!/bin/bash
+
+
+# fonts color,简单快速输出颜色字
+# Usage:red "字母"
+red(){
+    echo -e "\033[31m\033[01m$1\033[0m"
+}
+green(){
+    echo -e "\033[32m\033[01m$1\033[0m"
+}
+yellow(){
+    echo -e "\033[33m\033[01m$1\033[0m"
+}
+blue(){
+    echo -e "\033[34m\033[01m$1\033[0m"
+}
+bold(){
+    echo -e "\033[1m\033[01m$1\033[0m"
+}
+
+
+
+# 安装依赖的函数
+    DEPENDENCIES=(
+        "curl"
+        "wget"
+        "git"
+        "terminator"
+        "bat" # 使用命令是batcat
+        "python3"
+        "python3-venv"
+        "python3-pip"  # 添加 pip
+        "pipx"
+        "build-essential"
+        "apt-transport-https"
+        "ca-certificates"
+        "gnupg"
+        "lsb-release"
+        "software-properties-common"
+    )
+
+install_dependencies() {
+    local dependencies=("$@")  # Accept dependencies as function arguments
+
+    for dep in "${dependencies[@]}"; do
+        if ! dpkg -l | grep -q "^ii  $dep"; then
+            echo -e "${yellow}正在安装 $dep...${plain}"
+            sudo apt install -y "$dep"
+            if [ $? -ne 0 ]; then
+                echo -e "${red}安装 $dep 失败${plain}"
+                return 1
+            fi
+        else
+            echo -e "${green}$dep 已经安装${plain}"
+        fi
+    done
+    return 0
+}
+
 # 日志记录函数,参数分别为日志级别、消息、颜色。如果指定颜色参数为"NC"，则不遵循后面的设定的日志级别的颜色
 log() {
     local level=$1
@@ -79,23 +139,7 @@ get_download_link() {
   log "INFO" "下载链接: $download_links_json"
 }
 
-# fonts color,简单快速输出颜色字
-# Usage:red "字母"
-red(){
-    echo -e "\033[31m\033[01m$1\033[0m"
-}
-green(){
-    echo -e "\033[32m\033[01m$1\033[0m"
-}
-yellow(){
-    echo -e "\033[33m\033[01m$1\033[0m"
-}
-blue(){
-    echo -e "\033[34m\033[01m$1\033[0m"
-}
-bold(){
-    echo -e "\033[1m\033[01m$1\033[0m"
-}
+
 # 系统检测版本
 function getLinuxOSVersion(){
     # copy from 秋水逸冰 ss scripts
@@ -162,6 +206,11 @@ function install_micro() {
 
 # 菜单，用法
 # start_menu "first"
+# 颜色变量
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[0;33m'
+plain='\033[0m'
 function start_menu(){
     clear
 
@@ -290,51 +339,7 @@ function start_menu(){
             start_menu
         ;;
     esac
-}
 
-
-
-
-
-
-    yellow "安装选项:"
-    green "1. 安装 Docker 和 Docker Compose"
-    green "2. 安装 Brave 浏览器"
-    green "3. 安装 Tabby 终端"
-    green "4. 安装 Konsole、VLC、Neofetch和Krusader"
-    green "5. 安装 Pot-desktop 翻译工具"
-    green "6. 安装 Geany 编辑器"
-    green "7. 安装 Windsurf IDE"
-    green "8. 安装 PDF Arranger"
-    green "9. 安装 SpaceFM 文件管理器"
-    green "10. 安装 Flatpak"
-    green "11. 安装 AB Download Manager"
-    green "12. 安装 LocalSend"
-
-
-terminator
-batcat
-
-    # 定义依赖列表
-    local dependencies=(
-        "libgit2-1.5"
-        "gconf2"
-        "gconf-service"
-        "curl"
-        "wget"
-        "git"
-        "tldr"
-        "ca-certificates"
-        "gnupg"
-        "software-properties-common"
-        "apt-transport-https"
-        "neofetch"
-        "bat"
-        "geany"
-        "terminator"
-    )
-
-    # 函数：安装 cheat.sh
 install_cheatsh() {
   apt install -y rlwrap
   curl -s https://cht.sh/:cht.sh | sudo tee /usr/local/bin/cht.sh && chmod +x /usr/local/bin/cht.sh
@@ -518,3 +523,14 @@ else
     echo "提示：sudo 快捷键仅在 zsh 下生效，当前 shell 不是 zsh。"
 fi
 
+# 待安装的软件列表
+software_list=(
+    "zsh"
+    "micro"
+    "plank"
+    "eggs"
+    "cheat.sh"
+    "angrysearch"
+    "WPS Office"
+)
+# 
