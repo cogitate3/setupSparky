@@ -621,7 +621,7 @@ install_windsurf() {
     
     # 添加Windsurf软件源
     log 1 "添加Windsurf源列表..."
-    echo "deb [signed-by=/usr/share/keyrings/windsurf-stable-archive-keyring.gpg arch=amd64] https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/apt stable main" | sudo tee /etc/apt/sources.list.d/windsurf.list > /dev/null
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/windsurf-stable-archive-keyring.gpg] https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/apt stable main" | sudo tee /etc/apt/sources.list.d/windsurf.list > /dev/null
 
     # 更新软件包列表
     log 1 "更新软件包列表..."
@@ -1308,14 +1308,56 @@ uninstall_snap() {
 }
 
 # 16. 安装telegram-desktop
-install_telegram() {
-    # 检查是否已安装
-    if dpkg -l | grep -q "^ii\s*telegram-desktop"; then
-        log 1 "Telegram 已经安装"
-        return 0
-    fi
+# 先准备三个不同的安装方式函数
+# 通过 Snap 安装 Telegram
+install_telegram_snap() {
+    log 1 "通过 Snap 安装 Telegram..."
     
-    log 1 "开始安装 Telegram..."
+    # 检查是否安装了 snapd
+    if ! command -v snap &> /dev/null; then
+        log 1 "未安装 Snap，开始安装..."
+        if ! install_snap; then
+            log 3 "安装 Snap 失败"
+            return 1
+        fi
+    fi
+
+    # 安装 Telegram
+    if ! sudo snap install telegram-desktop; then
+        log 3 "通过 Snap 安装 Telegram 失败"
+        return 1
+    fi
+
+    log 1 "通过 Snap 安装 Telegram 成功"
+    return 0
+}
+
+# 通过 Flatpak 安装 Telegram
+install_telegram_flatpak() {
+    log 1 "通过 Flatpak 安装 Telegram..."
+    
+    # 检查是否安装了 flatpak
+    if ! command -v flatpak &> /dev/null; then
+        log 1 "未安装 Flatpak，开始安装..."
+        if ! install_flatpak; then
+            log 3 "安装 Flatpak 失败"
+            return 1
+        fi
+    fi
+
+    # 安装 Telegram
+    if ! flatpak install -y flathub org.telegram.desktop; then
+        log 3 "通过 Flatpak 安装 Telegram 失败"
+        return 1
+    fi
+
+    log 1 "通过 Flatpak 安装 Telegram 成功"
+    return 0
+}
+
+# 从 GitHub 安装 Telegram
+install_telegram_github() {
+    log 1 "从 GitHub 安装 Telegram..."
 
     # 检查依赖
     local dependencies=("wget" "jq")
@@ -1386,8 +1428,46 @@ EOF
     # 清理临时文件
     rm -rf "$temp_dir"
 
-    log 1 "Telegram 安装成功"
+    log 1 "从 GitHub 安装 Telegram 成功"
     return 0
+}
+# 然后提供一个选择菜单，让用户选择安装方式
+install_telegram() {
+    # 检查是否已安装
+    if dpkg -l | grep -q "^ii\s*telegram-desktop"; then
+        log 1 "Telegram 已经安装"
+        return 0
+    fi
+    
+    log 1 "开始安装 Telegram..."
+    
+    # 提示用户选择安装方式
+    echo "请选择安装方式:"
+    echo "1. 通过 Snap 包安装"
+    echo "2. 通过 Flatpak 包安装"
+    echo "3. 从 GitHub 下载安装 (Linux 静态编译版)"
+    echo "4. 退出安装"
+    read -p "请输入选择 (1-4): " choice
+
+    case $choice in
+        1)
+            install_telegram_snap
+            ;;
+        2)
+            install_telegram_flatpak
+            ;;
+        3)
+            install_telegram_github
+            ;;
+        4)
+            log 1 "取消安装"
+            return 0
+            ;;
+        *)
+            log 3 "无效的选择"
+            return 1
+            ;;
+    esac
 }
 
 # 卸载telegram-desktop
@@ -1566,3 +1646,4 @@ main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main
 fi
+
