@@ -131,144 +131,669 @@ get_package_version() {
     fi
 }
 
+
 # 主要安装和卸载函数开始
-# 1. 添加仓库安装docker和docker-compose函数
-install_docker_and_docker_compose() {
-    log 1 "开始安装Docker和Docker Compose"
-    
-    # 检查是否已经安装
-    if check_if_installed "docker-ce"; then
-        log 1 "Docker已经安装"
-        version=$(get_package_version "docker-ce" "docker --version")
-        log 1 "Docker版本: $version"
-        compose_version=$(get_package_version "docker-compose-plugin" "docker compose version")
-        log 1 "Docker Compose版本: $compose_version"
+# 桌面系统增强必备软件
+# 函数：安装 Plank 快捷启动器
+function install_plank() {
+    # 检查是否已安装
+    if check_if_installed "plank"; then
+        log 1 "Plank 已安装"
         return 0
     fi
 
-    # 检查必要的依赖
-    local deps=("apt-transport-https" "ca-certificates" "curl" "gnupg" "lsb-release")
-    if ! check_and_install_dependencies "${deps[@]}"; then
-        log 3 "安装依赖失败，无法继续安装Docker和Docker Compose"
+    # 检查并安装依赖
+    local dependencies=("plank")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 Plank 失败"
         return 1
     fi
 
-    # 添加Docker的GPG密钥
-    log 1 "添加Docker的GPG密钥"
-    sudo apt-get update
-    sudo apt-get install ca-certificates curl
-    sudo install -m 0755 -d /etc/apt/keyrings
-    sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-    if [ $? -ne 0 ]; then
-        log 3 "添加Docker GPG密钥失败"
+    log 1 "Plank 快捷启动器安装完成"
+}
+
+# 函数：安装 angrysearch 类似everything的快速查找工具
+function install_angrysearch() {
+    # 检查并安装依赖
+    local dependencies=("wget")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装依赖失败"
         return 1
     fi
-    sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-    # 设置Docker存储库
-    log 1 "设置Docker存储库"
-    if [ -f /etc/apt/sources.list.d/docker.list ]; then
-        log 1 "删除旧的docker.list文件"
-        sudo rm /etc/apt/sources.list.d/docker.list
-    fi
-
-    # 获取系统版本代号
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        codename=$DEBIAN_CODENAME
-        log 1 "检测到系统版本代号: $codename"
+    # 检查是否已安装
+    if check_if_installed "angrysearch"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
+        log 1 "AngrySearch已安装，本地版本: $local_version"
+        
+        # 获取远程最新版本
+        get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases" ".*\.tar\.gz$"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        
+        # 比较版本号，检查本地版本是否包含远程版本
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 1 "已经是最新版本，无需更新"
+            return 0
+        fi
+        log 1 "发现新版本，开始更新..."
     else
-        log 3 "无法检测系统版本"
+        log 1 "开始安装 AngrySearch..."
+    fi
+
+    angrysearch_download_link=${DOWNLOAD_URL}
+    install_package ${angrysearch_download_link}
+    if [ $? -eq 2 ]; then
+        log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
+        log 1 "解压并手动安装"
+        local install_dir="/tmp/angrysearch_install" 
+        rm -rf "$install_dir"  # 清理可能存在的旧目录
+        mkdir -p "$install_dir"  # 创建新的临时目录
+        
+        # 检查源文件
+        if [ ! -f "${ARCHIVE_FILE}" ]; then
+            log 3 "压缩包文件 ${ARCHIVE_FILE} 不存在"
+            rm -rf "$install_dir"
+            return 1
+        fi
+
+        log 1 "开始解压 ${ARCHIVE_FILE}..."
+                # -v: 显示解压过程
+                # -x: 解压
+                # -z: gzip格式
+                # -f: 指定文件
+                # 2>&1: 合并标准错误到标准输出
+        if ! tar -vxzf "${ARCHIVE_FILE}" -C "$install_dir" 2>&1; then
+            log 3 "解压失败，可能是文件损坏或格式不正确"
+            rm -rf "$install_dir"
+            return 1
+        fi
+
+        # 检查解压结果
+        if [ ! "$(ls -A "$install_dir")" ]; then
+            log 3 "解压后目录为空，解压可能失败"
+            rm -rf "$install_dir"
+            return 1
+        fi
+
+        # 检查是否存在ANGRYsearch-*目录
+        if [ ! -d "$install_dir"/ANGRYsearch-* ]; then
+            log 3 "未找到 ANGRYsearch 程序目录"
+            rm -rf "$install_dir"
+            return 1
+        fi
+
+        log 1 "解压完成"
+        # 执行ANGRYsearch-*目录下的install.sh
+        chmod +x "$install_dir"/ANGRYsearch-*/install.sh
+        if ! sudo "$install_dir"/ANGRYsearch-*/install.sh; then
+            log 3 "执行安装脚本失败"
+            rm -rf "$install_dir"
+            return 1
+        fi
+        log 1 "安装ANGRYsearch 成功！用sudo angrysearch 启动！"
+    else
+        log 1 "安装ANGRYsearch 成功！用sudo angrysearch 启动！"
+    fi
+
+    # 清理临时文件
+    rm -rf "$install_dir"
+    rm -f "${ARCHIVE_FILE}"
+    
+    # 验证安装
+    if check_if_installed "angrysearch"; then
+        log 1 "angrysearch 安装成功！"
+        return 0
+    else
+        log 3 "angrysearch 安装失败"
         return 1
     fi
+}
 
-    # 添加Docker存储库
-    echo \
-    "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-    $codename stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    if [ $? -ne 0 ]; then
-        log 3 "添加Docker存储库失败"
+# 函数：安装 Pot-desktop 翻译工具
+function install_pot_desktop() {
+   # 检测是否已安装
+    if check_if_installed "pot"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*pot" | awk '{print $3}')
+        log 1 "pot-desktop已安装，本地版本: $local_version"
+        
+        # 获取远程最新版本
+        get_download_link "https://github.com/pot-app/pot-desktop/releases"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        
+        # 比较版本号，检查本地版本是否包含远程版本
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 1 "已经是最新版本，无需更新，返回主菜单"
+            return 0
+        else
+            log 1 "发现新版本，开始更新..."
+            pot_desktop_download_link=${DOWNLOAD_URL}
+            install_package ${pot_desktop_download_link}
+        fi
+        return 0
+    else
+        # 获取最新的下载链接,要先将之前保存的下载链接清空
+        DOWNLOAD_URL=""
+        get_download_link "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$"
+        # .*：表示任意字符（除换行符外）出现零次或多次。
+        # linux-x86-64：匹配字符串“linux-x86-64”。
+        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
+        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
+        # $：表示字符串的结尾。
+        pot_desktop_download_link=${DOWNLOAD_URL}
+        install_package ${pot_desktop_download_link}
+    fi
+}
+
+# 卸载pot-desktop的函数
+function uninstall_pot_desktop() {
+    log 1 "开始卸载pot-desktop..."
+    
+    # 获取实际的包名
+    pkg_name=$(dpkg -l | grep -i pot | awk '{print $2}')
+    if [ -z "$pkg_name" ]; then
+        log 3 "未找到已安装的pot-desktop"
         return 1
     fi
-
-    # 安装Docker
-    log 1 "开始安装Docker和Docker Compose"
-    sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-    if [ $? -ne 0 ]; then
-        log 3 "Docker安装失败"
+    
+    log 1 "找到pot-desktop包名: ${pkg_name}"
+    if sudo dpkg -r "$pkg_name"; then
+        log 1 "pot-desktop卸载成功"
+        # 清理依赖
+        sudo apt autoremove -y
+        return 0
+    else
+        log 3 "pot-desktop卸载失败"
         return 1
     fi
-    log 1 "Docker和Docker Compose安装完成"
+}
 
-    # 配置用户权限
-    log 1 "配置用户权限"
-    sudo usermod -aG docker $USER
-    if [ $? -ne 0 ]; then
-        log 3 "添加用户到docker组失败"
+# 函数：安装 
+function install_geany() {
+    # 检查是否已安装
+    if check_if_installed "geany"; then
+        log 1 "Geany已经安装"
+        version=$(get_package_version "geany" "geany --version")
+        log 1 "Geany版本: $version"
+        return 0
     fi
 
-    # 启动Docker服务
-    log 1 "启动Docker服务"
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    if [ $? -ne 0 ]; then
-        log 3 "Docker服务启动失败"
+    log 1 "开始安装geany..."
+    
+    # 更新软件包列表并安装geany
+    log 1 "更新软件包列表并安装Geany..."
+    sudo apt update
+    if ! sudo apt install -y geany geany-plugins geany-plugin-markdown; then
+        log 3 "安装geany失败"
         return 1
     fi
     
     # 验证安装
-    if check_if_installed "docker-ce"; then
-        log 1 "Docker安装和配置全部完成"
-        version=$(get_package_version "docker-ce" "docker --version")
-        log 1 "Docker版本: $version"
-        compose_version=$(get_package_version "docker-compose-plugin" "docker compose version")
-        log 1 "Docker Compose版本: $compose_version"
+    if check_if_installed "geany"; then
+        log 1 "Geany安装成功"
+        version=$(get_package_version "geany" "geany --version")
+        log 1 "Geany版本: $version"
         return 0
     else
-        log 3 "Docker安装验证失败"
+        log 3 "Geany安装验证失败"
+        return 1
+    fi
+
+    log 1 "Geany安装成功"
+    return 0
+}
+
+# 函数：卸载 Geany 简洁清凉的文字编辑器
+function uninstall_geany() {
+    log 1 "开始卸载geany..."
+    if ! sudo apt remove -y geany geany-plugins geany-plugin-markdown; then
+        log 3 "卸载geany失败"
+        return 1
+    fi
+    
+    # 清理配置文件和依赖
+    sudo apt purge -y geany geany-plugins geany-plugin-markdown
+    sudo apt autoremove -y
+    
+    log 1 "geany卸载成功"
+    return 0
+}
+# 函数：安装 stretchly 定时休息桌面
+function install_stretchly() {
+    log 1 "开始安装stretchly..."
+    
+    # 更新软件包列表并安装stretchly
+    log 1 "更新软件包列表并安装stretchly..."
+    sudo apt update
+    if ! sudo apt install -y stretchly; then
+        log 3 "安装stretchly失败"
+        return 1
+    fi
+    
+    # 验证安装
+    if check_if_installed "stretchly"; then
+        log 1 "stretchly安装成功"
+        return 0
+    else
+        log 3 "stretchly安装验证失败"
         return 1
     fi
 }
 
-# 卸载docker和docker-compose函数
-uninstall_docker_and_docker_compose() {
-    log 1 "开始卸载Docker和Docker Compose"
-    
-    # 停止所有运行的容器
-    if check_if_installed "docker"; then
-        log 1 "停止所有运行的容器"
-        docker stop $(docker ps -aq) 2>/dev/null
+# 函数：安装和更新 ab-download-manager 下载工具
+function install_ab_download_manager() {
+    # 检查是否已经安装了ab-download-manager
+    if check_if_installed "abdownloadmanager"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*abdownloadmanager" | awk '{print $3}')
+        log 1 "ab-download-manager已安装，本地版本: $local_version"
         
-        # 删除所有容器
-        log 1 "删除所有容器"
-        docker rm $(docker ps -aq) 2>/dev/null
+        # 获取远程最新版本
+        get_download_link "https://github.com/amir1376/ab-download-manager/releases"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
         
-        # 删除所有镜像
-        log 1 "删除所有Docker镜像"
-        docker rmi $(docker images -q) 2>/dev/null
-    fi
+        # 比较版本号，检查本地版本是否包含远程版本
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 1 "已经是最新版本，无需更新，返回主菜单"
+            return 0
+        else
+            log 1 "发现新版本，开始更新..."
+            # 检查必要的依赖
+            local deps=("wget")
+            if ! check_and_install_dependencies "${deps[@]}"; then
+                log 3 "安装依赖失败，无法继续安装ab-download-manager"
+                return 1
+            fi
 
-    # 卸载Docker包
-    log 1 "卸载Docker包"
-    sudo apt-get purge -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-    if [ $? -ne 0 ]; then
-        log 3 "Docker包卸载失败"
+            # 获取最新的下载链接
+            get_download_link "https://github.com/amir1376/ab-download-manager/releases" ".*linux_x64.*\.deb$"
+            ab_download_manager_download_link=${DOWNLOAD_URL}
+            install_package ${ab_download_manager_download_link}
+        fi
+        return 0
+    fi
+    
+    log 1 "开始安装ab-download-manager..."
+    
+    # 检查必要的依赖
+    local deps=("wget")
+    if ! check_and_install_dependencies "${deps[@]}"; then
+        log 3 "安装依赖失败，无法继续安装ab-download-manager"
         return 1
     fi
 
-    # 删除Docker数据目录
-    log 1 "删除Docker数据目录"
-    sudo rm -rf /var/lib/docker
-    sudo rm -rf /var/lib/containerd
+    # 获取最新的下载链接
+    get_download_link "https://github.com/amir1376/ab-download-manager/releases" ".*linux_x64.*\.deb$"
+    ab_download_manager_download_link=${DOWNLOAD_URL}
+    install_package ${ab_download_manager_download_link}
+}
+
+# 函数：卸载 ab-download-manager 下载工具
+function uninstall_ab_download_manager() {
+    log 1 "开始卸载ab-download-manager..."
     
-    log 1 "Docker卸载完成"
+    log 1 "ab-download-manager卸载成功"
+    return 0
+}
+
+# 函数：安装和更新 localsend 局域网传输工具
+function install_localsend() {
+    # 检测是否已经安装了localsend
+    if check_if_installed "localsend"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*localsend" | awk '{print $3}')
+        log 1 "localsend已安装，本地版本: $local_version"
+        
+        # 获取远程最新版本
+        get_download_link "https://github.com/localsend/localsend/releases"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        
+        # 比较版本号，检查本地版本是否包含远程版本
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 1 "已经是最新版本，无需更新，返回主菜单"
+            return 0
+        else
+            log 1 "发现新版本，开始更新..."
+            DOWNLOAD_URL=""
+            get_download_link "https://github.com/localsend/localsend/releases" ".*linux-x86-64.*\.deb$"            
+            localsend_download_link=${DOWNLOAD_URL}
+            install_package ${localsend_download_link}
+        fi
+        log 1 "localsend已经安装"
+        return 0
+    else
+        # 获取最新的下载链接,要先将之前保存的下载链接清空
+        DOWNLOAD_URL=""
+        get_download_link "https://github.com/localsend/localsend/releases" ".*linux-x86-64.*\.deb$"
+        # .*：表示任意字符（除换行符外）出现零次或多次。
+        # linux-x86-64：匹配字符串“linux-x86-64”。
+        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
+        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
+        # $：表示字符串的结尾。
+        localsend_download_link=${DOWNLOAD_URL}
+        install_package ${localsend_download_link}
+        log 1 "localsend已经安装"
+        return 0
+    fi
+}
+
+# 函数： 卸载 localsend 局域网传输工具
+function uninstall_localsend() {
+    log 1 "开始卸载localsend..."
+    sudo apt remove -y localsend
+    if [ $? -ne 0 ]; then
+        log 3 "卸载localsend失败"
+        return 1
+    fi
+    log 1 "localsend卸载成功"
+    return 0
+}
+
+# 函数：安装 SpaceFM 双面板文件管理器
+function install_spacefm() {
+    # 检查是否已安装
+    if check_if_installed "spacefm"; then
+        return 0
+    fi
+
+    log 1 "开始安装 spacefm..."
+    
+    # 安装依赖
+    local dependencies=("spacefm")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 spacefm 失败"
+        return 1
+    fi
+
+    # 验证安装
+    if ! check_if_installed "spacefm"; then
+        log 3 "spacefm 安装失败"
+        return 1
+    fi
+
+    log 1 "spacefm 安装成功"
+    return 0
+}
+
+# 函数：卸载 SpaceFM 双面板文件管理器
+function uninstall_spacefm() {
+    log 1 "开始检查软件卸载状态..."
+    local packages=("spacefm")
+    local packages_to_remove=()
+    local all_uninstalled=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if check_if_installed "$pkg"; then
+            packages_to_remove+=("$pkg")
+            all_uninstalled=false
+            log 1 "$pkg 已安装，将进行卸载"
+        else
+            log 1 "$pkg 未安装"
+        fi
+    done
+    
+    # 如果所有软件都未安装，直接返回
+    if [ "$all_uninstalled" = true ]; then
+        log 1 "所有软件都未安装，无需操作"
+        return 0
+    fi
+    
+    # 卸载已安装的软件
+    if [ ${#packages_to_remove[@]} -gt 0 ]; then
+        log 1 "开始卸载软件: ${packages_to_remove[*]}"
+        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
+            log 3 "卸载失败: ${packages_to_remove[*]}"
+            return 1
+        fi
+        
+        # 清理配置文件
+        log 1 "清理软件配置..."
+        sudo apt purge -y "${packages_to_remove[@]}"
+        sudo apt autoremove -y
+        
+        log 1 "所有软件卸载成功"
+    fi
+    
+    return 0
+}
+
+# 函数：安装 Krusader 双面板文件管理器
+function install_krusader() {
+    log 1 "开始检查软件安装状态..."
+    local packages=("krusader")
+    local packages_to_install=()
+    local all_installed=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if ! check_if_installed "$pkg"; then
+            packages_to_install+=("$pkg")
+            all_installed=false
+            log 1 "$pkg 未安装，将进行安装"
+        else
+            log 1 "$pkg 已安装"
+        fi
+    done
+    
+    # 如果所有软件都已安装，直接返回
+    if [ "$all_installed" = true ]; then
+        log 1 "所有软件都已安装，无需操作"
+        return 0
+    fi
+    
+    # 安装未安装的软件
+    if [ ${#packages_to_install[@]} -gt 0 ]; then
+        log 1 "开始安装未安装的软件: ${packages_to_install[*]}"
+        sudo apt update
+        if ! sudo apt install -y "${packages_to_install[@]}"; then
+            log 3 "安装失败: ${packages_to_install[*]}"
+            return 1
+        fi
+        log 1 "所有软件安装成功"
+    fi
+    
+    return 0
+}
+
+# 函数：卸载 Krusader 双面板文件管理器
+function uninstall_krusader() {
+    log 1 "开始检查软件卸载状态..."
+    local packages=("krusader")
+    local packages_to_remove=()
+    local all_uninstalled=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if check_if_installed "$pkg"; then
+            packages_to_remove+=("$pkg")
+            all_uninstalled=false
+            log 1 "$pkg 已安装，将进行卸载"
+        else
+            log 1 "$pkg 未安装"
+        fi
+    done
+    
+    # 如果所有软件都未安装，直接返回
+    if [ "$all_uninstalled" = true ]; then
+        log 1 "所有软件都未安装，无需操作"
+        return 0
+    fi
+    
+    # 卸载已安装的软件
+    if [ ${#packages_to_remove[@]} -gt 0 ]; then
+        log 1 "开始卸载软件: ${packages_to_remove[*]}"
+        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
+            log 3 "卸载失败: ${packages_to_remove[*]}"
+            return 1
+        fi
+        
+        # 清理配置文件
+        log 1 "清理软件配置..."
+        sudo apt purge -y "${packages_to_remove[@]}"
+        sudo apt autoremove -y
+        
+        log 1 "所有软件卸载成功"
+    fi
+    
+    return 0
+}
+
+# 函数：安装 Konsole KDE's Terminal Emulator
+function install_konsole() {
+    log 1 "开始检查软件安装状态..."
+    local packages=("konsole")
+    local packages_to_install=()
+    local all_installed=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if ! check_if_installed "$pkg"; then
+            packages_to_install+=("$pkg")
+            all_installed=false
+            log 1 "$pkg 未安装，将进行安装"
+        else
+            log 1 "$pkg 已安装"
+        fi
+    done
+    
+    # 如果所有软件都已安装，直接返回
+    if [ "$all_installed" = true ]; then
+        log 1 "所有软件都已安装，无需操作"
+        return 0
+    fi
+    
+    # 安装未安装的软件
+    if [ ${#packages_to_install[@]} -gt 0 ]; then
+        log 1 "开始安装未安装的软件: ${packages_to_install[*]}"
+        sudo apt update
+        if ! sudo apt install -y "${packages_to_install[@]}"; then
+            log 3 "安装失败: ${packages_to_install[*]}"
+            return 1
+        fi
+        log 1 "所有软件安装成功"
+    fi
+    
+    return 0
+}
+
+# 函数：卸载 Konsole KDE's Terminal Emulator
+function uninstall_konsole() {
+    log 1 "开始检查软件卸载状态..."
+    local packages=("konsole")
+    local packages_to_remove=()
+    local all_uninstalled=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if check_if_installed "$pkg"; then
+            packages_to_remove+=("$pkg")
+            all_uninstalled=false
+            log 1 "$pkg 已安装，将进行卸载"
+        else
+            log 1 "$pkg 未安装"
+        fi
+    done
+    
+    # 如果所有软件都未安装，直接返回
+    if [ "$all_uninstalled" = true ]; then
+        log 1 "所有软件都未安装，无需操作"
+        return 0
+    fi
+    
+    # 卸载已安装的软件
+    if [ ${#packages_to_remove[@]} -gt 0 ]; then
+        log 1 "开始卸载软件: ${packages_to_remove[*]}"
+        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
+            log 3 "卸载失败: ${packages_to_remove[*]}"
+            return 1
+        fi
+        
+        # 清理配置文件
+        log 1 "清理软件配置..."
+        sudo apt purge -y "${packages_to_remove[@]}"
+        sudo apt autoremove -y
+        
+        log 1 "所有软件卸载成功"
+    fi
+    
     return 0
 }
 
 
-# 2. 仓库安装Brave浏览器函数
-install_brave() {
+# 桌面系统进阶常用软件
+# 函数：安装和更新 Tabby 可同步终端
+function install_tabby() {
+    # 检测是否已安装
+    if check_if_installed "tabby"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*tabby" | awk '{print $3}')
+        log 1 "Tabby已安装，本地版本: $local_version"
+        
+        # 获取远程最新版本
+        get_download_link "https://github.com/Eugeny/tabby/releases"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        
+        # 比较版本号，检查本地版本是否包含远程版本
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 1 "已经是最新版本，无需更新，返回主菜单"
+            return 0
+        else
+            log 1 "发现新版本，开始更新..."
+            tabby_download_link=${DOWNLOAD_URL}
+            install_package ${tabby_download_link}
+        fi
+        return 0
+    else
+        # 获取最新的下载链接,要先将之前保存的下载链接清空
+        DOWNLOAD_URL=""
+        get_download_link "https://github.com/Eugeny/tabby/releases" ".*linux-x64.*\.deb$"
+        # .*：表示任意字符（除换行符外）出现零次或多次。
+        # linux-x86-64：匹配字符串“linux-x86-64”。
+        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
+        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
+        # $：表示字符串的结尾。
+        tabby_download_link=${DOWNLOAD_URL}
+        install_package ${tabby_download_link}
+    fi
+}
+
+# 函数：卸载 Tabby 可同步终端
+function uninstall_tabby() {
+    log 1 "开始卸载Tabby..."
+    
+    # 获取实际的包名
+    pkg_name=$(dpkg -l | grep -i tabby | awk '{print $2}')
+    if [ -z "$pkg_name" ]; then
+        log 3 "未找到已安装的Tabby"
+        return 1
+    fi
+    
+    log 1 "找到Tabby包名: ${pkg_name}"
+    if sudo dpkg -r "$pkg_name"; then
+        log 1 "Tabby卸载成功"
+        # 清理依赖
+        sudo apt autoremove -y
+        return 0
+    else
+        log 3 "Tabby卸载失败"
+        return 1
+    fi
+}
+
+# 函数：安装 Brave 浏览器函数
+function install_brave() {
     # 检查是否已安装
     if check_if_installed "brave-browser"; then
         log 1 "Brave浏览器已经安装"
@@ -351,8 +876,8 @@ install_brave() {
     fi
 }
 
-# 卸载Brave浏览器的函数
-uninstall_brave() {
+# 函数：卸载 Brave 浏览器的函数
+function uninstall_brave() {
     log 1 "开始卸载Brave浏览器..."
     
     # 检查是否已安装
@@ -391,262 +916,16 @@ uninstall_brave() {
     return 0
 }
 
-# 3. GitHub安装和更新tabby的函数
-install_tabby() {
-    # 检测是否已安装
-    if check_if_installed "tabby"; then
-        # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*tabby" | awk '{print $3}')
-        log 1 "Tabby已安装，本地版本: $local_version"
-        
-        # 获取远程最新版本
-        get_download_link "https://github.com/Eugeny/tabby/releases"
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        
-        # 比较版本号，检查本地版本是否包含远程版本
-        if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
-            return 0
-        else
-            log 1 "发现新版本，开始更新..."
-            tabby_download_link=${DOWNLOAD_URL}
-            install_package ${tabby_download_link}
-        fi
-        return 0
-    else
-        # 获取最新的下载链接,要先将之前保存的下载链接清空
-        DOWNLOAD_URL=""
-        get_download_link "https://github.com/Eugeny/tabby/releases" ".*linux-x64.*\.deb$"
-        # .*：表示任意字符（除换行符外）出现零次或多次。
-        # linux-x86-64：匹配字符串“linux-x86-64”。
-        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
-        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
-        # $：表示字符串的结尾。
-        tabby_download_link=${DOWNLOAD_URL}
-        install_package ${tabby_download_link}
-    fi
+# 函数：安装 VLC 视频播放器
+function install_VLC() {
 }
 
-# 卸载tabby的函数
-uninstall_tabby() {
-    log 1 "开始卸载Tabby..."
-    
-    # 获取实际的包名
-    pkg_name=$(dpkg -l | grep -i tabby | awk '{print $2}')
-    if [ -z "$pkg_name" ]; then
-        log 3 "未找到已安装的Tabby"
-        return 1
-    fi
-    
-    log 1 "找到Tabby包名: ${pkg_name}"
-    if sudo dpkg -r "$pkg_name"; then
-        log 1 "Tabby卸载成功"
-        # 清理依赖
-        sudo apt autoremove -y
-        return 0
-    else
-        log 3 "Tabby卸载失败"
-        return 1
-    fi
+# 函数：卸载 VLC 视频播放器
+function uninstall_VLC() {
 }
 
-# 4. apt安装Konsole、VLC、Neofetch和krusader的函数
-install_konsole() {
-    log 1 "开始检查软件安装状态..."
-    local packages=("konsole" "vlc" "neofetch" "krusader")
-    local packages_to_install=()
-    local all_installed=true
-    
-    # 检查每个软件的安装状态
-    for pkg in "${packages[@]}"; do
-        if ! check_if_installed "$pkg"; then
-            packages_to_install+=("$pkg")
-            all_installed=false
-            log 1 "$pkg 未安装，将进行安装"
-        else
-            log 1 "$pkg 已安装"
-        fi
-    done
-    
-    # 如果所有软件都已安装，直接返回
-    if [ "$all_installed" = true ]; then
-        log 1 "所有软件都已安装，无需操作"
-        return 0
-    fi
-    
-    # 安装未安装的软件
-    if [ ${#packages_to_install[@]} -gt 0 ]; then
-        log 1 "开始安装未安装的软件: ${packages_to_install[*]}"
-        sudo apt update
-        if ! sudo apt install -y "${packages_to_install[@]}"; then
-            log 3 "安装失败: ${packages_to_install[*]}"
-            return 1
-        fi
-        log 1 "所有软件安装成功"
-    fi
-    
-    return 0
-}
-
-# 卸载konsole vlc neofetch krusader的函数
-uninstall_konsole() {
-    log 1 "开始检查软件卸载状态..."
-    local packages=("konsole" "vlc" "neofetch" "krusader")
-    local packages_to_remove=()
-    local all_uninstalled=true
-    
-    # 检查每个软件的安装状态
-    for pkg in "${packages[@]}"; do
-        if check_if_installed "$pkg"; then
-            packages_to_remove+=("$pkg")
-            all_uninstalled=false
-            log 1 "$pkg 已安装，将进行卸载"
-        else
-            log 1 "$pkg 未安装"
-        fi
-    done
-    
-    # 如果所有软件都未安装，直接返回
-    if [ "$all_uninstalled" = true ]; then
-        log 1 "所有软件都未安装，无需操作"
-        return 0
-    fi
-    
-    # 卸载已安装的软件
-    if [ ${#packages_to_remove[@]} -gt 0 ]; then
-        log 1 "开始卸载软件: ${packages_to_remove[*]}"
-        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
-            log 3 "卸载失败: ${packages_to_remove[*]}"
-            return 1
-        fi
-        
-        # 清理配置文件
-        log 1 "清理软件配置..."
-        sudo apt purge -y "${packages_to_remove[@]}"
-        sudo apt autoremove -y
-        
-        log 1 "所有软件卸载成功"
-    fi
-    
-    return 0
-}
-
-# 5.GitHub安装和更新pot-desktopd的函数
-install_pot_desktop() {
-   # 检测是否已安装
-    if check_if_installed "pot"; then
-        # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*pot" | awk '{print $3}')
-        log 1 "pot-desktop已安装，本地版本: $local_version"
-        
-        # 获取远程最新版本
-        get_download_link "https://github.com/pot-app/pot-desktop/releases"
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        
-        # 比较版本号，检查本地版本是否包含远程版本
-        if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
-            return 0
-        else
-            log 1 "发现新版本，开始更新..."
-            pot_desktop_download_link=${DOWNLOAD_URL}
-            install_package ${pot_desktop_download_link}
-        fi
-        return 0
-    else
-        # 获取最新的下载链接,要先将之前保存的下载链接清空
-        DOWNLOAD_URL=""
-        get_download_link "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$"
-        # .*：表示任意字符（除换行符外）出现零次或多次。
-        # linux-x86-64：匹配字符串“linux-x86-64”。
-        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
-        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
-        # $：表示字符串的结尾。
-        pot_desktop_download_link=${DOWNLOAD_URL}
-        install_package ${pot_desktop_download_link}
-    fi
-}
-
-# 卸载pot-desktop的函数
-uninstall_pot_desktop() {
-    log 1 "开始卸载pot-desktop..."
-    
-    # 获取实际的包名
-    pkg_name=$(dpkg -l | grep -i pot | awk '{print $2}')
-    if [ -z "$pkg_name" ]; then
-        log 3 "未找到已安装的pot-desktop"
-        return 1
-    fi
-    
-    log 1 "找到pot-desktop包名: ${pkg_name}"
-    if sudo dpkg -r "$pkg_name"; then
-        log 1 "pot-desktop卸载成功"
-        # 清理依赖
-        sudo apt autoremove -y
-        return 0
-    else
-        log 3 "pot-desktop卸载失败"
-        return 1
-    fi
-}
-
-# 6. aptq安装geany的函数
-install_geany() {
-    # 检查是否已安装
-    if check_if_installed "geany"; then
-        log 1 "Geany已经安装"
-        version=$(get_package_version "geany" "geany --version")
-        log 1 "Geany版本: $version"
-        return 0
-    fi
-
-    log 1 "开始安装geany..."
-    
-    # 更新软件包列表并安装geany
-    log 1 "更新软件包列表并安装Geany..."
-    sudo apt update
-    if ! sudo apt install -y geany geany-plugins geany-plugin-markdown; then
-        log 3 "安装geany失败"
-        return 1
-    fi
-    
-    # 验证安装
-    if check_if_installed "geany"; then
-        log 1 "Geany安装成功"
-        version=$(get_package_version "geany" "geany --version")
-        log 1 "Geany版本: $version"
-        return 0
-    else
-        log 3 "Geany安装验证失败"
-        return 1
-    fi
-
-    log 1 "Geany安装成功"
-    return 0
-}
-
-# 卸载geany的函数
-uninstall_geany() {
-    log 1 "开始卸载geany..."
-    if ! sudo apt remove -y geany geany-plugins geany-plugin-markdown; then
-        log 3 "卸载geany失败"
-        return 1
-    fi
-    
-    # 清理配置文件和依赖
-    sudo apt purge -y geany geany-plugins geany-plugin-markdown
-    sudo apt autoremove -y
-    
-    log 1 "geany卸载成功"
-    return 0
-}
-
-# 7. 仓库安装windsurf的函数
-install_windsurf() {
+# 函数：安装 Windsurf IDE 编程工具
+function install_windsurf() {
     # 检查是否已安装 Windsurf
     if check_if_installed "windsurf"; then
         log 1 "Windsurf 已经安装"
@@ -695,8 +974,8 @@ install_windsurf() {
     fi
 }
 
-# 卸载windsurf的函数
-uninstall_windsurf() {
+# 函数：卸载 Windsurf IDE 编程工具
+function uninstall_windsurf() {
     log 1 "开始卸载Windsurf..."
     
     # 检查是否已安装
@@ -723,8 +1002,9 @@ uninstall_windsurf() {
     return 0
 }
 
-# 8. pipx安装pdfarranger的函数
-install_pdfarranger() {
+
+# 函数：pipx安装 PDF Arranger PDF页面编辑器
+function install_pdfarranger() {
     log 1 "开始安装pdfarranger的依赖..."
     sudo apt update
     sudo apt-get install -y python3-pip python3-wheel python3-gi python3-gi-cairo \
@@ -750,8 +1030,8 @@ install_pdfarranger() {
     return 0
 }
 
-# 卸载pdfarranger的函数
-uninstall_pdfarranger() {
+# 卸载：PDF Arranger PDF页面编辑器
+function uninstall_pdfarranger() {
     log 1 "开始卸载pdfarranger..."
     pipx uninstall pdfarranger
     if [ $? -ne 0 ]; then
@@ -762,245 +1042,46 @@ uninstall_pdfarranger() {
     return 0
 }
 
-# 9. apt安装spacefm的函数
-install_spacefm() {
-    # 检查是否已安装
-    if check_if_installed "spacefm"; then
-        return 0
-    fi
-
-    log 1 "开始安装 spacefm..."
-    
-    # 安装依赖
-    local dependencies=("spacefm")
+# 函数：安装 WPS Office
+function install_wps() {
+    # 检查并安装依赖
+    local dependencies=("wget")
     if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装 spacefm 失败"
+        log 3 "安装依赖失败"
         return 1
     fi
-
-    # 验证安装
-    if ! check_if_installed "spacefm"; then
-        log 3 "spacefm 安装失败"
-        return 1
-    fi
-
-    log 1 "spacefm 安装成功"
-    return 0
-}
-
-# 卸载spacefm的函数
-uninstall_spacefm() {
-    log 1 "开始卸载spacefm..."
-    sudo apt remove -y spacefm
-    if [ $? -ne 0 ]; then
-        log 3 "卸载spacefm失败"
-        return 1
-    fi
-    log 1 "spacefm卸载成功"
-    return 0
-}
-
-# 10. apt安装flatpak的函数
-install_flatpak() {
-    log 1 "开始安装Flatpak..."
 
     # 检查是否已安装
-    if check_if_installed "flatpak"; then
-        log 1 "Flatpak已经安装，版本是$(flatpak --version)"
+    if check_if_installed "wps-office"; then
+        log 1 "WPS Office 已安装"
         return 0
     fi
 
-    # 安装Flatpak
-    log 1 "安装Flatpak..."
-    if ! sudo apt install -y flatpak; then
-        log 3 "安装Flatpak失败，请检查网络连接和软件源"
-        return 1
-    fi
-
-    # 检测桌面环境并安装对应插件
-    desktop_env=$(echo "$DESKTOP_SESSION" | awk -F/ '{print $1}')
-    log 1 "检测到桌面环境: $desktop_env"
-
-    if [[ "$desktop_env" == "gnome" ]]; then
-        log 1 "安装GNOME Software Flatpak插件..."
-        if ! sudo apt install -y gnome-software-plugin-flatpak; then
-            log 3 "安装GNOME Flatpak插件失败，Flatpak功能可能受限"
-        fi
-    elif [[ "$desktop_env" == "kde-plasma" ]]; then
-        log 1 "安装KDE Plasma Discover Flatpak后端..."
-        if ! sudo apt install -y plasma-discover-backend-flatpak; then
-            log 3 "安装KDE Plasma Flatpak后端失败，Flatpak功能可能受限"
-        fi
-    else
-        log 3 "未安装特定的Flatpak插件，您可能需要手动配置Flatpak"
-    fi
-
-    # 添加Flathub仓库
-    log 1 "添加Flathub仓库..."
-    if ! flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo; then
-        log 3 "添加Flathub仓库失败，请检查网络连接"
-        return 1
-    fi
-
-    log 1 "Flatpak安装完成，您可能需要重启系统以使更改生效"
-    return 0
+    cd ~/Downloads
+    wget https://wps-linux-personal.wpscdn.cn/wps/download/ep/Linux2019/11664/wps-office_11.1.0.11664_amd64.deb
+    sudo dpkg -i wps-office_11.1.0.11664_amd64.deb
+    sudo apt-mark hold wps-office  # 阻止 WPS 自动更新
+    log 1 "WPS Office 安装完成。已阻止自动更新，请手动更新到稳定版本"
 }
 
-# 卸载flatpak的函数
-uninstall_flatpak() {
-    log 1 "开始卸载Flatpak..."
-
+# 函数：卸载 WPS Office
+function uninstall_wps() {
     # 检查是否已安装
-    if ! check_if_installed "flatpak"; then
-        log 1 "Flatpak未安装"
+    if ! check_if_installed "wps-office"; then
+        log 1 "WPS Office 未安装"
         return 0
     fi
 
-    # 首先卸载所有已安装的Flatpak应用
-    log 1 "卸载所有Flatpak应用..."
-    flatpak uninstall -y --all || log 2 "没有找到已安装的Flatpak应用"
-
-    # 移除所有远程仓库
-    log 1 "移除所有Flatpak仓库..."
-    flatpak remote-delete --force -y --all || log 2 "没有找到Flatpak仓库"
-
-    # 卸载Flatpak和相关插件
-    log 1 "卸载Flatpak及相关插件..."
-    if ! sudo apt remove -y flatpak gnome-software-plugin-flatpak plasma-discover-backend-flatpak; then
-        log 3 "卸载Flatpak失败"
-        return 1
-    fi
-
-    # 清理配置文件和依赖
-    log 1 "清理Flatpak配置和依赖..."
-    sudo apt purge -y flatpak
+    sudo apt-mark unhold wps-office
+    sudo apt purge -y wps-office
     sudo apt autoremove -y
-
-    # 清理Flatpak数据目录
-    log 1 "清理Flatpak数据目录..."
-    sudo rm -rf /var/lib/flatpak
-    rm -rf ~/.local/share/flatpak
-    rm -rf ~/.cache/flatpak
-
-    log 1 "Flatpak完全卸载成功"
-    return 0
+    log 1 "WPS Office 卸载完成"
 }
 
-# 11. github安装和更新ab-download-manager的函数
-install_ab_download_manager() {
-    # 检查是否已经安装了ab-download-manager
-    if check_if_installed "abdownloadmanager"; then
-        # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*abdownloadmanager" | awk '{print $3}')
-        log 1 "ab-download-manager已安装，本地版本: $local_version"
-        
-        # 获取远程最新版本
-        get_download_link "https://github.com/amir1376/ab-download-manager/releases"
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        
-        # 比较版本号，检查本地版本是否包含远程版本
-        if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
-            return 0
-        else
-            log 1 "发现新版本，开始更新..."
-            # 检查必要的依赖
-            local deps=("wget")
-            if ! check_and_install_dependencies "${deps[@]}"; then
-                log 3 "安装依赖失败，无法继续安装ab-download-manager"
-                return 1
-            fi
 
-            # 获取最新的下载链接
-            get_download_link "https://github.com/amir1376/ab-download-manager/releases" ".*linux_x64.*\.deb$"
-            ab_download_manager_download_link=${DOWNLOAD_URL}
-            install_package ${ab_download_manager_download_link}
-        fi
-        return 0
-    fi
-    
-    log 1 "开始安装ab-download-manager..."
-    
-    # 检查必要的依赖
-    local deps=("wget")
-    if ! check_and_install_dependencies "${deps[@]}"; then
-        log 3 "安装依赖失败，无法继续安装ab-download-manager"
-        return 1
-    fi
-
-    # 获取最新的下载链接
-    get_download_link "https://github.com/amir1376/ab-download-manager/releases" ".*linux_x64.*\.deb$"
-    ab_download_manager_download_link=${DOWNLOAD_URL}
-    install_package ${ab_download_manager_download_link}
-}
-
-# 卸载ab-download-manager的函数
-uninstall_ab_download_manager() {
-    log 1 "开始卸载ab-download-manager..."
-    
-    log 1 "ab-download-manager卸载成功"
-    return 0
-}
-
-# 12. GitHub安装和更新localsend的函数
-install_localsend() {
-    # 检测是否已经安装了localsend
-    if check_if_installed "localsend"; then
-        # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*localsend" | awk '{print $3}')
-        log 1 "localsend已安装，本地版本: $local_version"
-        
-        # 获取远程最新版本
-        get_download_link "https://github.com/localsend/localsend/releases"
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        
-        # 比较版本号，检查本地版本是否包含远程版本
-        if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
-            return 0
-        else
-            log 1 "发现新版本，开始更新..."
-            DOWNLOAD_URL=""
-            get_download_link "https://github.com/localsend/localsend/releases" ".*linux-x86-64.*\.deb$"            
-            localsend_download_link=${DOWNLOAD_URL}
-            install_package ${localsend_download_link}
-        fi
-        log 1 "localsend已经安装"
-        return 0
-    else
-        # 获取最新的下载链接,要先将之前保存的下载链接清空
-        DOWNLOAD_URL=""
-        get_download_link "https://github.com/localsend/localsend/releases" ".*linux-x86-64.*\.deb$"
-        # .*：表示任意字符（除换行符外）出现零次或多次。
-        # linux-x86-64：匹配字符串“linux-x86-64”。
-        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
-        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
-        # $：表示字符串的结尾。
-        localsend_download_link=${DOWNLOAD_URL}
-        install_package ${localsend_download_link}
-        log 1 "localsend已经安装"
-        return 0
-    fi
-}
-
-# 卸载localsend的函数
-uninstall_localsend() {
-    log 1 "开始卸载localsend..."
-    sudo apt remove -y localsend
-    if [ $? -ne 0 ]; then
-        log 3 "卸载localsend失败"
-        return 1
-    fi
-    log 1 "localsend卸载成功"
-    return 0
-}
-
-# 13. 安装micro软件
-install_micro() {
+# 安装命令行增强工具
+# 函数：安装和更新 micro 命令行编辑器
+function install_micro() {
     log 1 检查是否已经安装了micro
     if check_if_installed "micro"; then
         # 获取已安装版本
@@ -1170,8 +1251,8 @@ install_micro() {
         fi
     fi
 }
-
-uninstall_micro() {
+# 函数：卸载 micro 命令行编辑器
+function uninstall_micro() {
     log 1 "开始卸载 micro 编辑器..."
     # 删除micro可执行文件
     if [ -f /usr/local/bin/micro ]; then
@@ -1207,50 +1288,8 @@ uninstall_micro() {
     log 1 "micro 编辑器卸载完成"
 }
 
-# 函数：安装 zsh 和 oh-my-zsh
-
-
-# 函数：安装 Homebrew (仅在需要安装 eg 时才需要)
-install_homebrew() {
-    install_common_dependencies
-    # Check if Homebrew is already installed
-    if check_if_installed "brew"; then
-        log 1 "Homebrew 已经安装"
-
-        return 0
-    fi
-
-    # Install Homebrew
-    log 1 "正在安装 Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    
-    # Check installation status
-    if [ $? -eq 0 ]; then
-        # Configure Homebrew path for different shells
-        log 1 "Homebrew 安装成功。正在配置环境..."
-        
-        # Add Homebrew to PATH for bash
-        if [ -f ~/.bashrc ]; then
-            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
-        fi
-        
-        # Add Homebrew to PATH for zsh
-        if [ -f ~/.zshrc ]; then
-            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.zshrc
-        fi
-        
-        # Reload shell environment
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        
-        log 1 "Homebrew 安装并配置完成"
-    else
-        log 3 "Homebrew 安装失败。请检查网络连接和系统权限"
-        return 1
-    fi
-}
-
-# 函数：安装 cheat.sh
-install_cheatsh() {
+# 函数：安装 cheat.sh 命令行命令示例工具
+function install_cheatsh() {
   # 检查并安装依赖
   local dependencies=("rlwrap" "curl")
   if ! check_and_install_dependencies "${dependencies[@]}"; then
@@ -1389,8 +1428,8 @@ install_cheatsh() {
   return 0
 }
 
-# 卸载 cheat.sh
-uninstall_cheatsh() {
+# 函数：卸载 cheat.sh 命令行命令示例工具
+function uninstall_cheatsh() {
   log 1 "开始卸载 cheat.sh...检查是否已安装"
   if ! check_if_installed "cht.sh"; then
       log 1 "cheat.sh 未安装"
@@ -1425,8 +1464,8 @@ uninstall_cheatsh() {
   return 0
 }
 
-# 函数：安装 eg
-install_eg() {
+# 函数：安装 eg 命令行命令示例工具
+function install_eg() {
   # 检查是否已安装
   if check_if_installed "eg"; then
       log 1 "eg 已安装"
@@ -1443,148 +1482,29 @@ install_eg() {
   log 1 "eg 安装完成。使用方法：eg 命令 (例如 eg curl)"
 }
 
-# 函数：安装 angrysearch
-install_angrysearch() {
-    # 检查并安装依赖
-    local dependencies=("wget")
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装依赖失败"
-        return 1
-    fi
+# 函数：卸载 eg 命令行命令示例工具
+function uninstall_eg() {
+  log 1 "开始卸载 eg..."
+  # 删除主程序
+  if ! brew uninstall eg-examples; then
+      log 3 "删除 eg 主程序失败"
+      return 1
+  fi
+  log 1 "eg 卸载成功"
+}
 
-    # 检查是否已安装
-    if check_if_installed "angrysearch"; then
-        # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
-        log 1 "AngrySearch已安装，本地版本: $local_version"
-        
-        # 获取远程最新版本
-        get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases" ".*\.tar\.gz$"
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        
-        # 比较版本号，检查本地版本是否包含远程版本
-        if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新"
-            return 0
-        fi
-        log 1 "发现新版本，开始更新..."
-    else
-        log 1 "开始安装 AngrySearch..."
-    fi
-
-    angrysearch_download_link=${DOWNLOAD_URL}
-    install_package ${angrysearch_download_link}
-    if [ $? -eq 2 ]; then
-        log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
-        log 1 "解压并手动安装"
-        local install_dir="/tmp/angrysearch_install" 
-        rm -rf "$install_dir"  # 清理可能存在的旧目录
-        mkdir -p "$install_dir"  # 创建新的临时目录
-        
-        # 检查源文件
-        if [ ! -f "${ARCHIVE_FILE}" ]; then
-            log 3 "压缩包文件 ${ARCHIVE_FILE} 不存在"
-            rm -rf "$install_dir"
-            return 1
-        fi
-
-        log 1 "开始解压 ${ARCHIVE_FILE}..."
-                # -v: 显示解压过程
-                # -x: 解压
-                # -z: gzip格式
-                # -f: 指定文件
-                # 2>&1: 合并标准错误到标准输出
-        if ! tar -vxzf "${ARCHIVE_FILE}" -C "$install_dir" 2>&1; then
-            log 3 "解压失败，可能是文件损坏或格式不正确"
-            rm -rf "$install_dir"
-            return 1
-        fi
-
-        # 检查解压结果
-        if [ ! "$(ls -A "$install_dir")" ]; then
-            log 3 "解压后目录为空，解压可能失败"
-            rm -rf "$install_dir"
-            return 1
-        fi
-
-        # 检查是否存在ANGRYsearch-*目录
-        if [ ! -d "$install_dir"/ANGRYsearch-* ]; then
-            log 3 "未找到 ANGRYsearch 程序目录"
-            rm -rf "$install_dir"
-            return 1
-        fi
-
-        log 1 "解压完成"
-        # 执行ANGRYsearch-*目录下的install.sh
-        chmod +x "$install_dir"/ANGRYsearch-*/install.sh
-        if ! sudo "$install_dir"/ANGRYsearch-*/install.sh; then
-            log 3 "执行安装脚本失败"
-            rm -rf "$install_dir"
-            return 1
-        fi
-        log 1 "安装ANGRYsearch 成功！用sudo angrysearch 启动！"
-    else
-        log 1 "安装ANGRYsearch 成功！用sudo angrysearch 启动！"
-    fi
-
-    # 清理临时文件
-    rm -rf "$install_dir"
-    rm -f "${ARCHIVE_FILE}"
+# 函数：安装 eggs 命令行系统备份
+function install_eggs() {
     
-    # 验证安装
-    if check_if_installed "angrysearch"; then
-        log 1 "angrysearch 安装成功！"
-        return 0
-    else
-        log 3 "angrysearch 安装失败"
-        return 1
-    fi
 }
 
-# 函数：安装 WPS Office
-install_wps() {
-    # 检查并安装依赖
-    local dependencies=("wget")
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装依赖失败"
-        return 1
-    fi
-
-    # 检查是否已安装
-    if check_if_installed "wps-office"; then
-        log 1 "WPS Office 已安装"
-        return 0
-    fi
-
-    cd ~/Downloads
-    wget https://wps-linux-personal.wpscdn.cn/wps/download/ep/Linux2019/11664/wps-office_11.1.0.11664_amd64.deb
-    sudo dpkg -i wps-office_11.1.0.11664_amd64.deb
-    sudo apt-mark hold wps-office  # 阻止 WPS 自动更新
-    log 1 "WPS Office 安装完成。已阻止自动更新，请手动更新到稳定版本"
+# 函数：卸载 eggs 命令行系统备份
+function uninstall_eggs() {
+    
 }
 
-# 函数：安装 Plank 快捷启动器
-install_plank() {
-    # 检查是否已安装
-    if check_if_installed "plank"; then
-        log 1 "Plank 已安装"
-        return 0
-    fi
-
-    # 检查并安装依赖
-    local dependencies=("plank")
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装 Plank 失败"
-        return 1
-    fi
-
-    log 1 "Plank 快捷启动器安装完成"
-}
-
-# 函数：安装 v2rayA
-install_v2raya() {
+# 函数：安装 v2rayA 网络代理设置
+function install_v2raya() {
     read -p "请选择安装方法 (1: 使用脚本, 2: 使用软件源): " method
     case $method in
         1)
@@ -1618,3 +1538,292 @@ install_v2raya() {
             ;;
     esac
 }
+
+# 函数：卸载 v2rayA 网络代理设置
+function uninstall_v2rayA() {
+    
+}
+
+
+## 添加各种软件库
+# 函数：安装 Flatpak 软件库
+function install_flatpak() {
+    log 1 "开始安装Flatpak..."
+
+    # 检查是否已安装
+    if check_if_installed "flatpak"; then
+        log 1 "Flatpak已经安装，版本是$(flatpak --version)"
+        return 0
+    fi
+
+    # 安装Flatpak
+    log 1 "安装Flatpak..."
+    if ! sudo apt install -y flatpak; then
+        log 3 "安装Flatpak失败，请检查网络连接和软件源"
+        return 1
+    fi
+
+    # 检测桌面环境并安装对应插件
+    desktop_env=$(echo "$DESKTOP_SESSION" | awk -F/ '{print $1}')
+    log 1 "检测到桌面环境: $desktop_env"
+
+    if [[ "$desktop_env" == "gnome" ]]; then
+        log 1 "安装GNOME Software Flatpak插件..."
+        if ! sudo apt install -y gnome-software-plugin-flatpak; then
+            log 3 "安装GNOME Flatpak插件失败，Flatpak功能可能受限"
+        fi
+    elif [[ "$desktop_env" == "kde-plasma" ]]; then
+        log 1 "安装KDE Plasma Discover Flatpak后端..."
+        if ! sudo apt install -y plasma-discover-backend-flatpak; then
+            log 3 "安装KDE Plasma Flatpak后端失败，Flatpak功能可能受限"
+        fi
+    else
+        log 3 "未安装特定的Flatpak插件，您可能需要手动配置Flatpak"
+    fi
+
+    # 添加Flathub仓库
+    log 1 "添加Flathub仓库..."
+    if ! flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo; then
+        log 3 "添加Flathub仓库失败，请检查网络连接"
+        return 1
+    fi
+
+    log 1 "Flatpak安装完成，您可能需要重启系统以使更改生效"
+    return 0
+}
+
+# 函数：卸载 Flatpak 软件库
+function uninstall_flatpak() {
+    log 1 "开始卸载Flatpak..."
+
+    # 检查是否已安装
+    if ! check_if_installed "flatpak"; then
+        log 1 "Flatpak未安装"
+        return 0
+    fi
+
+    # 首先卸载所有已安装的Flatpak应用
+    log 1 "卸载所有Flatpak应用..."
+    flatpak uninstall -y --all || log 2 "没有找到已安装的Flatpak应用"
+
+    # 移除所有远程仓库
+    log 1 "移除所有Flatpak仓库..."
+    flatpak remote-delete --force -y --all || log 2 "没有找到Flatpak仓库"
+
+    # 卸载Flatpak和相关插件
+    log 1 "卸载Flatpak及相关插件..."
+    if ! sudo apt remove -y flatpak gnome-software-plugin-flatpak plasma-discover-backend-flatpak; then
+        log 3 "卸载Flatpak失败"
+        return 1
+    fi
+
+    # 清理配置文件和依赖
+    log 1 "清理Flatpak配置和依赖..."
+    sudo apt purge -y flatpak
+    sudo apt autoremove -y
+
+    # 清理Flatpak数据目录
+    log 1 "清理Flatpak数据目录..."
+    sudo rm -rf /var/lib/flatpak
+    rm -rf ~/.local/share/flatpak
+    rm -rf ~/.cache/flatpak
+
+    log 1 "Flatpak完全卸载成功"
+    return 0
+}
+
+# 函数：安装 snap和snapstore 软件库
+function install_snap() {    
+}
+
+# 函数：卸载 snap和snapstore 软件库
+function uninstall_snap() {    
+}
+
+# 函数：安装 Homebrew 
+function install_homebrew() {
+    install_common_dependencies
+    # Check if Homebrew is already installed
+    if check_if_installed "brew"; then
+        log 1 "Homebrew 已经安装"
+
+        return 0
+    fi
+
+    # Install Homebrew
+    log 1 "正在安装 Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    
+    # Check installation status
+    if [ $? -eq 0 ]; then
+        # Configure Homebrew path for different shells
+        log 1 "Homebrew 安装成功。正在配置环境..."
+        
+        # Add Homebrew to PATH for bash
+        if [ -f ~/.bashrc ]; then
+            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
+        fi
+        
+        # Add Homebrew to PATH for zsh
+        if [ -f ~/.zshrc ]; then
+            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.zshrc
+        fi
+        
+        # Reload shell environment
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        
+        log 1 "Homebrew 安装并配置完成"
+    else
+        log 3 "Homebrew 安装失败。请检查网络连接和系统权限"
+        return 1
+    fi
+}
+
+# 函数：卸载 Homebrew 
+function uninstall_homebrew() {
+    if check_if_installed "brew"; then
+        log 1 "正在卸载 Homebrew..."
+        if ! /home/linuxbrew/.linuxbrew/bin/brew uninstall; then
+            log 3 "Homebrew 卸载失败"
+            return 1
+        fi
+        log 1 "Homebrew 卸载成功"
+    else
+        log 1 "Homebrew 未安装"
+    fi
+}
+
+# 函数：安装 docker和docker-compose 虚拟化平台
+function install_docker_and_docker_compose() {
+    log 1 "开始安装Docker和Docker Compose"
+    
+    # 检查是否已经安装
+    if check_if_installed "docker-ce"; then
+        log 1 "Docker已经安装"
+        version=$(get_package_version "docker-ce" "docker --version")
+        log 1 "Docker版本: $version"
+        compose_version=$(get_package_version "docker-compose-plugin" "docker compose version")
+        log 1 "Docker Compose版本: $compose_version"
+        return 0
+    fi
+
+    # 检查必要的依赖
+    local deps=("apt-transport-https" "ca-certificates" "curl" "gnupg" "lsb-release")
+    if ! check_and_install_dependencies "${deps[@]}"; then
+        log 3 "安装依赖失败，无法继续安装Docker和Docker Compose"
+        return 1
+    fi
+
+    # 添加Docker的GPG密钥
+    log 1 "添加Docker的GPG密钥"
+    sudo apt-get update
+    sudo apt-get install ca-certificates curl
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    if [ $? -ne 0 ]; then
+        log 3 "添加Docker GPG密钥失败"
+        return 1
+    fi
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+    # 设置Docker存储库
+    log 1 "设置Docker存储库"
+    if [ -f /etc/apt/sources.list.d/docker.list ]; then
+        log 1 "删除旧的docker.list文件"
+        sudo rm /etc/apt/sources.list.d/docker.list
+    fi
+
+    # 获取系统版本代号
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        codename=$DEBIAN_CODENAME
+        log 1 "检测到系统版本代号: $codename"
+    else
+        log 3 "无法检测系统版本"
+        return 1
+    fi
+
+    # 添加Docker存储库
+    echo \
+    "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+    $codename stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    if [ $? -ne 0 ]; then
+        log 3 "添加Docker存储库失败"
+        return 1
+    fi
+
+    # 安装Docker
+    log 1 "开始安装Docker和Docker Compose"
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    if [ $? -ne 0 ]; then
+        log 3 "Docker安装失败"
+        return 1
+    fi
+    log 1 "Docker和Docker Compose安装完成"
+
+    # 配置用户权限
+    log 1 "配置用户权限"
+    sudo usermod -aG docker $USER
+    if [ $? -ne 0 ]; then
+        log 3 "添加用户到docker组失败"
+    fi
+
+    # 启动Docker服务
+    log 1 "启动Docker服务"
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    if [ $? -ne 0 ]; then
+        log 3 "Docker服务启动失败"
+        return 1
+    fi
+    
+    # 验证安装
+    if check_if_installed "docker-ce"; then
+        log 1 "Docker安装和配置全部完成"
+        version=$(get_package_version "docker-ce" "docker --version")
+        log 1 "Docker版本: $version"
+        compose_version=$(get_package_version "docker-compose-plugin" "docker compose version")
+        log 1 "Docker Compose版本: $compose_version"
+        return 0
+    else
+        log 3 "Docker安装验证失败"
+        return 1
+    fi
+}
+
+# 函数：卸载 docker和docker-compose 虚拟化平台
+function uninstall_docker_and_docker_compose() {
+    log 1 "开始卸载Docker和Docker Compose"
+    
+    # 停止所有运行的容器
+    if check_if_installed "docker"; then
+        log 1 "停止所有运行的容器"
+        docker stop $(docker ps -aq) 2>/dev/null
+        
+        # 删除所有容器
+        log 1 "删除所有容器"
+        docker rm $(docker ps -aq) 2>/dev/null
+        
+        # 删除所有镜像
+        log 1 "删除所有Docker镜像"
+        docker rmi $(docker images -q) 2>/dev/null
+    fi
+
+    # 卸载Docker包
+    log 1 "卸载Docker包"
+    sudo apt-get purge -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    if [ $? -ne 0 ]; then
+        log 3 "Docker包卸载失败"
+        return 1
+    fi
+
+    # 删除Docker数据目录
+    log 1 "删除Docker数据目录"
+    sudo rm -rf /var/lib/docker
+    sudo rm -rf /var/lib/containerd
+    
+    log 1 "Docker卸载完成"
+    return 0
+}
+
