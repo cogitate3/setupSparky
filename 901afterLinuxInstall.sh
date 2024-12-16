@@ -133,7 +133,7 @@ get_package_version() {
 
 
 # 主要安装和卸载函数开始
-# 桌面系统增强必备软件
+# 桌面系统增强必备
 # 函数：安装 Plank 快捷启动器
 function install_plank() {
     # 检查是否已安装
@@ -143,13 +143,42 @@ function install_plank() {
     fi
 
     # 检查并安装依赖
-    local dependencies=("plank")
+    local dependencies=("curl")
     if ! check_and_install_dependencies "${dependencies[@]}"; then
         log 3 "安装 Plank 失败"
         return 1
     fi
 
+    # 安装 Plank
+    if ! sudo apt install -y plank; then
+        log 3 "安装 Plank 失败"
+        return 1
+    fi
+
+    # 验证安装
+    if ! check_if_installed "plank"; then
+        log 3 "Plank 安装失败"
+        return 1
+    fi
+
     log 1 "Plank 快捷启动器安装完成"
+}
+
+# 函数：卸载 Plank 快捷启动器
+function uninstall_plank() {
+    # 检查是否已安装
+    if ! check_if_installed "plank"; then
+        log 1 "Plank 未安装"
+        return 0
+    fi
+
+    # 卸载 Plank
+    if ! sudo apt remove -y plank; then
+        log 3 "卸载 Plank 失败"
+        return 1
+    fi
+
+    log 1 "Plank 快捷启动器卸载完成"
 }
 
 # 函数：安装 angrysearch 类似everything的快速查找工具
@@ -917,12 +946,12 @@ function uninstall_brave() {
 }
 
 # 函数：安装 VLC 视频播放器
-function install_VLC() {
-}
+#function install_VLC() {
+#}
 
 # 函数：卸载 VLC 视频播放器
-function uninstall_VLC() {
-}
+#function uninstall_VLC() {
+#}
 
 # 函数：安装 Windsurf IDE 编程工具
 function install_windsurf() {
@@ -1079,7 +1108,7 @@ function uninstall_wps() {
 }
 
 
-# 安装命令行增强工具
+# 命令行增强工具
 # 函数：安装和更新 micro 命令行编辑器
 function install_micro() {
     log 1 检查是否已经安装了micro
@@ -1494,14 +1523,14 @@ function uninstall_eg() {
 }
 
 # 函数：安装 eggs 命令行系统备份
-function install_eggs() {
-    
-}
+# function install_eggs() {
+#    
+# }
 
 # 函数：卸载 eggs 命令行系统备份
-function uninstall_eggs() {
-    
-}
+# function uninstall_eggs() {
+#    
+# }
 
 # 函数：安装 v2rayA 网络代理设置
 function install_v2raya() {
@@ -1540,9 +1569,9 @@ function install_v2raya() {
 }
 
 # 函数：卸载 v2rayA 网络代理设置
-function uninstall_v2rayA() {
+# function uninstall_v2rayA() {
     
-}
+# }
 
 
 ## 添加各种软件库
@@ -1633,12 +1662,12 @@ function uninstall_flatpak() {
 }
 
 # 函数：安装 snap和snapstore 软件库
-function install_snap() {    
-}
+# function install_snap() {    
+# }
 
 # 函数：卸载 snap和snapstore 软件库
-function uninstall_snap() {    
-}
+# function uninstall_snap() {    
+# }
 
 # 函数：安装 Homebrew 
 function install_homebrew() {
@@ -1827,3 +1856,172 @@ function uninstall_docker_and_docker_compose() {
     return 0
 }
 
+# 生成菜单函数，用于显示菜单
+# 每个菜单项都是一个函数，添加合适的分类
+# 安装和卸载分开
+show_menu() {
+    # fonts color,简单快速输出颜色字
+    # Usage:red "字母"
+    red(){
+        echo -e "\033[31m\033[01m$1\033[0m"
+    }
+    green(){
+        echo -e "\033[32m\033[01m$1\033[0m"
+    }
+    yellow(){
+        echo -e "\033[33m\033[01m$1\033[0m"
+    }
+    blue(){
+        echo -e "\033[34m\033[01m$1\033[0m"
+    }
+    bold(){
+        echo -e "\033[1m\033[01m$1\033[0m"
+    }
+    green "==================================="
+    green "Linux软件一键安装脚本"
+    green "==================================="
+    yellow "桌面系统增强必备:"
+    green "1. 安装 Plank 快捷启动器"
+    green "2. 安装 SpaceFM 文件管理器"
+    green "3. 安装 Krusader 文件管理器"
+    green "4. 安装 Konsole 终端模拟器"
+    
+    yellow "桌面系统进阶常用软件:"
+    green "5. 安装 Brave 浏览器"
+    green "6. 安装 Tabby 终端"
+    green "7. 安装 WPS Office"
+    green "8. 安装 PDFArranger"
+    green "9. 安装 LocalSend"
+    green "10. 安装 AB Download Manager"
+    green "11. 安装 Pot-desktop 翻译工具"
+    
+    yellow "命令行增强工具:"
+    green "12. 安装 Docker 和 Docker Compose"
+    green "13. 安装 Micro 编辑器"
+    green "14. 安装 Geany 编辑器"
+    green "15. 安装 Windsurf IDE"
+    
+    yellow "软件库工具:"
+    green "16. 安装 Snap 和 Snapstore"
+    green "17. 安装 Flatpak"
+    green "18. 安装 Homebrew"
+    
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    yellow "卸载选项:"
+    green "21. 卸载 Plank"
+    green "22. 卸载 SpaceFM"
+    green "23. 卸载 Krusader"
+    green "24. 卸载 Konsole"
+    green "25. 卸载 Brave"
+    green "26. 卸载 Tabby"
+    green "27. 卸载 WPS Office"
+    green "28. 卸载 PDFArranger"
+    green "29. 卸载 LocalSend"
+    green "30. 卸载 AB Download Manager"
+    green "31. 卸载 Pot-desktop"
+    green "32. 卸载 Docker 和 Docker Compose"
+    green "33. 卸载 Micro"
+    green "34. 卸载 Geany"
+    green "35. 卸载 Windsurf IDE"
+    green "36. 卸载 Snap 和 Snapstore"
+    green "37. 卸载 Flatpak"
+    green "38. 卸载 Homebrew"
+    
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    yellow "0. 退出脚本"
+
+}
+
+# 处理菜单选择
+handle_menu() {
+    local choice
+    read -p "请输入选项编号: " choice
+    case $choice in
+        # 桌面系统增强必备
+        1) install_plank ;;
+        2) install_spacefm ;;
+        3) install_krusader ;;
+        4) install_konsole ;;
+        
+        # 桌面系统进阶常用软件
+        5) install_brave ;;
+        6) install_tabby ;;
+        7) install_wps ;;
+        8) install_pdfarranger ;;
+        9) install_localsend ;;
+        10) install_ab_download_manager ;;
+        11) install_pot_desktop ;;
+        
+        # 命令行增强工具
+        12) install_docker_and_docker_compose ;;
+        13) install_micro ;;
+        14) install_geany ;;
+        15) install_windsurf ;;
+        
+        # 软件库工具
+        16) install_snap ;;
+        17) install_flatpak ;;
+        18) install_homebrew ;;
+        
+        # 卸载选项
+        21) uninstall_plank ;;
+        22) uninstall_spacefm ;;
+        23) uninstall_krusader ;;
+        24) uninstall_konsole ;;
+        25) uninstall_brave ;;
+        26) uninstall_tabby ;;
+        27) uninstall_wps ;;
+        28) uninstall_pdfarranger ;;
+        29) uninstall_localsend ;;
+        30) uninstall_ab_download_manager ;;
+        31) uninstall_pot_desktop ;;
+        32) uninstall_docker_and_docker_compose ;;
+        33) uninstall_micro ;;
+        34) uninstall_geany ;;
+        35) uninstall_windsurf ;;
+        36) uninstall_snap ;;
+        37) uninstall_flatpak ;;
+        38) uninstall_homebrew ;;
+        
+        0) 
+            log 1 "退出脚本"
+            exit 0 
+            ;;
+        *)
+            log 3 "无效的选项，请重新选择"
+            ;;
+    esac
+}
+
+# 主循环
+main() {
+    clear
+    log "./logs/901.log" 1 "第一条消息，同时设置日志文件"
+    log 1 "日志记录在./logs/901.log"
+
+    # 系统更新，分开执行并检查错误
+    log 1 "更新系统软件包列表..."
+    if ! sudo apt update; then
+        log 3 "更新软件包列表失败"
+        return 1
+    fi
+
+    log 1 "请先升级系统软件包..."
+    if ! sudo apt upgrade -y; then
+        log 3 "升级软件包失败"
+        return 1
+    fi
+
+    # 主循环
+    while true; do
+        show_menu
+        handle_menu
+        echo
+        read -p "按Enter键继续..."
+    done
+}
+
+# 如果脚本被直接运行而不是被source，则执行main函数
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main
+fi
