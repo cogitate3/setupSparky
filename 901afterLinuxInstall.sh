@@ -16,7 +16,7 @@ check_root() {
     log 1 "Root权限检查通过"
 }
 
-# 后面的安装函数中会用到的检查和安装依赖的函数
+# 过程函数：检查和安装依赖的函数
 check_and_install_dependencies() {
     local dependencies=("$@")
     local missing_deps=()
@@ -46,7 +46,7 @@ check_and_install_dependencies() {
     return 0
 }
 
-# 检查deb包依赖的函数，对于下载的deb包
+# 过程函数：检查deb包依赖的函数，对于下载的deb包
 check_deb_dependencies() {
     local deb_file="$1"
     
@@ -77,7 +77,7 @@ check_deb_dependencies() {
     return 0
 }
 
-# 检查已安装软件的依赖，对于仓库中的软件
+# 过程函数：检查已安装软件的依赖，对于仓库中的软件
 show_package_dependencies() {
     local package_name="$1"
     
@@ -100,7 +100,7 @@ show_package_dependencies() {
     return 0
 }
 
-# 统一检查软件是否已安装的函数
+# 过程函数：统一检查软件是否已安装的函数
 check_if_installed() {
     local package_name="$1"
     
@@ -117,7 +117,7 @@ check_if_installed() {
     return 1  # 未安装
 }
 
-# 统一获取软件版本的函数
+# 过程函数：统一获取软件版本的函数
 get_package_version() {
     local package_name="$1"
     local version_command="$2"
@@ -131,6 +131,7 @@ get_package_version() {
     fi
 }
 
+# 主要安装和卸载函数开始
 # 1. 添加仓库安装docker和docker-compose函数
 install_docker_and_docker_compose() {
     log 1 "开始安装Docker和Docker Compose"
@@ -235,7 +236,7 @@ uninstall_docker_and_docker_compose() {
     log 1 "开始卸载Docker和Docker Compose"
     
     # 停止所有运行的容器
-    if command -v docker &> /dev/null; then
+    if check_if_installed "docker"; then
         log 1 "停止所有运行的容器"
         docker stop $(docker ps -aq) 2>/dev/null
         
@@ -355,7 +356,7 @@ uninstall_brave() {
     log 1 "开始卸载Brave浏览器..."
     
     # 检查是否已安装
-    if ! command -v brave-browser &> /dev/null; then
+    if ! check_if_installed "brave-browser"; then
         log 1 "Brave浏览器未安装"
         return 0
     fi
@@ -393,7 +394,7 @@ uninstall_brave() {
 # 3. GitHub安装和更新tabby的函数
 install_tabby() {
     # 检测是否已安装
-    if dpkg -l | grep -q "^ii\s*tabby"; then
+    if check_if_installed "tabby"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*tabby" | awk '{print $3}')
         log 1 "Tabby已安装，本地版本: $local_version"
@@ -460,7 +461,7 @@ install_konsole() {
     
     # 检查每个软件的安装状态
     for pkg in "${packages[@]}"; do
-        if ! dpkg -l | grep -q "^ii\s*$pkg"; then
+        if ! check_if_installed "$pkg"; then
             packages_to_install+=("$pkg")
             all_installed=false
             log 1 "$pkg 未安装，将进行安装"
@@ -498,7 +499,7 @@ uninstall_konsole() {
     
     # 检查每个软件的安装状态
     for pkg in "${packages[@]}"; do
-        if dpkg -l | grep -q "^ii\s*$pkg"; then
+        if check_if_installed "$pkg"; then
             packages_to_remove+=("$pkg")
             all_uninstalled=false
             log 1 "$pkg 已安装，将进行卸载"
@@ -535,7 +536,7 @@ uninstall_konsole() {
 # 5.GitHub安装和更新pot-desktopd的函数
 install_pot_desktop() {
    # 检测是否已安装
-    if dpkg -l | grep -q "^ii\s*pot"; then
+    if check_if_installed "pot"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*pot" | awk '{print $3}')
         log 1 "pot-desktop已安装，本地版本: $local_version"
@@ -623,6 +624,9 @@ install_geany() {
         log 3 "Geany安装验证失败"
         return 1
     fi
+
+    log 1 "Geany安装成功"
+    return 0
 }
 
 # 卸载geany的函数
@@ -644,7 +648,7 @@ uninstall_geany() {
 # 7. 仓库安装windsurf的函数
 install_windsurf() {
     # 检查是否已安装 Windsurf
-    if command -v windsurf >/dev/null 2>&1; then
+    if check_if_installed "windsurf"; then
         log 1 "Windsurf 已经安装"
         return 0
     fi
@@ -682,7 +686,7 @@ install_windsurf() {
     fi
 
     # 检查安装是否成功
-    if dpkg -l | grep -q '^ii\s*windsurf'; then
+    if check_if_installed "windsurf"; then
         log 1 "Windsurf安装成功"
         return 0
     else
@@ -696,7 +700,7 @@ uninstall_windsurf() {
     log 1 "开始卸载Windsurf..."
     
     # 检查是否已安装
-    if ! dpkg -l | grep -q '^ii\s*windsurf'; then
+    if ! check_if_installed "windsurf"; then
         log 1 "Windsurf未安装"
         return 0
     fi
@@ -760,14 +764,27 @@ uninstall_pdfarranger() {
 
 # 9. apt安装spacefm的函数
 install_spacefm() {
-    log 1 "开始安装spacefm..."
-    sudo apt update
-    sudo apt install -y spacefm
-    if [ $? -ne 0 ]; then
-        log 3 "安装spacefm失败"
+    # 检查是否已安装
+    if check_if_installed "spacefm"; then
+        return 0
+    fi
+
+    log 1 "开始安装 spacefm..."
+    
+    # 安装依赖
+    local dependencies=("spacefm")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 spacefm 失败"
         return 1
     fi
-    log 1 "spacefm安装成功"
+
+    # 验证安装
+    if ! check_if_installed "spacefm"; then
+        log 3 "spacefm 安装失败"
+        return 1
+    fi
+
+    log 1 "spacefm 安装成功"
     return 0
 }
 
@@ -788,7 +805,7 @@ install_flatpak() {
     log 1 "开始安装Flatpak..."
 
     # 检查是否已安装
-    if command -v flatpak &> /dev/null; then
+    if check_if_installed "flatpak"; then
         log 1 "Flatpak已经安装，版本是$(flatpak --version)"
         return 0
     fi
@@ -834,7 +851,7 @@ uninstall_flatpak() {
     log 1 "开始卸载Flatpak..."
 
     # 检查是否已安装
-    if ! command -v flatpak &> /dev/null; then
+    if ! check_if_installed "flatpak"; then
         log 1 "Flatpak未安装"
         return 0
     fi
@@ -872,8 +889,35 @@ uninstall_flatpak() {
 # 11. github安装和更新ab-download-manager的函数
 install_ab_download_manager() {
     # 检查是否已经安装了ab-download-manager
-    if dpkg -l | grep -q "^ii\s*abdownloadmanager"; then
-        log 1 "ab-download-manager已安装"
+    if check_if_installed "abdownloadmanager"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*abdownloadmanager" | awk '{print $3}')
+        log 1 "ab-download-manager已安装，本地版本: $local_version"
+        
+        # 获取远程最新版本
+        get_download_link "https://github.com/amir1376/ab-download-manager/releases"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        
+        # 比较版本号，检查本地版本是否包含远程版本
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 1 "已经是最新版本，无需更新，返回主菜单"
+            return 0
+        else
+            log 1 "发现新版本，开始更新..."
+            # 检查必要的依赖
+            local deps=("wget")
+            if ! check_and_install_dependencies "${deps[@]}"; then
+                log 3 "安装依赖失败，无法继续安装ab-download-manager"
+                return 1
+            fi
+
+            # 获取最新的下载链接
+            get_download_link "https://github.com/amir1376/ab-download-manager/releases" ".*linux_x64.*\.deb$"
+            ab_download_manager_download_link=${DOWNLOAD_URL}
+            install_package ${ab_download_manager_download_link}
+        fi
         return 0
     fi
     
@@ -903,7 +947,7 @@ uninstall_ab_download_manager() {
 # 12. GitHub安装和更新localsend的函数
 install_localsend() {
     # 检测是否已经安装了localsend
-    if dpkg -l | grep -q "^ii\s*localsend"; then
+    if check_if_installed "localsend"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*localsend" | awk '{print $3}')
         log 1 "localsend已安装，本地版本: $local_version"
@@ -920,6 +964,8 @@ install_localsend() {
             return 0
         else
             log 1 "发现新版本，开始更新..."
+            DOWNLOAD_URL=""
+            get_download_link "https://github.com/localsend/localsend/releases" ".*linux-x86-64.*\.deb$"            
             localsend_download_link=${DOWNLOAD_URL}
             install_package ${localsend_download_link}
         fi
@@ -956,7 +1002,7 @@ uninstall_localsend() {
 # 13. 安装micro软件
 install_micro() {
     log 1 检查是否已经安装了micro
-    if which micro >/dev/null 2>&1; then
+    if check_if_installed "micro"; then
         # 获取已安装版本
         local_version=$(micro --version 2>&1 | grep -oP 'Version: \K[0-9.]+' || echo "unknown")
         log 1 "micro已安装，本地版本: $local_version"
@@ -1033,7 +1079,7 @@ install_micro() {
                 rm -rf "$install_dir"
                 rm -f "${ARCHIVE_FILE}"
                 # 验证安装
-                if command -v micro &> /dev/null; then
+                if check_if_installed "micro"; then
                     log 1 "micro 编辑器安装成功！"
                     micro --version
                 else
@@ -1106,7 +1152,7 @@ install_micro() {
                 rm -rf "$install_dir"
                 rm -f "${ARCHIVE_FILE}"
                 # 验证安装
-                if command -v micro &> /dev/null; then
+                if check_if_installed "micro"; then
                     log 1 "micro 编辑器安装成功！"
                     micro --version
                 else
@@ -1115,7 +1161,7 @@ install_micro() {
                 fi
             fi        
         # 验证安装
-        if command -v micro &> /dev/null; then
+        if check_if_installed "micro"; then
             log 1 "micro 编辑器安装成功！"
             micro --version
         else
@@ -1161,382 +1207,6 @@ uninstall_micro() {
     log 1 "micro 编辑器卸载完成"
 }
 
-# 14. 安装typora软件
-install_typora() {
-    # 检查是否已安装
-    if dpkg -l | grep -q "^ii\s*typora"; then
-        log 1 "Typora 已经安装"
-        return 0
-    fi
-    
-    log 1 "开始安装 Typora..."
-    
-    # Add Typora's GPG key using more secure method
-    if ! curl -fsSL https://typora.io/linux/public-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/typora.gpg; then
-        log 3 "下载并保存 Typora 的 GPG 密钥失败"
-        return 1
-    fi
-    log 1 "已保存 Typora 的 GPG 密钥到 /usr/share/keyrings/typora.gpg"
-
-    # Create and write to typora.list
-    local repo_line="deb [arch=amd64 signed-by=/usr/share/keyrings/typora.gpg] https://typora.io/linux ./"
-    if ! echo "$repo_line" | sudo tee /etc/apt/sources.list.d/typora.list > /dev/null; then
-        log 3 "创建 Typora 软件源文件失败"
-        return 1
-    fi
-    log 1 "已创建 Typora 软件源文件"
-
-    # Update package list
-    if ! sudo apt-get update; then
-        log 3 "更新软件包列表失败"
-        return 1
-    fi
-    log 1 "已更新软件包列表"
-
-    # Install typora
-    if ! sudo apt-get install typora -y; then
-        log 3 "安装 Typora 失败"
-        return 1
-    fi
-
-    log 1 "Typora 安装成功"
-    return 0
-}
-
-# 卸载typora软件
-uninstall_typora() {
-    # 检查是否已安装
-    if ! dpkg -l | grep -q "^ii\s*typora"; then
-        log 1 "Typora 未安装，无需卸载"
-        return 0
-    fi
-
-    log 1 "开始卸载 Typora..."
-    
-    # Remove typora first
-    if ! sudo apt-get remove typora -y; then
-        log 3 "卸载 Typora 失败"
-        return 1
-    fi
-    log 1 "已卸载 Typora"
-
-    # Remove Typora's GPG key if exists
-    if [ -f "/usr/share/keyrings/typora.gpg" ]; then
-        if ! sudo rm /usr/share/keyrings/typora.gpg; then
-            log 3 "删除 Typora 的 GPG 密钥失败"
-            return 1
-        fi
-        log 1 "已删除 Typora 的 GPG 密钥"
-    fi
-
-    # Remove typora.list if exists
-    if [ -f "/etc/apt/sources.list.d/typora.list" ]; then
-        if ! sudo rm /etc/apt/sources.list.d/typora.list; then
-            log 3 "删除 Typora 软件源文件失败"
-            return 1
-        fi
-        log 1 "已删除 Typora 软件源文件"
-    fi
-
-    # Update package list
-    if ! sudo apt-get update; then
-        log 3 "更新软件包列表失败"
-        return 1
-    fi
-    log 1 "已更新软件包列表"
-
-    log 1 "Typora 卸载成功"
-    return 0
-}
-
-# 15. 安装snap和snap-store
-install_snap() {
-    # 检查是否已安装
-    if command -v snap &> /dev/null && dpkg -l | grep -q "^ii\s*snapd"; then
-        log 1 "Snap 已经安装"
-        return 0
-    fi
-
-    log 1 "开始安装 Snap..."
-
-    # 检查并安装依赖
-    local dependencies=("snapd")
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装 Snap 依赖失败"
-        return 1
-    fi
-
-    # 安装 snapd snap 以获取最新版本
-    if ! sudo snap install snapd; then
-        log 3 "安装 snapd snap 失败"
-        return 1
-    fi
-    log 1 "已安装 snapd snap"
-
-    # 安装并刷新 core snap 以解决潜在的兼容性问题
-    if ! sudo snap install core; then
-        log 3 "安装 core snap 失败"
-        return 1
-    fi
-    log 1 "已安装 core snap"
-
-    if ! sudo snap refresh core; then
-        log 3 "刷新 core snap 失败"
-        return 1
-    fi
-    log 1 "已刷新 core snap"
-
-    # 安装 Snap Store
-    if ! sudo snap install snap-store; then
-        log 3 "安装 Snap Store 失败"
-        return 1
-    fi
-    log 1 "已安装 Snap Store"
-
-    # 测试安装
-    if ! sudo snap install hello-world; then
-        log 3 "安装测试包 hello-world 失败"
-        return 1
-    fi
-
-    if ! hello-world; then
-        log 3 "运行测试包失败"
-        return 1
-    fi
-
-    log 1 "Snap 和 Snap Store 安装成功！"
-    return 0
-}
-
-# 卸载snap和snap-store
-uninstall_snap() {
-    # 检查是否已安装
-    if ! command -v snap &> /dev/null || ! dpkg -l | grep -q "^ii\s*snapd"; then
-        log 1 "Snap 未安装，无需卸载"
-        return 0
-    fi
-
-    log 1 "开始卸载 Snap..."
-
-    # 卸载所有已安装的 snap 包
-    for snap in $(snap list | awk 'NR>1 {print $1}'); do
-        if [ "$snap" != "snapd" ]; then
-            if ! sudo snap remove "$snap"; then
-                log 3 "卸载 snap 包 $snap 失败"
-                return 1
-            fi
-            log 1 "已卸载 snap 包 $snap"
-        fi
-    done
-
-    # 卸载 snapd
-    if ! sudo apt-get remove --purge snapd -y; then
-        log 3 "卸载 snapd 失败"
-        return 1
-    fi
-    log 1 "已卸载 snapd"
-
-    # 清理残留文件
-    sudo rm -rf /snap /var/snap /var/lib/snapd /var/cache/snapd /root/snap
-
-    log 1 "Snap 卸载成功"
-    return 0
-}
-
-# 16. 安装telegram-desktop
-# 先准备三个不同的安装方式函数
-# 从 GitHub 安装 Telegram
-install_telegram_github() {
-    log 1 "从 GitHub 安装 Telegram..."
-
-    # 检查依赖
-    local dependencies=("wget" "jq")
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装 Telegram 依赖失败"
-        return 1
-    fi
-
-    # 获取最新版本下载链接
-    log 1 "获取 Telegram 最新版本..."
-    local release_url
-    release_url=$(curl -s https://api.github.com/repos/telegramdesktop/tdesktop/releases/latest | \
-                 jq -r '.assets[] | select(.name | contains(".tar.xz")) | .browser_download_url') || {
-        log 3 "获取 Telegram 下载链接失败"
-        return 1
-    }
-
-    # 下载并解压
-    log 1 "下载 Telegram..."
-    if ! wget -O "/tmp/telegram.tar.xz" "$release_url"; then
-        log 3 "下载 Telegram 失败"
-        return 1
-    fi
-
-    log 1 "解压 Telegram..."
-    if ! tar -xf "/tmp/telegram.tar.xz" -C "/tmp"; then
-        log 3 "解压 Telegram 失败"
-        return 1
-    fi
-
-    # 移动到安装目录
-    local telegram_dir
-    telegram_dir=$(ls -d "/tmp/Telegram/" | head -n 1) || {
-        log 3 "找不到 Telegram 目录"
-        return 1
-    }
-
-    log 1 "安装 Telegram..."
-    if ! sudo mv "$telegram_dir" /opt/telegram; then
-        log 3 "移动 Telegram 到安装目录失败"
-        return 1
-    fi
-
-    # 创建桌面快捷方式
-    log 1 "创建桌面快捷方式..."
-    cat << EOF | sudo tee /usr/share/applications/telegram-desktop.desktop > /dev/null
-[Desktop Entry]
-Type=Application
-Name=Telegram Desktop
-Exec=/opt/telegram/Telegram
-Icon=/opt/telegram/Telegram
-Terminal=false
-Categories=Network;InstantMessaging;
-EOF
-
-    # 清理临时文件
-    rm -rf "/tmp/telegram.tar.xz" "/tmp/Telegram"
-
-    log 1 "从 GitHub 安装 Telegram 成功"
-    return 0
-}
-
-# 通过 Snap 安装 Telegram
-install_telegram_snap() {
-    log 1 "通过 Snap 安装 Telegram..."
-    
-    # 检查是否安装了 snapd
-    if ! command -v snap &> /dev/null; then
-        log 1 "未安装 Snap，开始安装..."
-        if ! install_snap; then
-            log 3 "安装 Snap 失败"
-            return 1
-        fi
-    fi
-
-    # 安装 Telegram
-    if ! sudo snap install telegram-desktop; then
-        log 3 "通过 Snap 安装 Telegram 失败"
-        return 1
-    fi
-
-    log 1 "通过 Snap 安装 Telegram 成功"
-    return 0
-}
-
-# 通过 Flatpak 安装 Telegram
-install_telegram_flatpak() {
-    log 1 "通过 Flatpak 安装 Telegram..."
-    
-    # 检查是否安装了 flatpak
-    if ! command -v flatpak &> /dev/null; then
-        log 1 "未安装 Flatpak，开始安装..."
-        if ! install_flatpak; then
-            log 3 "安装 Flatpak 失败"
-            return 1
-        fi
-    fi
-
-    # 安装 Telegram
-    if ! flatpak install -y flathub org.telegram.desktop; then
-        log 3 "通过 Flatpak 安装 Telegram 失败"
-        return 1
-    fi
-
-    log 1 "通过 Flatpak 安装 Telegram 成功"
-    return 0
-}
-
-
-# 16. 安装telegram-desktop
-install_telegram() {
-    # 检查是否已安装
-    if dpkg -l | grep -q "^ii\s*telegram-desktop"; then
-        log 1 "Telegram 已经安装"
-        return 0
-    fi
-    
-    log 1 "开始安装 Telegram..."
-    
-    # 提示用户选择安装方式
-    echo "请选择安装方式:"
-    echo "1. 从 GitHub 下载安装 (Linux 静态编译版),10秒后或直接按回车默认选择1"
-    echo "2. 通过 Snap 包安装 "
-    echo "3. 通过 Flatpak 包安装"
-    echo "4. 退出安装"
-
-    # 设置10秒超时
-    read -t 10 -p "请输入选择 (1-4),默认为 1: " choice
-    
-    # 如果read超时或者输入为空，选择1
-    if [ $? -ne 0 ] || [ -z "$choice" ]; then
-        echo  # 换行
-        log 1 "使用默认选择：通过 Snap 安装"
-        choice=1
-    fi
-
-    case $choice in
-        1)
-            install_telegram_github
-            ;;
-        2)
-            install_telegram_snap
-            ;;
-        3)
-            install_telegram_flatpak
-            ;;
-        4)
-            log 1 "取消安装"
-            return 0
-            ;;
-        *)
-            log 1 "无效的选择，使用默认选择：通过 Snap 安装"
-            install_telegram_github
-            ;;
-    esac
-}
-
-# 卸载telegram-desktop
-uninstall_telegram() {
-    # 检查是否已安装
-    if ! dpkg -l | grep -q "^ii\s*telegram-desktop" && [ ! -d "/opt/telegram" ]; then
-        log 1 "Telegram 未安装，无需卸载"
-        return 0
-    fi
-
-    log 1 "开始卸载 Telegram..."
-
-    # 删除安装目录
-    if [ -d "/opt/telegram" ]; then
-        if ! sudo rm -rf /opt/telegram; then
-            log 3 "删除 Telegram 安装目录失败"
-            return 1
-        fi
-        log 1 "已删除 Telegram 安装目录"
-    fi
-
-    # 删除桌面快捷方式
-    if [ -f "/usr/share/applications/telegram-desktop.desktop" ]; then
-        if ! sudo rm /usr/share/applications/telegram-desktop.desktop; then
-            log 3 "删除 Telegram 桌面快捷方式失败"
-            return 1
-        fi
-        log 1 "已删除 Telegram 桌面快捷方式"
-    fi
-
-    log 1 "Telegram 卸载成功"
-    return 0
-}
-
 # 函数：安装 zsh 和 oh-my-zsh
 
 
@@ -1544,7 +1214,7 @@ uninstall_telegram() {
 install_homebrew() {
     install_common_dependencies
     # Check if Homebrew is already installed
-    if command -v brew &> /dev/null; then
+    if check_if_installed "brew"; then
         log 1 "Homebrew 已经安装"
 
         return 0
@@ -1589,7 +1259,7 @@ install_cheatsh() {
   fi
 
   # 检查是否已安装
-  if command -v cht.sh &> /dev/null; then
+  if check_if_installed "cht.sh"; then
       log 1 "cheat.sh 已安装"
       return 0
   fi
@@ -1611,7 +1281,7 @@ install_cheatsh() {
   fi
 
   # 验证主程序安装
-  if ! command -v cht.sh &> /dev/null; then
+  if ! check_if_installed "cht.sh"; then
       log 3 "cht.sh 安装失败"
       rm -f ~/.local/bin/cht.sh
       return 1
@@ -1722,7 +1392,7 @@ install_cheatsh() {
 # 卸载 cheat.sh
 uninstall_cheatsh() {
   log 1 "开始卸载 cheat.sh...检查是否已安装"
-  if ! command -v cht.sh &> /dev/null; then
+  if ! check_if_installed "cht.sh"; then
       log 1 "cheat.sh 未安装"
       return 0
   fi
@@ -1758,13 +1428,13 @@ uninstall_cheatsh() {
 # 函数：安装 eg
 install_eg() {
   # 检查是否已安装
-  if command -v eg &> /dev/null; then
+  if check_if_installed "eg"; then
       log 1 "eg 已安装"
       return 0
   fi
 
   # 检查 Homebrew
-  if ! command -v brew &> /dev/null; then
+  if ! check_if_installed "brew"; then
       log 3 "请先安装 Homebrew"
       return 1
   fi
@@ -1783,17 +1453,94 @@ install_angrysearch() {
     fi
 
     # 检查是否已安装
-    if command -v angrysearch &> /dev/null; then
-        log 1 "angrysearch 已安装"
-        return 0
+    if check_if_installed "angrysearch"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
+        log 1 "AngrySearch已安装，本地版本: $local_version"
+        
+        # 获取远程最新版本
+        get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases" ".*\.tar\.gz$"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        
+        # 比较版本号，检查本地版本是否包含远程版本
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 1 "已经是最新版本，无需更新"
+            return 0
+        fi
+        log 1 "发现新版本，开始更新..."
+    else
+        log 1 "开始安装 AngrySearch..."
     fi
 
-    cd ~/Downloads
-    wget https://github.com/DoTheEvo/ANGRYsearch/archive/refs/tags/v1.0.4.tar.gz
-    tar -zxvf v1.0.4.tar.gz -C ~/Apps --overwrite
-    cd ~/Apps/ANGRYsearch-1.0.4
-    sudo ./install.sh
-    log 1 "angrysearch 安装完成"
+    angrysearch_download_link=${DOWNLOAD_URL}
+    install_package ${angrysearch_download_link}
+    if [ $? -eq 2 ]; then
+        log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
+        log 1 "解压并手动安装"
+        local install_dir="/tmp/angrysearch_install" 
+        rm -rf "$install_dir"  # 清理可能存在的旧目录
+        mkdir -p "$install_dir"  # 创建新的临时目录
+        
+        # 检查源文件
+        if [ ! -f "${ARCHIVE_FILE}" ]; then
+            log 3 "压缩包文件 ${ARCHIVE_FILE} 不存在"
+            rm -rf "$install_dir"
+            return 1
+        fi
+
+        log 1 "开始解压 ${ARCHIVE_FILE}..."
+                # -v: 显示解压过程
+                # -x: 解压
+                # -z: gzip格式
+                # -f: 指定文件
+                # 2>&1: 合并标准错误到标准输出
+        if ! tar -vxzf "${ARCHIVE_FILE}" -C "$install_dir" 2>&1; then
+            log 3 "解压失败，可能是文件损坏或格式不正确"
+            rm -rf "$install_dir"
+            return 1
+        fi
+
+        # 检查解压结果
+        if [ ! "$(ls -A "$install_dir")" ]; then
+            log 3 "解压后目录为空，解压可能失败"
+            rm -rf "$install_dir"
+            return 1
+        fi
+
+        # 检查是否存在ANGRYsearch-*目录
+        if [ ! -d "$install_dir"/ANGRYsearch-* ]; then
+            log 3 "未找到 ANGRYsearch 程序目录"
+            rm -rf "$install_dir"
+            return 1
+        fi
+
+        log 1 "解压完成"
+        # 执行ANGRYsearch-*目录下的install.sh
+        chmod +x "$install_dir"/ANGRYsearch-*/install.sh
+        if ! sudo "$install_dir"/ANGRYsearch-*/install.sh; then
+            log 3 "执行安装脚本失败"
+            rm -rf "$install_dir"
+            return 1
+        fi
+        log 1 "安装ANGRYsearch 成功！用sudo angrysearch 启动！"
+    else
+        log 1 "安装ANGRYsearch 成功！用sudo angrysearch 启动！"
+    fi
+
+    # 清理临时文件
+    rm -rf "$install_dir"
+    rm -f "${ARCHIVE_FILE}"
+    
+    # 验证安装
+    if check_if_installed "angrysearch"; then
+        log 1 "angrysearch 安装成功！"
+        return 0
+    else
+        log 3 "angrysearch 安装失败"
+        return 1
+    fi
 }
 
 # 函数：安装 WPS Office
@@ -1806,7 +1553,7 @@ install_wps() {
     fi
 
     # 检查是否已安装
-    if dpkg -l | grep -q "^ii\s*wps-office"; then
+    if check_if_installed "wps-office"; then
         log 1 "WPS Office 已安装"
         return 0
     fi
@@ -1821,7 +1568,7 @@ install_wps() {
 # 函数：安装 Plank 快捷启动器
 install_plank() {
     # 检查是否已安装
-    if dpkg -l | grep -q "^ii\s*plank"; then
+    if check_if_installed "plank"; then
         log 1 "Plank 已安装"
         return 0
     fi

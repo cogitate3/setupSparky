@@ -534,3 +534,58 @@ software_list=(
     "WPS Office"
 )
 # 
+
+
+# 过程函数：检查GitHub版本是否比本地版本更新
+check_github_update_available() {
+    local package_name="$1"      # 包名称
+    local local_version="$2"     # 本地版本号
+    local github_version="$3"    # GitHub上的版本号
+    local skip_v="${4:-false}"   # 是否跳过版本号前的'v'，默认为false
+
+    # 移除版本号前的'v'（如果需要）
+    if [ "$skip_v" = "true" ]; then
+        github_version=${github_version#v}
+        local_version=${local_version#v}
+    fi
+
+    log 1 "$package_name 本地版本: $local_version"
+    log 1 "$package_name GitHub版本: $github_version"
+
+    # 如果版本号相同，不需要更新
+    if [ "$local_version" = "$github_version" ]; then
+        log 1 "$package_name 已是最新版本"
+        return 1
+    fi
+
+    # 将版本号分割为数组
+    IFS='.' read -ra local_parts <<< "$local_version"
+    IFS='.' read -ra github_parts <<< "$github_version"
+
+    # 比较版本号的每个部分
+    for i in "${!local_parts[@]}"; do
+        # 如果GitHub版本数组较短，则本地版本更新
+        if [ -z "${github_parts[$i]}" ]; then
+            log 1 "$package_name 本地版本更新"
+            return 1
+        fi
+        
+        # 比较数字部分
+        if [ "${local_parts[$i]}" -lt "${github_parts[$i]}" ]; then
+            log 1 "发现 $package_name 新版本"
+            return 0
+        elif [ "${local_parts[$i]}" -gt "${github_parts[$i]}" ]; then
+            log 1 "$package_name 本地版本更新"
+            return 1
+        fi
+    done
+
+    # 如果GitHub版本有更多的部分，则GitHub版本更新
+    if [ "${#github_parts[@]}" -gt "${#local_parts[@]}" ]; then
+        log 1 "发现 $package_name 新版本"
+        return 0
+    fi
+
+    log 1 "$package_name 已是最新版本"
+    return 1
+}
