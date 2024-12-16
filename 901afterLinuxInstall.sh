@@ -16,7 +16,7 @@ check_root() {
     log 1 "Root权限检查通过"
 }
 
-# 检查并安装依赖的函数
+# 后面的安装函数中会用到的检查和安装依赖的函数
 check_and_install_dependencies() {
     local dependencies=("$@")
     local missing_deps=()
@@ -100,16 +100,47 @@ show_package_dependencies() {
     return 0
 }
 
-# 1. 仓库安装docker和docker-compose函数
+# 统一检查软件是否已安装的函数
+check_if_installed() {
+    local package_name="$1"
+    
+    # 先用dpkg检查
+    if dpkg -l | grep -q "^ii\s*$package_name"; then
+        return 0  # 已安装
+    fi
+    
+    # 如果dpkg检查失败，再用command检查
+    if command -v "$package_name" &> /dev/null; then
+        return 0  # 已安装
+    fi
+    
+    return 1  # 未安装
+}
+
+# 统一获取软件版本的函数
+get_package_version() {
+    local package_name="$1"
+    local version_command="$2"
+    
+    if [ -n "$version_command" ]; then
+        # 如果提供了特定的版本命令，使用它
+        eval "$version_command"
+    else
+        # 默认使用dpkg获取版本
+        dpkg -l "$package_name" 2>/dev/null | grep "^ii" | awk '{print $3}'
+    fi
+}
+
+# 1. 添加仓库安装docker和docker-compose函数
 install_docker_and_docker_compose() {
     log 1 "开始安装Docker和Docker Compose"
     
     # 检查是否已经安装
-    if dpkg -l | grep -q "^ii\s*docker-ce"; then
+    if check_if_installed "docker-ce"; then
         log 1 "Docker已经安装"
-        version=$(docker --version)
+        version=$(get_package_version "docker-ce" "docker --version")
         log 1 "Docker版本: $version"
-        compose_version=$(docker compose version)
+        compose_version=$(get_package_version "docker-compose-plugin" "docker compose version")
         log 1 "Docker Compose版本: $compose_version"
         return 0
     fi
@@ -118,14 +149,6 @@ install_docker_and_docker_compose() {
     local deps=("apt-transport-https" "ca-certificates" "curl" "gnupg" "lsb-release")
     if ! check_and_install_dependencies "${deps[@]}"; then
         log 3 "安装依赖失败，无法继续安装Docker和Docker Compose"
-        return 1
-    fi
-
-    # 更新软件包列表并安装依赖
-    log 1 "更新软件包列表并安装依赖"
-    sudo apt update && sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
-    if [ $? -ne 0 ]; then
-        log 3 "安装依赖失败"
         return 1
     fi
 
@@ -193,8 +216,18 @@ install_docker_and_docker_compose() {
         return 1
     fi
     
-    log 1 "Docker安装和配置全部完成"
-    return 0
+    # 验证安装
+    if check_if_installed "docker-ce"; then
+        log 1 "Docker安装和配置全部完成"
+        version=$(get_package_version "docker-ce" "docker --version")
+        log 1 "Docker版本: $version"
+        compose_version=$(get_package_version "docker-compose-plugin" "docker compose version")
+        log 1 "Docker Compose版本: $compose_version"
+        return 0
+    else
+        log 3 "Docker安装验证失败"
+        return 1
+    fi
 }
 
 # 卸载docker和docker-compose函数
@@ -236,9 +269,9 @@ uninstall_docker_and_docker_compose() {
 # 2. 仓库安装Brave浏览器函数
 install_brave() {
     # 检查是否已安装
-    if dpkg -l | grep -q "^ii\s*brave-browser"; then
+    if check_if_installed "brave-browser"; then
         log 1 "Brave浏览器已经安装"
-        version=$(brave-browser --version)
+        version=$(get_package_version "brave-browser" "brave-browser --version")
         log 1 "Brave版本: $version"
         return 0
     fi
@@ -249,14 +282,6 @@ install_brave() {
     local deps=("curl" "apt-transport-https" "software-properties-common")
     if ! check_and_install_dependencies "${deps[@]}"; then
         log 3 "安装依赖失败，无法继续安装Brave浏览器"
-        return 1
-    fi
-
-    # 更新软件包并安装curl
-    log 1 "更新软件包并安装curl..."
-    sudo apt update && sudo apt install -y curl
-    if [ $? -ne 0 ]; then
-        log 3 "安装curl失败"
         return 1
     fi
 
@@ -314,9 +339,9 @@ install_brave() {
     fi
 
     # 验证安装
-    if command -v brave-browser &> /dev/null; then
+    if check_if_installed "brave-browser"; then
         log 1 "Brave浏览器安装成功"
-        version=$(brave-browser --version)
+        version=$(get_package_version "brave-browser" "brave-browser --version")
         log 1 "已安装Brave版本: $version"
         return 0
     else
@@ -328,7 +353,7 @@ install_brave() {
 # 卸载Brave浏览器的函数
 uninstall_brave() {
     log 1 "开始卸载Brave浏览器..."
-
+    
     # 检查是否已安装
     if ! command -v brave-browser &> /dev/null; then
         log 1 "Brave浏览器未安装"
@@ -570,6 +595,14 @@ uninstall_pot_desktop() {
 
 # 6. aptq安装geany的函数
 install_geany() {
+    # 检查是否已安装
+    if check_if_installed "geany"; then
+        log 1 "Geany已经安装"
+        version=$(get_package_version "geany" "geany --version")
+        log 1 "Geany版本: $version"
+        return 0
+    fi
+
     log 1 "开始安装geany..."
     
     # 更新软件包列表并安装geany
@@ -580,8 +613,16 @@ install_geany() {
         return 1
     fi
     
-    log 1 "geany及插件安装成功"
-    return 0
+    # 验证安装
+    if check_if_installed "geany"; then
+        log 1 "Geany安装成功"
+        version=$(get_package_version "geany" "geany --version")
+        log 1 "Geany版本: $version"
+        return 0
+    else
+        log 3 "Geany安装验证失败"
+        return 1
+    fi
 }
 
 # 卸载geany的函数
@@ -602,19 +643,22 @@ uninstall_geany() {
 
 # 7. 仓库安装windsurf的函数
 install_windsurf() {
-    log 1 "开始安装Windsurf..."
-
-    # 检查是否已安装
-    if dpkg -l | grep -q '^ii\s*windsurf'; then
-        log 1 "Windsurf已经安装"
+    # 检查是否已安装 Windsurf
+    if command -v windsurf >/dev/null 2>&1; then
+        log 1 "Windsurf 已经安装"
         return 0
     fi
 
-    # 创建keyrings目录（如果不存在）
-    if [ ! -d "/usr/share/keyrings" ]; then
-        sudo mkdir -p /usr/share/keyrings
+    # 检查并安装必要的依赖
+    local dependencies=("curl" "gnupg")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装依赖失败，无法继续安装 Windsurf"
+        return 1
     fi
 
+    # 下载并安装 Windsurf
+    log 1 "正在安装 Windsurf..."
+    
     # 添加Windsurf GPG密钥
     log 1 "下载Windsurf GPG密钥..."
     curl -fsSL "https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/windsurf.gpg" | sudo gpg --dearmor -o /usr/share/keyrings/windsurf-stable-archive-keyring.gpg
@@ -622,7 +666,7 @@ install_windsurf() {
     # 添加Windsurf软件源
     log 1 "添加Windsurf源列表..."
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/windsurf-stable-archive-keyring.gpg] https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/apt stable main" | sudo tee /etc/apt/sources.list.d/windsurf.list > /dev/null
-
+    
     # 更新软件包列表
     log 1 "更新软件包列表..."
     if ! sudo apt-get update; then
@@ -829,31 +873,23 @@ uninstall_flatpak() {
 install_ab_download_manager() {
     # 检查是否已经安装了ab-download-manager
     if dpkg -l | grep -q "^ii\s*abdownloadmanager"; then
-        # 获取本地版本
-        local_version=$(dpkg -l abdownloadmanager | grep "^ii" | awk '{print $3}')
-        log 1 "ab-download-manager已安装，本地版本: $local_version"
-        
-        # 获取远程最新版本
-        get_download_link "https://github.com/amir1376/ab-download-manager/releases"
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        
-        # 比较版本号，检查本地版本是否包含远程版本
-        if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
-            return 0
-        else
-            log 1 "发现新版本，开始更新..."
-            ab_download_manager_download_link=${DOWNLOAD_URL}
-            install_package ${ab_download_manager_download_link}
-        fi
-    else
-        # 获取最新的下载链接
-        get_download_link "https://github.com/amir1376/ab-download-manager/releases" ".*linux_x64.*\.deb$"
-        ab_download_manager_download_link=${DOWNLOAD_URL}
-        install_package ${ab_download_manager_download_link}
+        log 1 "ab-download-manager已安装"
+        return 0
     fi
+    
+    log 1 "开始安装ab-download-manager..."
+    
+    # 检查必要的依赖
+    local deps=("wget")
+    if ! check_and_install_dependencies "${deps[@]}"; then
+        log 3 "安装依赖失败，无法继续安装ab-download-manager"
+        return 1
+    fi
+
+    # 获取最新的下载链接
+    get_download_link "https://github.com/amir1376/ab-download-manager/releases" ".*linux_x64.*\.deb$"
+    ab_download_manager_download_link=${DOWNLOAD_URL}
+    install_package ${ab_download_manager_download_link}
 }
 
 # 卸载ab-download-manager的函数
@@ -1015,7 +1051,7 @@ install_micro() {
             if [ $? -eq 2 ]; then
                 log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
                 log 1 解压并安装，因为系统之前未安装micro
-                local install_dir="/tmp/micro_install"
+                local install_dir="/tmp/micro_install" 
                 rm -rf "$install_dir"  # 清理可能存在的旧目录
                 mkdir -p "$install_dir"  # 创建新的临时目录
                 
@@ -1309,6 +1345,71 @@ uninstall_snap() {
 
 # 16. 安装telegram-desktop
 # 先准备三个不同的安装方式函数
+# 从 GitHub 安装 Telegram
+install_telegram_github() {
+    log 1 "从 GitHub 安装 Telegram..."
+
+    # 检查依赖
+    local dependencies=("wget" "jq")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 Telegram 依赖失败"
+        return 1
+    fi
+
+    # 获取最新版本下载链接
+    log 1 "获取 Telegram 最新版本..."
+    local release_url
+    release_url=$(curl -s https://api.github.com/repos/telegramdesktop/tdesktop/releases/latest | \
+                 jq -r '.assets[] | select(.name | contains(".tar.xz")) | .browser_download_url') || {
+        log 3 "获取 Telegram 下载链接失败"
+        return 1
+    }
+
+    # 下载并解压
+    log 1 "下载 Telegram..."
+    if ! wget -O "/tmp/telegram.tar.xz" "$release_url"; then
+        log 3 "下载 Telegram 失败"
+        return 1
+    fi
+
+    log 1 "解压 Telegram..."
+    if ! tar -xf "/tmp/telegram.tar.xz" -C "/tmp"; then
+        log 3 "解压 Telegram 失败"
+        return 1
+    fi
+
+    # 移动到安装目录
+    local telegram_dir
+    telegram_dir=$(ls -d "/tmp/Telegram/" | head -n 1) || {
+        log 3 "找不到 Telegram 目录"
+        return 1
+    }
+
+    log 1 "安装 Telegram..."
+    if ! sudo mv "$telegram_dir" /opt/telegram; then
+        log 3 "移动 Telegram 到安装目录失败"
+        return 1
+    fi
+
+    # 创建桌面快捷方式
+    log 1 "创建桌面快捷方式..."
+    cat << EOF | sudo tee /usr/share/applications/telegram-desktop.desktop > /dev/null
+[Desktop Entry]
+Type=Application
+Name=Telegram Desktop
+Exec=/opt/telegram/Telegram
+Icon=/opt/telegram/Telegram
+Terminal=false
+Categories=Network;InstantMessaging;
+EOF
+
+    # 清理临时文件
+    rm -rf "/tmp/telegram.tar.xz" "/tmp/Telegram"
+
+    log 1 "从 GitHub 安装 Telegram 成功"
+    return 0
+}
+
 # 通过 Snap 安装 Telegram
 install_telegram_snap() {
     log 1 "通过 Snap 安装 Telegram..."
@@ -1355,83 +1456,8 @@ install_telegram_flatpak() {
     return 0
 }
 
-# 从 GitHub 安装 Telegram
-install_telegram_github() {
-    log 1 "从 GitHub 安装 Telegram..."
 
-    # 检查依赖
-    local dependencies=("wget" "jq")
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装 Telegram 依赖失败"
-        return 1
-    fi
-
-    # 创建临时目录
-    local temp_dir
-    temp_dir=$(mktemp -d) || {
-        log 3 "创建临时目录失败"
-        return 1
-    }
-    
-    # 获取最新版本下载链接
-    log 1 "获取 Telegram 最新版本..."
-    local release_url
-    release_url=$(curl -s https://api.github.com/repos/telegramdesktop/tdesktop/releases/latest | \
-                 jq -r '.assets[] | select(.name | contains(".tar.xz")) | .browser_download_url') || {
-        log 3 "获取 Telegram 下载链接失败"
-        rm -rf "$temp_dir"
-        return 1
-    }
-
-    # 下载并解压
-    log 1 "下载 Telegram..."
-    if ! wget -O "$temp_dir/telegram.tar.xz" "$release_url"; then
-        log 3 "下载 Telegram 失败"
-        rm -rf "$temp_dir"
-        return 1
-    fi
-
-    log 1 "解压 Telegram..."
-    if ! tar -xf "$temp_dir/telegram.tar.xz" -C "$temp_dir"; then
-        log 3 "解压 Telegram 失败"
-        rm -rf "$temp_dir"
-        return 1
-    fi
-
-    # 移动到安装目录
-    local telegram_dir
-    telegram_dir=$(ls -d "$temp_dir"/Telegram/ | head -n 1) || {
-        log 3 "找不到 Telegram 目录"
-        rm -rf "$temp_dir"
-        return 1
-    }
-
-    log 1 "安装 Telegram..."
-    if ! sudo mv "$telegram_dir" /opt/telegram; then
-        log 3 "移动 Telegram 到安装目录失败"
-        rm -rf "$temp_dir"
-        return 1
-    fi
-
-    # 创建桌面快捷方式
-    log 1 "创建桌面快捷方式..."
-    cat << EOF | sudo tee /usr/share/applications/telegram-desktop.desktop > /dev/null
-[Desktop Entry]
-Type=Application
-Name=Telegram Desktop
-Exec=/opt/telegram/Telegram
-Icon=/opt/telegram/Telegram
-Terminal=false
-Categories=Network;InstantMessaging;
-EOF
-
-    # 清理临时文件
-    rm -rf "$temp_dir"
-
-    log 1 "从 GitHub 安装 Telegram 成功"
-    return 0
-}
-# 然后提供一个选择菜单，让用户选择安装方式
+# 16. 安装telegram-desktop
 install_telegram() {
     # 检查是否已安装
     if dpkg -l | grep -q "^ii\s*telegram-desktop"; then
@@ -1443,29 +1469,38 @@ install_telegram() {
     
     # 提示用户选择安装方式
     echo "请选择安装方式:"
-    echo "1. 通过 Snap 包安装"
-    echo "2. 通过 Flatpak 包安装"
-    echo "3. 从 GitHub 下载安装 (Linux 静态编译版)"
+    echo "1. 从 GitHub 下载安装 (Linux 静态编译版),10秒后或直接按回车默认选择1"
+    echo "2. 通过 Snap 包安装 "
+    echo "3. 通过 Flatpak 包安装"
     echo "4. 退出安装"
-    read -p "请输入选择 (1-4): " choice
+
+    # 设置10秒超时
+    read -t 10 -p "请输入选择 (1-4),默认为 1: " choice
+    
+    # 如果read超时或者输入为空，选择1
+    if [ $? -ne 0 ] || [ -z "$choice" ]; then
+        echo  # 换行
+        log 1 "使用默认选择：通过 Snap 安装"
+        choice=1
+    fi
 
     case $choice in
         1)
-            install_telegram_snap
+            install_telegram_github
             ;;
         2)
-            install_telegram_flatpak
+            install_telegram_snap
             ;;
         3)
-            install_telegram_github
+            install_telegram_flatpak
             ;;
         4)
             log 1 "取消安装"
             return 0
             ;;
         *)
-            log 3 "无效的选择"
-            return 1
+            log 1 "无效的选择，使用默认选择：通过 Snap 安装"
+            install_telegram_github
             ;;
     esac
 }
@@ -1502,148 +1537,337 @@ uninstall_telegram() {
     return 0
 }
 
-# 生成菜单函数，用于显示菜单
-# 每个菜单项都是一个函数，添加合适的分类
-# 安装和卸载分开
-show_menu() {
-    # fonts color,简单快速输出颜色字
-    # Usage:red "字母"
-    red(){
-        echo -e "\033[31m\033[01m$1\033[0m"
-    }
-    green(){
-        echo -e "\033[32m\033[01m$1\033[0m"
-    }
-    yellow(){
-        echo -e "\033[33m\033[01m$1\033[0m"
-    }
-    blue(){
-        echo -e "\033[34m\033[01m$1\033[0m"
-    }
-    bold(){
-        echo -e "\033[1m\033[01m$1\033[0m"
-    }
-    green "==================================="
-    green "Linux软件一键安装脚本"
-    green "==================================="
-    yellow "安装选项:"
-    green "1. 安装 Docker 和 Docker Compose"
-    green "2. 安装 Brave 浏览器"
-    green "3. 安装 Tabby 终端"
-    green "4. 安装 Konsole、VLC、Neofetch和Krusader"
-    green "5. 安装 Pot-desktop 翻译工具"
-    green "6. 安装 Geany 编辑器"
-    green "7. 安装 Windsurf IDE"
-    green "8. 安装 PDF Arranger"
-    green "9. 安装 SpaceFM 文件管理器"
-    green "10. 安装 Flatpak"
-    green "11. 安装 AB Download Manager"
-    green "12. 安装 LocalSend"
-    yellow "13. 安装1-12的全部软件"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    yellow "卸载选项:"
-    green "21. 卸载 Docker 和 Docker Compose"
-    green "22. 卸载 Brave 浏览器"
-    green "23. 卸载 Tabby 终端"
-    green "24. 卸载 Konsole、VLC、Neofetch和Krusader"
-    green "25. 卸载 Pot-desktop 翻译工具"
-    green "26. 卸载 Geany 编辑器"
-    green "27. 卸载 Windsurf IDE"
-    green "28. 卸载 PDF Arranger"
-    green "29. 卸载 SpaceFM 文件管理器"
-    green "30. 卸载 Flatpak"
-    green "31. 卸载 AB Download Manager"
-    green "32. 卸载 LocalSend"
-    green "33. 卸载 Telegram Desktop"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    yellow "0. 退出脚本"
+# 函数：安装 zsh 和 oh-my-zsh
 
+
+# 函数：安装 Homebrew (仅在需要安装 eg 时才需要)
+install_homebrew() {
+    install_common_dependencies
+    # Check if Homebrew is already installed
+    if command -v brew &> /dev/null; then
+        log 1 "Homebrew 已经安装"
+
+        return 0
+    fi
+
+    # Install Homebrew
+    log 1 "正在安装 Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    
+    # Check installation status
+    if [ $? -eq 0 ]; then
+        # Configure Homebrew path for different shells
+        log 1 "Homebrew 安装成功。正在配置环境..."
+        
+        # Add Homebrew to PATH for bash
+        if [ -f ~/.bashrc ]; then
+            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
+        fi
+        
+        # Add Homebrew to PATH for zsh
+        if [ -f ~/.zshrc ]; then
+            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.zshrc
+        fi
+        
+        # Reload shell environment
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        
+        log 1 "Homebrew 安装并配置完成"
+    else
+        log 3 "Homebrew 安装失败。请检查网络连接和系统权限"
+        return 1
+    fi
 }
 
-# 处理菜单选择
-handle_menu() {
-    local choice
-    read -p "请输入选项编号: " choice
-    case $choice in
-        1) install_docker_and_docker_compose ;;
-        2) install_brave ;;
-        3) install_tabby ;;
-        4) install_konsole ;;
-        5) install_pot_desktop ;;
-        6) install_geany ;;
-        7) install_windsurf ;;
-        8) install_pdfarranger ;;
-        9) install_spacefm ;;
-        10) install_flatpak ;;
-        11) install_ab_download_manager ;;
-        12) install_localsend ;;
-        13) 
-            install_docker_and_docker_compose
-            install_brave
-            install_tabby
-            install_konsole
-            install_pot_desktop
-            install_geany
-            install_windsurf
-            install_pdfarranger
-            install_spacefm
-            install_flatpak
-            install_ab_download_manager
-            install_localsend
+# 函数：安装 cheat.sh
+install_cheatsh() {
+  # 检查并安装依赖
+  local dependencies=("rlwrap" "curl")
+  if ! check_and_install_dependencies "${dependencies[@]}"; then
+      log 3 "安装依赖失败"
+      return 1
+  fi
+
+  # 检查是否已安装
+  if command -v cht.sh &> /dev/null; then
+      log 1 "cheat.sh 已安装"
+      return 0
+  fi
+
+  # 确保目标目录存在
+  mkdir -p ~/.local/bin
+
+  # 安装主程序
+  if ! curl -s https://cht.sh/:cht.sh > ~/.local/bin/cht.sh || ! chmod +x ~/.local/bin/cht.sh; then
+      log 3 "下载或安装 cht.sh 失败"
+      rm -f ~/.local/bin/cht.sh
+      return 1
+  fi
+
+  # 添加到 PATH（如果需要）
+  if ! echo $PATH | grep -q "$HOME/.local/bin"; then
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+      export PATH="$HOME/.local/bin:$PATH"
+  fi
+
+  # 验证主程序安装
+  if ! command -v cht.sh &> /dev/null; then
+      log 3 "cht.sh 安装失败"
+      rm -f ~/.local/bin/cht.sh
+      return 1
+  fi
+
+  # 验证主程序是否可执行
+  if ! cht.sh --help &>/dev/null; then
+      log 3 "cht.sh 执行测试失败"
+      rm -f ~/.local/bin/cht.sh
+      return 1
+  fi
+
+  # 创建目录
+  if ! mkdir -p ~/.bash.d || ! mkdir -p ~/.zsh.d; then
+      log 3 "创建补全目录失败"
+      rm -f ~/.local/bin/cht.sh
+      return 1
+  fi
+
+  # 设置 Bash 补全
+  if ! curl -s https://cheat.sh/:bash_completion > ~/.bash.d/cht.sh; then
+      log 3 "下载 Bash 补全脚本失败"
+      rm -f ~/.local/bin/cht.sh
+      rm -rf ~/.bash.d/cht.sh
+      return 1
+  fi
+  
+  if ! chmod +x ~/.bash.d/cht.sh; then
+      log 3 "设置 Bash 补全脚本权限失败"
+      rm -f ~/.local/bin/cht.sh
+      rm -rf ~/.bash.d/cht.sh
+      return 1
+  fi
+
+  # 验证 Bash 补全文件
+  if [ ! -s ~/.bash.d/cht.sh ] || ! grep -q "complete.*cht.sh" ~/.bash.d/cht.sh; then
+      log 3 "Bash 补全脚本内容无效"
+      rm -f ~/.local/bin/cht.sh
+      rm -rf ~/.bash.d/cht.sh
+      return 1
+  fi
+
+  # 检查并创建 .bashrc
+  touch ~/.bashrc 2>/dev/null || true
+  if [ ! -f ~/.bashrc ]; then
+      log 3 ".bashrc 文件不存在且无法创建"
+      rm -f ~/.local/bin/cht.sh
+      rm -rf ~/.bash.d/cht.sh
+      return 1
+  fi
+
+  if ! grep -q ". ~/.bash.d/cht.sh" ~/.bashrc; then
+      if ! echo ". ~/.bash.d/cht.sh" >> ~/.bashrc; then
+          log 3 "添加 Bash 补全配置到 .bashrc 失败"
+          rm -f ~/.local/bin/cht.sh
+          rm -rf ~/.bash.d/cht.sh
+          return 1
+      fi
+  fi
+
+  # 设置 ZSH 补全
+  if ! curl -s https://cheat.sh/:zsh > ~/.zsh.d/_cht; then
+      log 3 "下载 ZSH 补全脚本失败"
+      rm -f ~/.local/bin/cht.sh
+      rm -rf ~/.bash.d/cht.sh ~/.zsh.d/_cht
+      return 1
+  fi
+
+  if ! chmod +x ~/.zsh.d/_cht; then
+      log 3 "设置 ZSH 补全脚本权限失败"
+      rm -f ~/.local/bin/cht.sh
+      rm -rf ~/.bash.d/cht.sh ~/.zsh.d/_cht
+      return 1
+  fi
+
+  # 验证 ZSH 补全文件
+  if [ ! -s ~/.zsh.d/_cht ] || ! grep -q "#compdef.*cht.sh" ~/.zsh.d/_cht; then
+      log 3 "ZSH 补全脚本内容无效"
+      rm -f ~/.local/bin/cht.sh
+      rm -rf ~/.bash.d/cht.sh ~/.zsh.d/_cht
+      return 1
+  fi
+
+  # 检查并创建 .zshrc
+  touch ~/.zshrc 2>/dev/null || true
+  if [ ! -f ~/.zshrc ]; then
+      log 3 ".zshrc 文件不存在且无法创建"
+      rm -f ~/.local/bin/cht.sh
+      rm -rf ~/.bash.d/cht.sh ~/.zsh.d/_cht
+      return 1
+  fi
+
+  if ! grep -q "fpath=(~/.zsh.d/ \$fpath)" ~/.zshrc; then
+      if ! echo 'fpath=(~/.zsh.d/ $fpath)' >> ~/.zshrc; then
+          log 3 "添加 ZSH 补全配置到 .zshrc 失败"
+          rm -f ~/.local/bin/cht.sh
+          rm -rf ~/.bash.d/cht.sh ~/.zsh.d/_cht
+          return 1
+      fi
+  fi
+
+  log 1 "cheat.sh 安装完成，包括 Bash 和 ZSH 的 Tab 补全功能"
+  log 1 "请重新打开终端或执行 'source ~/.bashrc'（Bash）或 'source ~/.zshrc'（ZSH）以启用补全功能"
+  log 1 "使用方法：cht.sh 命令 (例如 cht.sh curl)"
+  return 0
+}
+
+# 卸载 cheat.sh
+uninstall_cheatsh() {
+  log 1 "开始卸载 cheat.sh...检查是否已安装"
+  if ! command -v cht.sh &> /dev/null; then
+      log 1 "cheat.sh 未安装"
+      return 0
+  fi
+
+  log 1 "卸载 cheat.sh..."
+  # 删除主程序
+  if ! rm ~/.local/bin/cht.sh; then
+      log 3 "删除 cheat.sh 主程序失败"
+      return 1
+  fi
+  log 1 "已删除 cheat.sh 主程序"
+  log 1 "正在删除补全..."
+  # 删除 Bash 补全
+  if [ -f ~/.bash.d/cht.sh ]; then
+      if ! rm ~/.bash.d/cht.sh; then
+          log 3 "删除 Bash 补全失败"
+          return 1
+      fi
+  fi
+
+  # 删除 ZSH 补全
+  if [ -f ~/.zsh.d/_cht ]; then
+      if ! rm ~/.zsh.d/_cht; then
+          log 3 "删除 ZSH 补全失败"
+          return 1
+      fi
+  fi
+
+  log 1 "cheat.sh 卸载成功"
+  return 0
+}
+
+# 函数：安装 eg
+install_eg() {
+  # 检查是否已安装
+  if command -v eg &> /dev/null; then
+      log 1 "eg 已安装"
+      return 0
+  fi
+
+  # 检查 Homebrew
+  if ! command -v brew &> /dev/null; then
+      log 3 "请先安装 Homebrew"
+      return 1
+  fi
+
+  brew install eg-examples
+  log 1 "eg 安装完成。使用方法：eg 命令 (例如 eg curl)"
+}
+
+# 函数：安装 angrysearch
+install_angrysearch() {
+    # 检查并安装依赖
+    local dependencies=("wget")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装依赖失败"
+        return 1
+    fi
+
+    # 检查是否已安装
+    if command -v angrysearch &> /dev/null; then
+        log 1 "angrysearch 已安装"
+        return 0
+    fi
+
+    cd ~/Downloads
+    wget https://github.com/DoTheEvo/ANGRYsearch/archive/refs/tags/v1.0.4.tar.gz
+    tar -zxvf v1.0.4.tar.gz -C ~/Apps --overwrite
+    cd ~/Apps/ANGRYsearch-1.0.4
+    sudo ./install.sh
+    log 1 "angrysearch 安装完成"
+}
+
+# 函数：安装 WPS Office
+install_wps() {
+    # 检查并安装依赖
+    local dependencies=("wget")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装依赖失败"
+        return 1
+    fi
+
+    # 检查是否已安装
+    if dpkg -l | grep -q "^ii\s*wps-office"; then
+        log 1 "WPS Office 已安装"
+        return 0
+    fi
+
+    cd ~/Downloads
+    wget https://wps-linux-personal.wpscdn.cn/wps/download/ep/Linux2019/11664/wps-office_11.1.0.11664_amd64.deb
+    sudo dpkg -i wps-office_11.1.0.11664_amd64.deb
+    sudo apt-mark hold wps-office  # 阻止 WPS 自动更新
+    log 1 "WPS Office 安装完成。已阻止自动更新，请手动更新到稳定版本"
+}
+
+# 函数：安装 Plank 快捷启动器
+install_plank() {
+    # 检查是否已安装
+    if dpkg -l | grep -q "^ii\s*plank"; then
+        log 1 "Plank 已安装"
+        return 0
+    fi
+
+    # 检查并安装依赖
+    local dependencies=("plank")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 Plank 失败"
+        return 1
+    fi
+
+    log 1 "Plank 快捷启动器安装完成"
+}
+
+# 函数：安装 v2rayA
+install_v2raya() {
+    read -p "请选择安装方法 (1: 使用脚本, 2: 使用软件源): " method
+    case $method in
+        1)
+            # 检查并安装依赖
+            local dependencies=("curl")
+            if ! check_and_install_dependencies "${dependencies[@]}"; then
+                log 3 "安装依赖失败"
+                return 1
+            fi
+
+            curl -Ls https://mirrors.v2raya.org/go.sh | sudo bash
+            sudo systemctl disable v2ray --now
+            log 1 "v2rayA (脚本安装) 完成。systemd 服务已禁用"
             ;;
-        21) uninstall_docker_and_docker_compose ;;
-        22) uninstall_brave ;;
-        23) uninstall_tabby ;;
-        24) uninstall_konsole ;;
-        25) uninstall_pot_desktop ;;
-        26) uninstall_geany ;;
-        27) uninstall_windsurf ;;
-        28) uninstall_pdfarranger ;;
-        29) uninstall_spacefm ;;
-        30) uninstall_flatpak ;;
-        31) uninstall_ab_download_manager ;;
-        32) uninstall_localsend ;;
-        33) uninstall_telegram ;;
-        0) 
-            log 1 "退出脚本"
-            exit 0 
+        2)
+            # 检查并安装依赖
+            local dependencies=("wget")
+            if ! check_and_install_dependencies "${dependencies[@]}"; then
+                log 3 "安装依赖失败"
+                return 1
+            fi
+
+            wget -qO - https://apt.v2raya.org/key/public-key.asc | sudo tee /etc/apt/trusted.gpg.d/v2raya.asc
+            echo "deb https://apt.v2raya.org/ v2raya main" | sudo tee /etc/apt/sources.list.d/v2raya.list
+            apt update && apt install -y v2raya
+            log 1 "v2rayA (软件源安装) 完成"
             ;;
-        *)
-            log 3 "无效的选项，请重新选择"
+        *) 
+            log 3 "无效的选项"
+            return 1
             ;;
     esac
 }
-
-# 主循环
-main() {
-    clear
-    log "./logs/901.log" 1 "第一条消息，同时设置日志文件"
-    log 1 "日志记录在./logs/901.log"
-
-    # 系统更新，分开执行并检查错误
-    log 1 "更新系统软件包列表..."
-    if ! sudo apt update; then
-        log 3 "更新软件包列表失败"
-        return 1
-    fi
-
-    log 1 "请先升级系统软件包..."
-    if ! sudo apt upgrade -y; then
-        log 3 "升级软件包失败"
-        return 1
-    fi
-
-    # 主循环
-    while true; do
-        show_menu
-        handle_menu
-        echo
-        read -p "按Enter键继续..."
-    done
-}
-
-# 如果脚本被直接运行而不是被source，则执行main函数
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main
-fi
-
