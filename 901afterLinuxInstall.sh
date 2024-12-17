@@ -191,7 +191,6 @@ function uninstall_plank() {
 
 # 函数：安装 angrysearch 类似everything的快速查找工具
 function install_angrysearch() {
-    set -x
     # 检测是否已安装
     if check_if_installed "angrysearch"; then
         # 获取本地版本
@@ -207,6 +206,9 @@ function install_angrysearch() {
         
         # 比较版本号，检查本地版本是否包含远程版本
         if [[ "$local_version" == *"$remote_version"* ]]; then
+            # 如果远程本地版本包含远程版本，则说明是最新版本。例如本地1.0.4.1，远程1.0.4，说明已经是最新版
+            # 例如本地是1.0.4.1，远程是1.0.5，说明是最新版本
+            # 第壹次安装时，两者肯定时相同的，后面只有远程的版本号更新过，才会出现不一致。则只可能说明有新版了。
             log 1 "已经是最新版本，无需更新"
             return 0
         fi
@@ -242,7 +244,6 @@ function install_angrysearch() {
     fi
     
     return 1
-    set +x
 }
 
 # 函数：卸载 angrysearch 类似everything的快速查找工具
@@ -1982,7 +1983,7 @@ show_menu() {
     green "73. 卸载 eg 命令行命令示例"
     green "74. 卸载 eggs 命令行系统备份"
     green "75. 卸载 v2rayA 设置网络代理"
-    yellow "79. 卸载全部68-73软件"
+    yellow "79. 卸载全部70-75软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "卸载软件库工具:"
@@ -1990,7 +1991,7 @@ show_menu() {
     green "81. 卸载 Snap 和 Snapstore 软件库"
     green "82. 卸载 Flatpak 软件库"
     green "83. 卸载 Homebrew 软件库"
-    yellow "89. 卸载全部75-78软件"
+    yellow "89. 卸载全部80-83软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 
