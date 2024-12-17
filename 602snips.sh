@@ -669,3 +669,7 @@ function install_krusader() {
     
     return 0
 }
+
+        # 获取压缩包中的目录名
+        extracted_dir=$(tar -tzf ${LATEST_VERSION}.tar.gz | head -1 | cut -f1 -d"/")
+        log 1 "解压目录名: ${extracted_dir}"

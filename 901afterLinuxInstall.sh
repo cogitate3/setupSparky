@@ -104,17 +104,25 @@ show_package_dependencies() {
 check_if_installed() {
     local package_name="$1"
     
-    # 先用dpkg检查
+    # 检查常见的包管理器
     if dpkg -l | grep -q "^ii\s*$package_name"; then
-        return 0  # 已安装
+        return 0
     fi
     
-    # 如果dpkg检查失败，再用command检查
+    if snap list 2>/dev/null | grep -q "^$package_name "; then
+        return 0
+    fi
+    
+    if flatpak list 2>/dev/null | grep -q "$package_name"; then
+        return 0
+    fi
+    
+    # 最后检查命令是否存在
     if command -v "$package_name" &> /dev/null; then
-        return 0  # 已安装
+        return 0
     fi
     
-    return 1  # 未安装
+    return 1
 }
 
 # 过程函数：统一获取软件版本的函数
@@ -173,7 +181,7 @@ function uninstall_plank() {
     fi
 
     # 卸载 Plank
-    if ! sudo apt remove -y plank; then
+    if ! sudo apt purge -y plank; then
         log 3 "卸载 Plank 失败"
         return 1
     fi
@@ -183,141 +191,76 @@ function uninstall_plank() {
 
 # 函数：安装 angrysearch 类似everything的快速查找工具
 function install_angrysearch() {
-    # 检查并安装依赖
-    local dependencies=(
-        "python3"
-        "python3-pyqt5"
-        "python3-setuptools"
-        "python3-pip"
-        "locate"
-    )
-    
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装依赖失败"
-        return 1
-    fi
-
-    log 1 “检查是否已安装”
-    if [ -x "$(command -v angrysearch)" ]; then
-        log 1 "检测到 AngrySearch 已安装，检查更新..."
-
-        # 获取本地版本号
-        local local_version="1.0.4" # 先写死，以后再改
-        # $(angrysearch --version | awk '{print $2}')
-
-        # 获取远程最新版本
-        if ! get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"; then
-            log 3 "获取远程版本信息失败"
-            return 1
-        fi
+    # 检测是否已安装
+    if check_if_installed "angrysearch"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
+        log 1 "angrysearch已安装，本地版本: $local_version"
         
+        # 获取远程最新版本
+        get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
         # 从LATEST_VERSION中提取版本号（去掉v前缀）
         remote_version=${LATEST_VERSION#v}
-        log 1 "当前版本: $local_version, 远程最新版本: $remote_version"
+        log 1 "远程最新版本: $remote_version"
         
-        # 比较版本号，检查本地版本是否包含远程版本. 最初安装的是最新版，两者比如一致。不一致只可能是远程版本更新
+        # 比较版本号，检查本地版本是否包含远程版本
         if [[ "$local_version" == *"$remote_version"* ]]; then
             log 1 "已经是最新版本，无需更新"
             return 0
         fi
-        
-        log 1 "发现新版本，准备更新..."
+        log 1 "发现新版本，开始更新..."
+    else
+        log 1 "angrysearch未安装，开始安装..."
+        LATEST_VERSION="v1.0.4"
     fi
-
-        log 1 "检测到 AngrySearch 未安装，开始安装..."
-        if ! get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"; then
-            log 3 "获取远程版本信息失败"
-            return 1
-        fi
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        angrysearch_download_link="https://github.com/DoTheEvo/ANGRYsearch/archive/refs/tags/${LATEST_VERSION}.tar.gz"
-        log 1 "下载链接: ${angrysearch_download_link}"
-        # 其他从GitHub下载的软件函数中此处是${DOWNLOAD_URL}
-        install_package ${angrysearch_download_link}
-    if [ $? -eq 2 ]; then
-            log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
-            log 1 "解压并手动安装"
-        local install_dir="/tmp/angrysearch_install" 
-        rm -rf "$install_dir"  # 清理可能存在的旧目录
-        mkdir -p "$install_dir"  # 创建新的临时目录
-        
-        # 解压文件
-        log 1 "正在解压文件到临时目录..."
-        if ! tar -vxzf "${ARCHIVE_FILE}" -C "$install_dir" 2>&1; then
-            log 3 "解压失败，请检查下载文件完整性"
-            rm -rf "$install_dir"
-            return 1
-        fi
-
-        # 检查是否存在ANGRYsearch-*目录
-        local angry_dir=$(find "$install_dir" -maxdepth 1 -type d -name "ANGRYsearch-*" | head -n 1)
-        if [ -z "$angry_dir" ]; then
-            log 3 "解压后未找到 ANGRYsearch 程序目录"
-            rm -rf "$install_dir"
-            return 1
-        else
-            log 1 "找到 ANGRYsearch 程序目录：$angry_dir"
-        fi
-
-        # 执行安装脚本
-        log 1 "开始执行安装脚本..."
-        chmod +x "$angry_dir/install.sh"
-        cd $angry_dir
-        if ! sudo "$angry_dir/install.sh"; then
-            log 3 "安装脚本执行失败，请检查权限或系统兼容性"
-            rm -rf "$install_dir"
-            return 1
-        fi
-        # sudo install -Dm755 angrysearch.py "/usr/share/angrysearch/angrysearch.py"
-        # sudo install -Dm755 angrysearch_update_database.py "/usr/share/angrysearch/angrysearch_update_database.py"
-        # sudo install -Dm644 angrysearch.desktop "/usr/share/angrysearch/angrysearch.desktop"
-        # sudo install -Dm644 angrysearch.svg "/usr/share/angrysearch/angrysearch.svg"
-        # sudo install -Dm644 scandir.py "/usr/share/angrysearch/scandir.py"
-        # sudo install -Dm644 resource_file.py "/usr/share/angrysearch/resource_file.py"
-        # sudo install -Dm644 qdarkstylesheet.qss "/usr/share/angrysearch/qdarkstylesheet.qss"
-        # sudo 
-        # sudo ln -sf "/usr/share/angrysearch/angrysearch.py" "/usr/bin/angrysearch"
-        # sudo ln -sf "/usr/share/angrysearch/angrysearch.svg" "/usr/share/pixmaps"
-        # sudo ln -sf "/usr/share/angrysearch/angrysearch.desktop" "/usr/share/applications"
-        
-        log 1 "AngrySearch 安装成功！使用 sudo angrysearch 启动程序"
-        
-        # 清理临时文件
-    # rm -rf "$install_dir"
-    # rm -f "${ARCHIVE_FILE}"
     
-    # 验证安装
-    # if [ -x "$(command -v angrysearch)" ]; then
-    #     log 1 "AngrySearch 安装成功！使用 angrysearch 命令启动"
-    #     return 0
-    # else
-    #     log 3 "angrysearch 安装验证未通过，安装失败"
-    #     return 1
-    # fi
+    # 获取下载链接
+    DOWNLOAD_URL="https://github.com/DoTheEvo/ANGRYsearch/archive/refs/tags/${LATEST_VERSION}.tar.gz"
+    angrysearch_download_link=${DOWNLOAD_URL}
+    
+    # 下载并安装
+    install_package ${angrysearch_download_link}
+    if [ $? -eq 2 ]; then
+        # 获取压缩包中的目录名
+        extracted_dir=$(tar -tzf ${LATEST_VERSION}.tar.gz | head -1 | cut -f1 -d"/")
+        log 1 "解压目录名: ${extracted_dir}"
+        
+        tar -zxvf ${LATEST_VERSION}.tar.gz -C ~/Downloads
+        cd ~/Downloads/${extracted_dir}
+        sudo ./install.sh
+        
+        # 验证安装结果
+        if check_if_installed "angrysearch"; then
+            log 1 "angrysearch 安装完成"
+            return 0
+        else
+            log 3 "angrysearch 安装失败"
+            return 1
+        fi
     fi
-} 
+    
+    return 1
+}
 
 # 函数：卸载 angrysearch 类似everything的快速查找工具
 function uninstall_angrysearch() {
     log 1 “检查是否已安装”
     if ! check_if_installed "angrysearch"; then
-        log 1 "AngrySearch 未安装"
+        log 1 "angrysearch未安装"
         return 0
     fi
 
     # 卸载 AngrySearch
     sudo rm -rfv $(find /usr -path "*angrysearch*")
-    log 1 "AngrySearch 卸载完成"
+    log 1 "angrysearch卸载完成"
 }
 
 # 函数：安装 Pot-desktop 翻译工具
 function install_pot_desktop() {
    # 检测是否已安装
-    if check_if_installed "pot"; then
+    if check_if_installed "pot-desktop"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*pot" | awk '{print $3}')
+        local_version=$(dpkg -l | grep  "^ii\s*pot-desktop" | awk '{print $3}')
         log 1 "pot-desktop已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -353,13 +296,13 @@ function install_pot_desktop() {
 # 卸载pot-desktop的函数
 function uninstall_pot_desktop() {
     log 1 “检查是否已安装”
-    if ! check_if_installed pkg_name; then
+    if ! check_if_installed "pot-desktop"; then
         log 1 "pot-desktop未安装"
         return 0
     fi
 
     # 获取实际的包名
-    pkg_name=$(dpkg -l | grep -i pot | awk '{print $2}')
+    pkg_name=$(dpkg -l | grep -i pot-desktop | awk '{print $2}')
     if [ -z "$pkg_name" ]; then
         log 3 "未找到已安装的pot-desktop"
     fi
@@ -420,7 +363,7 @@ function uninstall_geany() {
     fi
 
     # 卸载 Geany
-    if ! sudo apt remove -y geany geany-plugins geany-plugin-markdown; then
+    if ! sudo apt purge -y geany geany-plugins geany-plugin-markdown; then
         log 3 "卸载 Geany 失败"
         return 1
     fi
@@ -434,24 +377,65 @@ function uninstall_geany() {
 }
 # 函数：安装 stretchly 定时休息桌面
 function install_stretchly() {
-    log 1 "开始安装stretchly..."
-    
-    # 更新软件包列表并安装stretchly
-    log 1 "更新软件包列表并安装stretchly..."
-    sudo apt update
-    if ! sudo apt install -y stretchly; then
-        log 3 "安装stretchly失败"
-        return 1
-    fi
-    
-    # 验证安装
+    # 检测是否已安装
     if check_if_installed "stretchly"; then
-        log 1 "stretchly安装成功"
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*stretchly" | awk '{print $3}')
+        log 1 "stretchly已安装，本地版本: $local_version"
+        
+        # 获取远程最新版本
+        get_download_link "https://github.com/hovancik/stretchly/releases"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        
+        # 比较版本号，检查本地版本是否包含远程版本
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 1 "已经是最新版本，无需更新，返回主菜单"
+            return 0
+        else
+            log 1 "发现新版本，开始更新..."
+            # 获取最新的下载链接,要先将之前保存的下载链接清空
+            DOWNLOAD_URL=""
+            get_download_link "https://github.com/hovancik/stretchly/releases" ".*amd64\.deb$"
+            # .*：表示任意字符（除换行符外）出现零次或多次。
+            # linux-x86-64：匹配字符串“linux-x86-64”。
+            # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
+            # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
+            # $：表示字符串的结尾。
+            stretchly_download_link=${DOWNLOAD_URL}
+            install_package ${stretchly_download_link}
+        fi
         return 0
     else
-        log 3 "stretchly安装验证失败"
-        return 1
+        # 获取最新的下载链接,要先将之前保存的下载链接清空
+        log 1 "开始安装stretchly..."
+        DOWNLOAD_URL=""
+        get_download_link "https://github.com/hovancik/stretchly/releases" ".*amd64\.deb$"
+        # .*：表示任意字符（除换行符外）出现零次或多次。
+        # linux-x86-64：匹配字符串“linux-x86-64”。
+        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
+        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
+        # $：表示字符串的结尾。
+        stretchly_download_link=${DOWNLOAD_URL}
+        install_package ${stretchly_download_link}
     fi
+}
+
+function uninstall_stretchly() {
+    log 1 “检查是否已安装”
+    if ! check_if_installed "stretchly"; then
+        log 1 "stretchly未安装"
+        return 0
+    else
+        log 1 "找到stretchly包名: ${stretchly}"
+        log 1 "卸载stretchly..."
+        sudo apt-get remove stretchly
+        sudo apt-get autoremove
+        sudo apt-get autoclean
+        log 1 "stretchly卸载完成"
+    fi
+
 }
 
 # 函数：安装和更新 ab-download-manager 下载工具
@@ -514,7 +498,7 @@ function uninstall_ab_download_manager() {
 
     log 1 "开始卸载ab-download-manager..."
     
-    if ! sudo apt remove -y abdownloadmanager; then
+    if ! sudo apt purge -y abdownloadmanager; then
         log 3 "卸载ab-download-manager失败"
         return 1
     fi
@@ -543,7 +527,7 @@ function install_localsend() {
         
         # 比较版本号，检查本地版本是否包含远程版本
         if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
+            log 1 "已经是最新版本，无需更新"
             return 0
         else
             log 1 "发现新版本，开始更新..."
@@ -579,7 +563,7 @@ function uninstall_localsend() {
     fi
 
     log 1 "开始卸载localsend..."
-    sudo apt remove -y localsend
+    sudo apt purge -y localsend
     if [ $? -ne 0 ]; then
         log 3 "卸载localsend失败"
         return 1
@@ -632,7 +616,7 @@ function uninstall_spacefm() {
     fi
 
     log 1 "开始卸载spacefm..."
-    sudo apt remove -y spacefm
+    sudo apt purge -y spacefm
     if [ $? -ne 0 ]; then
         log 3 "卸载spacefm失败"
         return 1
@@ -680,7 +664,7 @@ function uninstall_krusader() {
     
     # 卸载 Krusader
     log 1 "卸载 Krusader..."
-    sudo apt remove -y krusader
+    sudo apt purge -y krusader
     if [ $? -ne 0 ]; then
         log 3 "卸载 Krusader 失败"
         return 1
@@ -728,7 +712,7 @@ function uninstall_konsole() {
     
     # 卸载 Konsole
     log 1 "卸载 Konsole..."
-    sudo apt remove -y konsole
+    sudo apt purge -y konsole
     if [ $? -ne 0 ]; then
         log 3 "卸载 Konsole 失败"
         return 1
@@ -759,7 +743,15 @@ function install_tabby() {
             log 1 "已经是最新版本，无需更新，返回主菜单"
             return 0
         else
-            log 1 "发现新版本，开始更新..."
+            log 1 "发现新版本，开始下载安装..."
+            # 获取最新的下载链接,要先将之前保存的下载链接清空
+            DOWNLOAD_URL=""
+            get_download_link "https://github.com/Eugeny/tabby/releases" ".*linux-x64.*\.deb$"
+            # .*：表示任意字符（除换行符外）出现零次或多次。
+            # linux-x86-64：匹配字符串“linux-x86-64”。
+            # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
+            # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
+            # $：表示字符串的结尾。
             tabby_download_link=${DOWNLOAD_URL}
             install_package ${tabby_download_link}
         fi
@@ -780,24 +772,26 @@ function install_tabby() {
 
 # 函数：卸载 Tabby 可同步终端
 function uninstall_tabby() {
-    log 1 "开始卸载Tabby..."
-    
-    # 获取实际的包名
-    pkg_name=$(dpkg -l | grep -i tabby | awk '{print $2}')
-    if [ -z "$pkg_name" ]; then
-        log 3 "未找到已安装的Tabby"
-        return 1
-    fi
-    
-    log 1 "找到Tabby包名: ${pkg_name}"
-    if sudo dpkg -r "$pkg_name"; then
-        log 1 "Tabby卸载成功"
-        # 清理依赖
-        sudo apt autoremove -y
+    # 检测是否已安装
+    if ! check_if_installed "tabby"; then
+        log 1 "Tabby未安装"
         return 0
     else
-        log 3 "Tabby卸载失败"
-        return 1
+        log 1 "开始卸载Tabby..."
+        # 获取实际的包名
+        pkg_name=$(dpkg -l | grep -i tabby | awk '{print $2}')
+        if [ -z "$pkg_name" ]; then
+            log 3 "未找到已安装的Tabby"
+            return 1
+        fi
+        log 1 "找到Tabby包名: ${pkg_name}"
+        if sudo apt purge -y"$pkg_name"; then
+            log 1 "Tabby卸载成功"
+            return 0
+        else
+            log 3 "Tabby卸载失败"
+            return 1
+        fi
     fi
 }
 
@@ -1038,7 +1032,7 @@ function uninstall_windsurf() {
     fi
     
     # 卸载Windsurcd source
-    if ! sudo apt remove -y windsurf; then
+    if ! sudo apt purge -y windsurf; then
         log 3 "卸载Windsurf失败"
         return 1
     fi
@@ -1139,43 +1133,7 @@ function uninstall_wps() {
 
 
 # 命令行增强工具
-# 函数：安装和更新 micro 命令行编辑器
-function install_neofetch() {
-    log 1 "检查是否已安装"
-    if check_if_installed "neofetch"; then
-        log 1 "neofetch已安装"
-        version=$(get_package_version "neofetch" "neofetch --version")
-        log 1 "已安装neofetch版本: $version"
-        return 0
-    fi
-
-    log 1 "开始安装neofetch..."
-    sudo apt-get install -y neofetch
-    if [ $? -ne 0 ]; then
-        log 3 "安装neofetch失败"
-        return 1
-    fi
-    log 1 "neofetch安装成功"
-    return 0
-}
-
-function uninstall_neofetch() {
-    log 1 "检查是否已安装"
-    if ! check_if_installed "neofetch"; then
-        log 1 "neofetch未安装"
-        return 0
-    fi
-
-    log 1 "开始卸载neofetch..."
-    sudo apt-get remove -y neofetch
-    if [ $? -ne 0 ]; then
-        log 3 "卸载neofetch失败"
-        return 1
-    fi
-    log 1 "neofetch卸载成功"
-    return 0
-}
-
+# 函数：pipx安装 micro 命令行编辑器
 function install_micro() {
     log 1 检查是否已经安装了micro
     if check_if_installed "micro"; then
@@ -1383,7 +1341,7 @@ function uninstall_micro() {
     log 1 "micro 编辑器卸载完成"
 }
 
-# 函数：安装 cheat.sh 命令行命令示例工具
+# 函数：pipx安装 cheat.sh 命令行命令示例工具
 function install_cheatsh() {
   # 检查并安装依赖
   local dependencies=("rlwrap" "curl")
@@ -1559,7 +1517,7 @@ function uninstall_cheatsh() {
   return 0
 }
 
-# 函数：安装 eg 命令行命令示例工具
+# 函数：pipx安装 eg 命令行命令示例工具
 function install_eg() {
   log 1 “检查是否已安装”
   if check_if_installed "eg"; then
@@ -1589,7 +1547,7 @@ function uninstall_eg() {
   return 0
 }
 
-# 函数：安装 eggs 命令行系统备份
+# 函数：pipx安装 eggs 命令行系统备份
 # function install_eggs() {
 #    
 # }
@@ -1599,7 +1557,7 @@ function uninstall_eg() {
 #    
 # }
 
-# 函数：安装 v2rayA 网络代理设置
+# 函数：pipx安装 v2rayA 网络代理设置
 function install_v2raya() {
     read -p "请选择安装方法 (1: 使用脚本, 2: 使用软件源): " method
     case $method in
@@ -1642,7 +1600,7 @@ function install_v2raya() {
 
 
 ## 添加各种软件库
-# 函数：安装 Flatpak 软件库
+# 函数：pipx安装 Flatpak 软件库
 function install_flatpak() {
     log 1 "开始安装Flatpak..."
 
@@ -1708,7 +1666,7 @@ function uninstall_flatpak() {
 
     # 卸载Flatpak和相关插件
     log 1 "卸载Flatpak及相关插件..."
-    if ! sudo apt remove -y flatpak gnome-software-plugin-flatpak plasma-discover-backend-flatpak; then
+    if ! sudo apt purge -y flatpak gnome-software-plugin-flatpak plasma-discover-backend-flatpak; then
         log 3 "卸载Flatpak失败"
         return 1
     fi
@@ -1728,7 +1686,7 @@ function uninstall_flatpak() {
     return 0
 }
 
-# 函数：安装 snap和snapstore 软件库
+# 函数：pipx安装 snap和snapstore 软件库
 # function install_snap() {    
 # }
 
@@ -1736,7 +1694,7 @@ function uninstall_flatpak() {
 # function uninstall_snap() {    
 # }
 
-# 函数：安装 Homebrew 
+# 函数：pipx安装 Homebrew 
 function install_homebrew() {
     install_common_dependencies
     # Check if Homebrew is already installed
@@ -1789,7 +1747,7 @@ function uninstall_homebrew() {
     fi
 }
 
-# 函数：安装 docker和docker-compose 虚拟化平台
+# 函数：pipx安装 docker和docker-compose 虚拟化平台
 function install_docker_and_docker_compose() {
     log 1 "开始安装Docker和Docker Compose"
     
@@ -2053,16 +2011,79 @@ handle_menu() {
         8) install_spacefm ;;
         9) install_krusader ;;
         10) install_konsole ;;
-        11) install_plank
-            install_angrysearch
-            install_Pot-desktop
-            install_geany
-            install_stretchly
-            install_ab_download_manager
-            install_localsend
-            install_spacefm
-            install_krusader
-            install_konsole ;;
+        11)
+            # 创建数组存储安装结果
+            declare -A install_results
+            local apps=("plank" "angrysearch" "Pot-desktop" "geany" "stretchly" "ab-download-manager" "localsend" "spacefm" "krusader" "konsole")
+            
+            # 执行安装并记录结果
+            if install_plank; then
+                install_results["plank"]="成功"
+            else
+                install_results["plank"]="失败"
+            fi
+            
+            if install_angrysearch; then
+                install_results["angrysearch"]="成功"
+            else
+                install_results["angrysearch"]="失败"
+            fi
+            
+            if install_pot_desktop; then
+                install_results["Pot-desktop"]="成功"
+            else
+                install_results["Pot-desktop"]="失败"
+            fi
+            
+            if install_geany; then
+                install_results["geany"]="成功"
+            else
+                install_results["geany"]="失败"
+            fi
+            
+            if install_stretchly; then
+                install_results["stretchly"]="成功"
+            else
+                install_results["stretchly"]="失败"
+            fi
+            
+            if install_ab_download_manager; then
+                install_results["ab-download-manager"]="成功"
+            else
+                install_results["ab-download-manager"]="失败"
+            fi
+            
+            if install_localsend; then
+                install_results["localsend"]="成功"
+            else
+                install_results["localsend"]="失败"
+            fi
+            
+            if install_spacefm; then
+                install_results["spacefm"]="成功"
+            else
+                install_results["spacefm"]="失败"
+            fi
+            
+            if install_krusader; then
+                install_results["krusader"]="成功"
+            else
+                install_results["krusader"]="失败"
+            fi
+            
+            if install_konsole; then
+                install_results["konsole"]="成功"
+            else
+                install_results["konsole"]="失败"
+            fi
+            
+            # 打印安装结果汇总
+            echo -e "\n=== 软件安装结果汇总 ==="
+            for app in "${apps[@]}"; do
+                printf "%-20s: %s\n" "$app" "${install_results[$app]}"
+            done
+            echo "======================="
+            ;;
         
         # 桌面系统进阶常用软件
         20) install_tabby ;;
