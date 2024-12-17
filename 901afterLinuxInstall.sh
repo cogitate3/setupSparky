@@ -191,10 +191,12 @@ function uninstall_plank() {
 
 # 函数：安装 angrysearch 类似everything的快速查找工具
 function install_angrysearch() {
+    set -x
     # 检测是否已安装
     if check_if_installed "angrysearch"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
+        local_version="1.0.4"
+        # local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
         log 1 "angrysearch已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -211,7 +213,7 @@ function install_angrysearch() {
         log 1 "发现新版本，开始更新..."
     else
         log 1 "angrysearch未安装，开始安装..."
-        LATEST_VERSION="v1.0.4"
+        # LATEST_VERSION="v1.0.4"
     fi
     
     # 获取下载链接
@@ -240,6 +242,7 @@ function install_angrysearch() {
     fi
     
     return 1
+    set +x
 }
 
 # 函数：卸载 angrysearch 类似everything的快速查找工具
