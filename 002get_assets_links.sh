@@ -49,7 +49,9 @@ get_assets_links() {
   fi
 
   # 获取所有 assets 的下载链接，并检查 curl 和 jq 的返回值
-  local download_links_json=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$owner_repo/releases/latest" | grep -q 200 && curl -s "https://api.github.com/repos/$owner_repo/releases/latest" | jq -r '.assets[] | .browser_download_url')
+  local download_links_json=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$owner_repo/releases/latest" | \
+  grep -q 200 && curl -s "https://api.github.com/repos/$owner_repo/releases/latest" | \
+  jq -r '.assets[] | .browser_download_url')
 
   if [ $? -ne 0 ] || [ -z "$download_links_json" ]; then
     log 3 "无法获取下载链接: curl 返回码 $?，链接: $download_links_json"

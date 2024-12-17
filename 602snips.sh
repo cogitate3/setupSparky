@@ -589,3 +589,83 @@ check_github_update_available() {
     log 1 "$package_name 已是最新版本"
     return 1
 }
+
+function uninstall_spacefm() {
+    log 1 "开始检查软件卸载状态..."
+    local packages=("spacefm")
+    local packages_to_remove=()
+    local all_uninstalled=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if check_if_installed "$pkg"; then
+            packages_to_remove+=("$pkg")
+            all_uninstalled=false
+            log 1 "$pkg 已安装，将进行卸载"
+        else
+            log 1 "$pkg 未安装"
+        fi
+    done
+    
+    # 如果所有软件都未安装，直接返回
+    if [ "$all_uninstalled" = true ]; then
+        log 1 "所有软件都未安装，无需操作"
+        return 0
+    fi
+    
+    # 卸载已安装的软件
+    if [ ${#packages_to_remove[@]} -gt 0 ]; then
+        log 1 "开始卸载软件: ${packages_to_remove[*]}"
+        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
+            log 3 "卸载失败: ${packages_to_remove[*]}"
+            return 1
+        fi
+        
+        # 清理配置文件
+        log 1 "清理软件配置..."
+        sudo apt purge -y "${packages_to_remove[@]}"
+        sudo apt autoremove -y
+        
+        log 1 "所有软件卸载成功"
+    fi
+    
+    return 0
+}
+
+# 函数：安装 Krusader 双面板文件管理器
+function install_krusader() {
+    log 1 "开始检查软件安装状态..."
+    local packages=("krusader")
+    local packages_to_install=()
+    local all_installed=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if ! check_if_installed "$pkg"; then
+            packages_to_install+=("$pkg")
+            all_installed=false
+            log 1 "$pkg 未安装，将进行安装"
+        else
+            log 1 "$pkg 已安装"
+        fi
+    done
+    
+    # 如果所有软件都已安装，直接返回
+    if [ "$all_installed" = true ]; then
+        log 1 "所有软件都已安装，无需操作"
+        return 0
+    fi
+    
+    # 安装未安装的软件
+    if [ ${#packages_to_install[@]} -gt 0 ]; then
+        log 1 "开始安装未安装的软件: ${packages_to_install[*]}"
+        sudo apt update
+        if ! sudo apt install -y "${packages_to_install[@]}"; then
+            log 3 "安装失败: ${packages_to_install[*]}"
+            return 1
+        fi
+        log 1 "所有软件安装成功"
+    fi
+    
+    return 0
+}

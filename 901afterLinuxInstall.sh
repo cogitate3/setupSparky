@@ -136,7 +136,7 @@ get_package_version() {
 # 桌面系统增强必备
 # 函数：安装 Plank 快捷启动器
 function install_plank() {
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if check_if_installed "plank"; then
         log 1 "Plank 已安装"
         return 0
@@ -166,7 +166,7 @@ function install_plank() {
 
 # 函数：卸载 Plank 快捷启动器
 function uninstall_plank() {
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if ! check_if_installed "plank"; then
         log 1 "Plank 未安装"
         return 0
@@ -184,101 +184,132 @@ function uninstall_plank() {
 # 函数：安装 angrysearch 类似everything的快速查找工具
 function install_angrysearch() {
     # 检查并安装依赖
-    local dependencies=("wget")
+    local dependencies=(
+        "python3"
+        "python3-pyqt5"
+        "python3-setuptools"
+        "python3-pip"
+        "locate"
+    )
+    
     if ! check_and_install_dependencies "${dependencies[@]}"; then
         log 3 "安装依赖失败"
         return 1
     fi
 
-    # 检查是否已安装
-    if check_if_installed "angrysearch"; then
-        # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
-        log 1 "AngrySearch已安装，本地版本: $local_version"
-        
+    log 1 “检查是否已安装”
+    if [ -x "$(command -v angrysearch)" ]; then
+        log 1 "检测到 AngrySearch 已安装，检查更新..."
+
+        # 获取本地版本号
+        local local_version="1.0.4" # 先写死，以后再改
+        # $(angrysearch --version | awk '{print $2}')
+
         # 获取远程最新版本
-        get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases" ".*\.tar\.gz$"
+        if ! get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"; then
+            log 3 "获取远程版本信息失败"
+            return 1
+        fi
+        
         # 从LATEST_VERSION中提取版本号（去掉v前缀）
         remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
+        log 1 "当前版本: $local_version, 远程最新版本: $remote_version"
         
-        # 比较版本号，检查本地版本是否包含远程版本
+        # 比较版本号，检查本地版本是否包含远程版本. 最初安装的是最新版，两者比如一致。不一致只可能是远程版本更新
         if [[ "$local_version" == *"$remote_version"* ]]; then
             log 1 "已经是最新版本，无需更新"
             return 0
         fi
-        log 1 "发现新版本，开始更新..."
-    else
-        log 1 "开始安装 AngrySearch..."
+        
+        log 1 "发现新版本，准备更新..."
     fi
 
-    angrysearch_download_link=${DOWNLOAD_URL}
-    install_package ${angrysearch_download_link}
+        log 1 "检测到 AngrySearch 未安装，开始安装..."
+        if ! get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"; then
+            log 3 "获取远程版本信息失败"
+            return 1
+        fi
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        angrysearch_download_link="https://github.com/DoTheEvo/ANGRYsearch/archive/refs/tags/${LATEST_VERSION}.tar.gz"
+        log 1 "下载链接: ${angrysearch_download_link}"
+        # 其他从GitHub下载的软件函数中此处是${DOWNLOAD_URL}
+        install_package ${angrysearch_download_link}
     if [ $? -eq 2 ]; then
-        log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
-        log 1 "解压并手动安装"
+            log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
+            log 1 "解压并手动安装"
         local install_dir="/tmp/angrysearch_install" 
         rm -rf "$install_dir"  # 清理可能存在的旧目录
         mkdir -p "$install_dir"  # 创建新的临时目录
         
-        # 检查源文件
-        if [ ! -f "${ARCHIVE_FILE}" ]; then
-            log 3 "压缩包文件 ${ARCHIVE_FILE} 不存在"
-            rm -rf "$install_dir"
-            return 1
-        fi
-
-        log 1 "开始解压 ${ARCHIVE_FILE}..."
-                # -v: 显示解压过程
-                # -x: 解压
-                # -z: gzip格式
-                # -f: 指定文件
-                # 2>&1: 合并标准错误到标准输出
+        # 解压文件
+        log 1 "正在解压文件到临时目录..."
         if ! tar -vxzf "${ARCHIVE_FILE}" -C "$install_dir" 2>&1; then
-            log 3 "解压失败，可能是文件损坏或格式不正确"
-            rm -rf "$install_dir"
-            return 1
-        fi
-
-        # 检查解压结果
-        if [ ! "$(ls -A "$install_dir")" ]; then
-            log 3 "解压后目录为空，解压可能失败"
+            log 3 "解压失败，请检查下载文件完整性"
             rm -rf "$install_dir"
             return 1
         fi
 
         # 检查是否存在ANGRYsearch-*目录
-        if [ ! -d "$install_dir"/ANGRYsearch-* ]; then
-            log 3 "未找到 ANGRYsearch 程序目录"
+        local angry_dir=$(find "$install_dir" -maxdepth 1 -type d -name "ANGRYsearch-*" | head -n 1)
+        if [ -z "$angry_dir" ]; then
+            log 3 "解压后未找到 ANGRYsearch 程序目录"
+            rm -rf "$install_dir"
+            return 1
+        else
+            log 1 "找到 ANGRYsearch 程序目录：$angry_dir"
+        fi
+
+        # 执行安装脚本
+        log 1 "开始执行安装脚本..."
+        chmod +x "$angry_dir/install.sh"
+        cd $angry_dir
+        if ! sudo "$angry_dir/install.sh"; then
+            log 3 "安装脚本执行失败，请检查权限或系统兼容性"
             rm -rf "$install_dir"
             return 1
         fi
-
-        log 1 "解压完成"
-        # 执行ANGRYsearch-*目录下的install.sh
-        chmod +x "$install_dir"/ANGRYsearch-*/install.sh
-        if ! sudo "$install_dir"/ANGRYsearch-*/install.sh; then
-            log 3 "执行安装脚本失败"
-            rm -rf "$install_dir"
-            return 1
-        fi
-        log 1 "安装ANGRYsearch 成功！用sudo angrysearch 启动！"
-    else
-        log 1 "安装ANGRYsearch 成功！用sudo angrysearch 启动！"
-    fi
-
-    # 清理临时文件
-    rm -rf "$install_dir"
-    rm -f "${ARCHIVE_FILE}"
+        # sudo install -Dm755 angrysearch.py "/usr/share/angrysearch/angrysearch.py"
+        # sudo install -Dm755 angrysearch_update_database.py "/usr/share/angrysearch/angrysearch_update_database.py"
+        # sudo install -Dm644 angrysearch.desktop "/usr/share/angrysearch/angrysearch.desktop"
+        # sudo install -Dm644 angrysearch.svg "/usr/share/angrysearch/angrysearch.svg"
+        # sudo install -Dm644 scandir.py "/usr/share/angrysearch/scandir.py"
+        # sudo install -Dm644 resource_file.py "/usr/share/angrysearch/resource_file.py"
+        # sudo install -Dm644 qdarkstylesheet.qss "/usr/share/angrysearch/qdarkstylesheet.qss"
+        # sudo 
+        # sudo ln -sf "/usr/share/angrysearch/angrysearch.py" "/usr/bin/angrysearch"
+        # sudo ln -sf "/usr/share/angrysearch/angrysearch.svg" "/usr/share/pixmaps"
+        # sudo ln -sf "/usr/share/angrysearch/angrysearch.desktop" "/usr/share/applications"
+        
+        log 1 "AngrySearch 安装成功！使用 sudo angrysearch 启动程序"
+        
+        # 清理临时文件
+    # rm -rf "$install_dir"
+    # rm -f "${ARCHIVE_FILE}"
     
     # 验证安装
-    if check_if_installed "angrysearch"; then
-        log 1 "angrysearch 安装成功！"
-        return 0
-    else
-        log 3 "angrysearch 安装失败"
-        return 1
+    # if [ -x "$(command -v angrysearch)" ]; then
+    #     log 1 "AngrySearch 安装成功！使用 angrysearch 命令启动"
+    #     return 0
+    # else
+    #     log 3 "angrysearch 安装验证未通过，安装失败"
+    #     return 1
+    # fi
     fi
+} 
+
+# 函数：卸载 angrysearch 类似everything的快速查找工具
+function uninstall_angrysearch() {
+    log 1 “检查是否已安装”
+    if ! check_if_installed "angrysearch"; then
+        log 1 "AngrySearch 未安装"
+        return 0
+    fi
+
+    # 卸载 AngrySearch
+    sudo rm -rfv $(find /usr -path "*angrysearch*")
+    log 1 "AngrySearch 卸载完成"
 }
 
 # 函数：安装 Pot-desktop 翻译工具
@@ -321,15 +352,18 @@ function install_pot_desktop() {
 
 # 卸载pot-desktop的函数
 function uninstall_pot_desktop() {
-    log 1 "开始卸载pot-desktop..."
-    
+    log 1 “检查是否已安装”
+    if ! check_if_installed pkg_name; then
+        log 1 "pot-desktop未安装"
+        return 0
+    fi
+
     # 获取实际的包名
     pkg_name=$(dpkg -l | grep -i pot | awk '{print $2}')
     if [ -z "$pkg_name" ]; then
         log 3 "未找到已安装的pot-desktop"
-        return 1
     fi
-    
+
     log 1 "找到pot-desktop包名: ${pkg_name}"
     if sudo dpkg -r "$pkg_name"; then
         log 1 "pot-desktop卸载成功"
@@ -342,9 +376,9 @@ function uninstall_pot_desktop() {
     fi
 }
 
-# 函数：安装 
+# 函数：安装 Geany 简洁清凉的文字编辑器
 function install_geany() {
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if check_if_installed "geany"; then
         log 1 "Geany已经安装"
         version=$(get_package_version "geany" "geany --version")
@@ -379,17 +413,23 @@ function install_geany() {
 
 # 函数：卸载 Geany 简洁清凉的文字编辑器
 function uninstall_geany() {
-    log 1 "开始卸载geany..."
+    log 1 “检查是否已安装”
+    if ! check_if_installed "geany"; then
+        log 1 "Geany 未安装"
+        return 0
+    fi
+
+    # 卸载 Geany
     if ! sudo apt remove -y geany geany-plugins geany-plugin-markdown; then
-        log 3 "卸载geany失败"
+        log 3 "卸载 Geany 失败"
         return 1
     fi
-    
+
     # 清理配置文件和依赖
     sudo apt purge -y geany geany-plugins geany-plugin-markdown
     sudo apt autoremove -y
     
-    log 1 "geany卸载成功"
+    log 1 "Geany 卸载成功"
     return 0
 }
 # 函数：安装 stretchly 定时休息桌面
@@ -466,7 +506,22 @@ function install_ab_download_manager() {
 
 # 函数：卸载 ab-download-manager 下载工具
 function uninstall_ab_download_manager() {
+    # 检查是否已经安装了ab-download-manager
+    if ! check_if_installed "abdownloadmanager"; then
+        log 1 "ab-download-manager未安装"
+        return 0
+    fi
+
     log 1 "开始卸载ab-download-manager..."
+    
+    if ! sudo apt remove -y abdownloadmanager; then
+        log 3 "卸载ab-download-manager失败"
+        return 1
+    fi
+    
+    # 清理配置文件和依赖
+    sudo apt purge -y abdownloadmanager
+    sudo apt autoremove -y
     
     log 1 "ab-download-manager卸载成功"
     return 0
@@ -517,6 +572,12 @@ function install_localsend() {
 
 # 函数： 卸载 localsend 局域网传输工具
 function uninstall_localsend() {
+    # 检查是否已经安装了localsend
+    if ! check_if_installed "localsend"; then
+        log 1 "localsend未安装"
+        return 0
+    fi
+
     log 1 "开始卸载localsend..."
     sudo apt remove -y localsend
     if [ $? -ne 0 ]; then
@@ -529,232 +590,151 @@ function uninstall_localsend() {
 
 # 函数：安装 SpaceFM 双面板文件管理器
 function install_spacefm() {
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if check_if_installed "spacefm"; then
+        log 1 "spacefm已经安装"
+        version=$(get_package_version "spacefm" "spacefm --version")
+        log 1 "spacefm版本: $version"
         return 0
     fi
 
-    log 1 "开始安装 spacefm..."
+    log 1 "开始安装spacefm..."
     
-    # 安装依赖
-    local dependencies=("spacefm")
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装 spacefm 失败"
+    # 更新软件包列表并安装spacefm
+    log 1 "更新软件包列表并安装spacefm..."
+    sudo apt update
+    if ! sudo apt install -y spacefm; then
+        log 3 "安装spacefm失败"
         return 1
     fi
-
+    
     # 验证安装
-    if ! check_if_installed "spacefm"; then
-        log 3 "spacefm 安装失败"
+    if check_if_installed "spacefm"; then
+        log 1 "spacefm安装成功"
+        version=$(get_package_version "spacefm" "spacefm --version")
+        log 1 "spacefm版本: $version"
+        return 0
+    else
+        log 3 "spacefm安装验证失败"
         return 1
     fi
 
-    log 1 "spacefm 安装成功"
+    log 1 "spacefm安装成功"
     return 0
 }
 
 # 函数：卸载 SpaceFM 双面板文件管理器
 function uninstall_spacefm() {
-    log 1 "开始检查软件卸载状态..."
-    local packages=("spacefm")
-    local packages_to_remove=()
-    local all_uninstalled=true
-    
-    # 检查每个软件的安装状态
-    for pkg in "${packages[@]}"; do
-        if check_if_installed "$pkg"; then
-            packages_to_remove+=("$pkg")
-            all_uninstalled=false
-            log 1 "$pkg 已安装，将进行卸载"
-        else
-            log 1 "$pkg 未安装"
-        fi
-    done
-    
-    # 如果所有软件都未安装，直接返回
-    if [ "$all_uninstalled" = true ]; then
-        log 1 "所有软件都未安装，无需操作"
+    log 1 “检查是否已安装”
+    if ! check_if_installed "spacefm"; then
+        log 1 "spacefm未安装"
         return 0
     fi
-    
-    # 卸载已安装的软件
-    if [ ${#packages_to_remove[@]} -gt 0 ]; then
-        log 1 "开始卸载软件: ${packages_to_remove[*]}"
-        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
-            log 3 "卸载失败: ${packages_to_remove[*]}"
-            return 1
-        fi
-        
-        # 清理配置文件
-        log 1 "清理软件配置..."
-        sudo apt purge -y "${packages_to_remove[@]}"
-        sudo apt autoremove -y
-        
-        log 1 "所有软件卸载成功"
+
+    log 1 "开始卸载spacefm..."
+    sudo apt remove -y spacefm
+    if [ $? -ne 0 ]; then
+        log 3 "卸载spacefm失败"
+        return 1
     fi
-    
+
+    log 1 "spacefm卸载成功"
     return 0
 }
 
 # 函数：安装 Krusader 双面板文件管理器
 function install_krusader() {
     log 1 "开始检查软件安装状态..."
-    local packages=("krusader")
-    local packages_to_install=()
-    local all_installed=true
-    
-    # 检查每个软件的安装状态
-    for pkg in "${packages[@]}"; do
-        if ! check_if_installed "$pkg"; then
-            packages_to_install+=("$pkg")
-            all_installed=false
-            log 1 "$pkg 未安装，将进行安装"
-        else
-            log 1 "$pkg 已安装"
-        fi
-    done
-    
-    # 如果所有软件都已安装，直接返回
-    if [ "$all_installed" = true ]; then
-        log 1 "所有软件都已安装，无需操作"
+    if check_if_installed "krusader"; then
+        log 1 "Krusader 已安装"
+        version=$(get_package_version "krusader" "krusader --version")
+        log 1 "Krusader版本: $version"
         return 0
     fi
     
-    # 安装未安装的软件
-    if [ ${#packages_to_install[@]} -gt 0 ]; then
-        log 1 "开始安装未安装的软件: ${packages_to_install[*]}"
-        sudo apt update
-        if ! sudo apt install -y "${packages_to_install[@]}"; then
-            log 3 "安装失败: ${packages_to_install[*]}"
-            return 1
-        fi
-        log 1 "所有软件安装成功"
+    # 更新软件包列表并安装 Krusader
+    log 1 "更新软件包列表并安装 Krusader..."
+    sudo apt update
+    if ! sudo apt install -y krusader; then
+        log 3 "安装 Krusader 失败"
+        return 1
     fi
     
-    return 0
+    # 验证安装
+    if check_if_installed "krusader"; then
+        log 1 "Krusader 安装成功"
+        return 0
+    else
+        log 3 "Krusader 安装验证失败"
+        return 1
+    fi
 }
 
 # 函数：卸载 Krusader 双面板文件管理器
 function uninstall_krusader() {
     log 1 "开始检查软件卸载状态..."
-    local packages=("krusader")
-    local packages_to_remove=()
-    local all_uninstalled=true
-    
-    # 检查每个软件的安装状态
-    for pkg in "${packages[@]}"; do
-        if check_if_installed "$pkg"; then
-            packages_to_remove+=("$pkg")
-            all_uninstalled=false
-            log 1 "$pkg 已安装，将进行卸载"
-        else
-            log 1 "$pkg 未安装"
-        fi
-    done
-    
-    # 如果所有软件都未安装，直接返回
-    if [ "$all_uninstalled" = true ]; then
-        log 1 "所有软件都未安装，无需操作"
+    if ! check_if_installed "krusader"; then
+        log 1 "Krusader 未安装"
         return 0
     fi
     
-    # 卸载已安装的软件
-    if [ ${#packages_to_remove[@]} -gt 0 ]; then
-        log 1 "开始卸载软件: ${packages_to_remove[*]}"
-        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
-            log 3 "卸载失败: ${packages_to_remove[*]}"
-            return 1
-        fi
-        
-        # 清理配置文件
-        log 1 "清理软件配置..."
-        sudo apt purge -y "${packages_to_remove[@]}"
-        sudo apt autoremove -y
-        
-        log 1 "所有软件卸载成功"
+    # 卸载 Krusader
+    log 1 "卸载 Krusader..."
+    sudo apt remove -y krusader
+    if [ $? -ne 0 ]; then
+        log 3 "卸载 Krusader 失败"
+        return 1
     fi
     
+    log 1 "Krusader 卸载成功"
     return 0
 }
 
 # 函数：安装 Konsole KDE's Terminal Emulator
 function install_konsole() {
     log 1 "开始检查软件安装状态..."
-    local packages=("konsole")
-    local packages_to_install=()
-    local all_installed=true
-    
-    # 检查每个软件的安装状态
-    for pkg in "${packages[@]}"; do
-        if ! check_if_installed "$pkg"; then
-            packages_to_install+=("$pkg")
-            all_installed=false
-            log 1 "$pkg 未安装，将进行安装"
-        else
-            log 1 "$pkg 已安装"
-        fi
-    done
-    
-    # 如果所有软件都已安装，直接返回
-    if [ "$all_installed" = true ]; then
-        log 1 "所有软件都已安装，无需操作"
+    if check_if_installed "konsole"; then
+        log 1 "Konsole 已安装"
+        version=$(get_package_version "konsole" "konsole --version")
+        log 1 "Konsole版本: $version"
         return 0
     fi
     
-    # 安装未安装的软件
-    if [ ${#packages_to_install[@]} -gt 0 ]; then
-        log 1 "开始安装未安装的软件: ${packages_to_install[*]}"
-        sudo apt update
-        if ! sudo apt install -y "${packages_to_install[@]}"; then
-            log 3 "安装失败: ${packages_to_install[*]}"
-            return 1
-        fi
-        log 1 "所有软件安装成功"
+    # 更新软件包列表并安装 Konsole
+    log 1 "更新软件包列表并安装 Konsole..."
+    sudo apt update
+    if ! sudo apt install -y konsole; then
+        log 3 "安装 Konsole 失败"
+        return 1
     fi
     
-    return 0
+    # 验证安装
+    if check_if_installed "konsole"; then
+        log 1 "Konsole 安装成功"
+        return 0
+    else
+        log 3 "Konsole 安装验证失败"
+        return 1
+    fi
 }
 
 # 函数：卸载 Konsole KDE's Terminal Emulator
 function uninstall_konsole() {
     log 1 "开始检查软件卸载状态..."
-    local packages=("konsole")
-    local packages_to_remove=()
-    local all_uninstalled=true
-    
-    # 检查每个软件的安装状态
-    for pkg in "${packages[@]}"; do
-        if check_if_installed "$pkg"; then
-            packages_to_remove+=("$pkg")
-            all_uninstalled=false
-            log 1 "$pkg 已安装，将进行卸载"
-        else
-            log 1 "$pkg 未安装"
-        fi
-    done
-    
-    # 如果所有软件都未安装，直接返回
-    if [ "$all_uninstalled" = true ]; then
-        log 1 "所有软件都未安装，无需操作"
+    if ! check_if_installed "konsole"; then
+        log 1 "Konsole 未安装"
         return 0
     fi
     
-    # 卸载已安装的软件
-    if [ ${#packages_to_remove[@]} -gt 0 ]; then
-        log 1 "开始卸载软件: ${packages_to_remove[*]}"
-        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
-            log 3 "卸载失败: ${packages_to_remove[*]}"
-            return 1
-        fi
-        
-        # 清理配置文件
-        log 1 "清理软件配置..."
-        sudo apt purge -y "${packages_to_remove[@]}"
-        sudo apt autoremove -y
-        
-        log 1 "所有软件卸载成功"
+    # 卸载 Konsole
+    log 1 "卸载 Konsole..."
+    sudo apt remove -y konsole
+    if [ $? -ne 0 ]; then
+        log 3 "卸载 Konsole 失败"
+        return 1
     fi
     
+    log 1 "Konsole 卸载成功"
     return 0
 }
 
@@ -823,7 +803,7 @@ function uninstall_tabby() {
 
 # 函数：安装 Brave 浏览器函数
 function install_brave() {
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if check_if_installed "brave-browser"; then
         log 1 "Brave浏览器已经安装"
         version=$(get_package_version "brave-browser" "brave-browser --version")
@@ -907,9 +887,7 @@ function install_brave() {
 
 # 函数：卸载 Brave 浏览器的函数
 function uninstall_brave() {
-    log 1 "开始卸载Brave浏览器..."
-    
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if ! check_if_installed "brave-browser"; then
         log 1 "Brave浏览器未安装"
         return 0
@@ -946,18 +924,65 @@ function uninstall_brave() {
 }
 
 # 函数：安装 VLC 视频播放器
-#function install_VLC() {
-#}
+function install_VLC() {
+    # 检查是否已安装
+    if check_if_installed "vlc"; then
+        # 获取本地版本
+        local_version=$(dpkg -l | grep  "^ii\s*vlc" | awk '{print $3}')
+        log 1 "VLC已安装，本地版本: $local_version"
+        return 0    
+    fi
+
+    # 更新软件包列表并安装VLC
+    log 1 "更新软件包列表并安装VLC..."
+    sudo apt-get update && sudo apt-get install -y vlc
+    if [ $? -ne 0 ]; then
+        log 3 "安装VLC失败"
+        return 1
+    fi
+
+    # 验证安装
+    if check_if_installed "vlc"; then
+        log 1 "VLC安装成功"
+        version=$(get_package_version "vlc" "vlc --version")
+        log 1 "VLC版本: $version"
+        return 0
+    else
+        log 3 "VLC安装验证失败"
+        return 1
+    fi
+
+    log 1 "VLC安装成功"
+    return 0
+}
 
 # 函数：卸载 VLC 视频播放器
-#function uninstall_VLC() {
-#}
+function uninstall_VLC() {
+    # 检查是否已安装
+    if ! check_if_installed "vlc"; then
+        log 1 "VLC未安装"
+        return 0
+    fi
+
+    # 卸载VLC
+    log 1 "卸载VLC..."
+    sudo apt-get remove -y vlc
+    if [ $? -ne 0 ]; then
+        log 3 "卸载VLC失败"
+        return 1
+    fi
+
+    log 1 "VLC卸载成功"
+    return 0
+}
 
 # 函数：安装 Windsurf IDE 编程工具
 function install_windsurf() {
-    # 检查是否已安装 Windsurf
+    log 1 “检查是否已安装Windsurf” 
     if check_if_installed "windsurf"; then
         log 1 "Windsurf 已经安装"
+        version=$(get_package_version "windsurf" "windsurf --version")
+        log 1 "Windsurf版本: $version"
         return 0
     fi
 
@@ -1001,13 +1026,12 @@ function install_windsurf() {
         log 3 "Windsurf安装失败，请查看日志获取详细信息"
         return 1
     fi
+
 }
 
 # 函数：卸载 Windsurf IDE 编程工具
 function uninstall_windsurf() {
-    log 1 "开始卸载Windsurf..."
-    
-    # 检查是否已安装
+    log 1 “检查是否已安装Windsurf” 
     if ! check_if_installed "windsurf"; then
         log 1 "Windsurf未安装"
         return 0
@@ -1031,9 +1055,16 @@ function uninstall_windsurf() {
     return 0
 }
 
-
 # 函数：pipx安装 PDF Arranger PDF页面编辑器
 function install_pdfarranger() {
+    log 1 "检查是否已安装"
+    if check_if_installed "pdfarranger"; then
+        log 1 "pdfarranger已安装"
+        version=$(get_package_version "pdfarranger" "pdfarranger --version")
+        log 1 "已安装pdfarranger版本: $version"
+        return 0
+    fi
+
     log 1 "开始安装pdfarranger的依赖..."
     sudo apt update
     sudo apt-get install -y python3-pip python3-wheel python3-gi python3-gi-cairo \
@@ -1061,6 +1092,12 @@ function install_pdfarranger() {
 
 # 卸载：PDF Arranger PDF页面编辑器
 function uninstall_pdfarranger() {
+    log 1 "检查是否已安装"
+    if ! check_if_installed "pdfarranger"; then
+        log 1 "pdfarranger未安装"
+        return 0
+    fi
+
     log 1 "开始卸载pdfarranger..."
     pipx uninstall pdfarranger
     if [ $? -ne 0 ]; then
@@ -1073,14 +1110,7 @@ function uninstall_pdfarranger() {
 
 # 函数：安装 WPS Office
 function install_wps() {
-    # 检查并安装依赖
-    local dependencies=("wget")
-    if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装依赖失败"
-        return 1
-    fi
-
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if check_if_installed "wps-office"; then
         log 1 "WPS Office 已安装"
         return 0
@@ -1090,12 +1120,12 @@ function install_wps() {
     wget https://wps-linux-personal.wpscdn.cn/wps/download/ep/Linux2019/11664/wps-office_11.1.0.11664_amd64.deb
     sudo dpkg -i wps-office_11.1.0.11664_amd64.deb
     sudo apt-mark hold wps-office  # 阻止 WPS 自动更新
-    log 1 "WPS Office 安装完成。已阻止自动更新，请手动更新到稳定版本"
+    log 1 "WPS Office 安装完成。已阻止自动更新"
 }
 
 # 函数：卸载 WPS Office
 function uninstall_wps() {
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if ! check_if_installed "wps-office"; then
         log 1 "WPS Office 未安装"
         return 0
@@ -1110,11 +1140,47 @@ function uninstall_wps() {
 
 # 命令行增强工具
 # 函数：安装和更新 micro 命令行编辑器
+function install_neofetch() {
+    log 1 "检查是否已安装"
+    if check_if_installed "neofetch"; then
+        log 1 "neofetch已安装"
+        version=$(get_package_version "neofetch" "neofetch --version")
+        log 1 "已安装neofetch版本: $version"
+        return 0
+    fi
+
+    log 1 "开始安装neofetch..."
+    sudo apt-get install -y neofetch
+    if [ $? -ne 0 ]; then
+        log 3 "安装neofetch失败"
+        return 1
+    fi
+    log 1 "neofetch安装成功"
+    return 0
+}
+
+function uninstall_neofetch() {
+    log 1 "检查是否已安装"
+    if ! check_if_installed "neofetch"; then
+        log 1 "neofetch未安装"
+        return 0
+    fi
+
+    log 1 "开始卸载neofetch..."
+    sudo apt-get remove -y neofetch
+    if [ $? -ne 0 ]; then
+        log 3 "卸载neofetch失败"
+        return 1
+    fi
+    log 1 "neofetch卸载成功"
+    return 0
+}
+
 function install_micro() {
     log 1 检查是否已经安装了micro
     if check_if_installed "micro"; then
         # 获取已安装版本
-        local_version=$(micro --version 2>&1 | grep -oP 'Version: \K[0-9.]+' || echo "unknown")
+        local local_version=$(micro --version 2>&1 | grep -oP 'Version: \K[0-9.]+' || echo "unknown")
         log 1 "micro已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -1326,7 +1392,7 @@ function install_cheatsh() {
       return 1
   fi
 
-  # 检查是否已安装
+  log 1 “检查是否已安装”
   if check_if_installed "cht.sh"; then
       log 1 "cheat.sh 已安装"
       return 0
@@ -1495,7 +1561,7 @@ function uninstall_cheatsh() {
 
 # 函数：安装 eg 命令行命令示例工具
 function install_eg() {
-  # 检查是否已安装
+  log 1 “检查是否已安装”
   if check_if_installed "eg"; then
       log 1 "eg 已安装"
       return 0
@@ -1520,6 +1586,7 @@ function uninstall_eg() {
       return 1
   fi
   log 1 "eg 卸载成功"
+  return 0
 }
 
 # 函数：安装 eggs 命令行系统备份
@@ -1579,7 +1646,7 @@ function install_v2raya() {
 function install_flatpak() {
     log 1 "开始安装Flatpak..."
 
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if check_if_installed "flatpak"; then
         log 1 "Flatpak已经安装，版本是$(flatpak --version)"
         return 0
@@ -1625,7 +1692,7 @@ function install_flatpak() {
 function uninstall_flatpak() {
     log 1 "开始卸载Flatpak..."
 
-    # 检查是否已安装
+    log 1 “检查是否已安装”
     if ! check_if_installed "flatpak"; then
         log 1 "Flatpak未安装"
         return 0
@@ -1882,52 +1949,90 @@ show_menu() {
     green "==================================="
     yellow "桌面系统增强必备:"
     green "1. 安装 Plank 快捷启动器"
-    green "2. 安装 SpaceFM 文件管理器"
-    green "3. 安装 Krusader 文件管理器"
-    green "4. 安装 Konsole 终端模拟器"
+    green "2. 安装 angrysearch 类似everything的快速查找工具"
+    green "3. 安装 Pot-desktop 翻译工具"
+    green "4. 安装 Geany 简洁清凉的文字编辑器"
+    green "5. 安装 stretchly 定时休息设置"
+    green "6. 安装 AB Download Manager下载工具"
+    green "7. 安装 LocalSend 局域网传输工具"
+    green "8. 安装 SpaceFM 双面板文件管理器"  
+    green "9. 安装 Krusader 双面板文件管理器"
+    green "10. 安装 Konsole KDE's Terminal Emulator"
+    yellow "11. 安装全部1-10软件"
     
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     yellow "桌面系统进阶常用软件:"
-    green "5. 安装 Brave 浏览器"
-    green "6. 安装 Tabby 终端"
-    green "7. 安装 WPS Office"
-    green "8. 安装 PDFArranger"
-    green "9. 安装 LocalSend"
-    green "10. 安装 AB Download Manager"
-    green "11. 安装 Pot-desktop 翻译工具"
-    
+    green "20. 安装 Tabby 终端"
+    green "21. 安装 telegram 聊天软件 "
+    green "22. 安装 Brave 浏览器"
+    green "23. 安装 VLC 视频播放器 apt"
+    green "24. 安装 Windsurf IDE 编程工具"
+    green "25. 安装 PDF Arranger PDF页面编辑器"
+    yellow "29. 安装全部20-25软件"
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
     yellow "命令行增强工具:"
-    green "12. 安装 Docker 和 Docker Compose"
-    green "13. 安装 Micro 编辑器"
-    green "14. 安装 Geany 编辑器"
-    green "15. 安装 Windsurf IDE"
-    
+    green "30. 安装 Neofetch 命令行获取系统信息"
+    green "31. 安装 micro 命令行编辑器"
+    green "32. 安装 cheat.sh  命令行命令示例"
+    green "33. 安装 eg 命令行命令示例"
+    green "34. 安装 eggs 命令行系统备份"
+    green "35. 安装 v2rayA 设置网络代理"
+    yellow "39. 安装全部30-35软件"
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
     yellow "软件库工具:"
-    green "16. 安装 Snap 和 Snapstore"
-    green "17. 安装 Flatpak"
-    green "18. 安装 Homebrew"
-    
+    green "40. 安装 Docker 和 Docker Compose"
+    green "41. 安装 Snap 和 Snapstore 软件库"
+    green "42. 安装 Flatpak 软件库"
+    green "43. 安装 Homebrew 软件库"
+    yellow "49. 安装全部41-44软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
     yellow "卸载选项:"
-    green "21. 卸载 Plank"
-    green "22. 卸载 SpaceFM"
-    green "23. 卸载 Krusader"
-    green "24. 卸载 Konsole"
-    green "25. 卸载 Brave"
-    green "26. 卸载 Tabby"
-    green "27. 卸载 WPS Office"
-    green "28. 卸载 PDFArranger"
-    green "29. 卸载 LocalSend"
-    green "30. 卸载 AB Download Manager"
-    green "31. 卸载 Pot-desktop"
-    green "32. 卸载 Docker 和 Docker Compose"
-    green "33. 卸载 Micro"
-    green "34. 卸载 Geany"
-    green "35. 卸载 Windsurf IDE"
-    green "36. 卸载 Snap 和 Snapstore"
-    green "37. 卸载 Flatpak"
-    green "38. 卸载 Homebrew"
-    
+    yellow "卸载桌面系统增强必备"
+    green "50. 卸载 Plank 快捷启动器"
+    green "51. 卸载 angrysearch 类似everything的快速查找工具"
+    green "52. 卸载 Pot-desktop 翻译工具"
+    green "53. 卸载 Geany 简洁清凉的文字编辑器"
+    green "54. 卸载 stretchly 定时休息设置"
+    green "55. 卸载 AB Download Manager下载工具"
+    green "56. 卸载 LocalSend 局域网传输工具"
+    green "57. 卸载 SpaceFM 双面板文件管理器"  
+    green "58. 卸载 Krusader 双面板文件管理器"
+    green "59. 卸载 Konsole KDE's Terminal Emulator"
+    yellow "60. 卸载全部50-59软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+    yellow "卸载桌面系统进阶常用软件:"
+    green "61. 卸载 Tabby 终端"
+    green "62. 卸载 telegram 聊天软件 "
+    green "63. 卸载 Brave 浏览器"
+    green "64. 卸载 VLC 视频播放器 apt"
+    green "65. 卸载 Windsurf IDE 编程工具"
+    green "66. 卸载 PDF Arranger PDF页面编辑器"
+    yellow "67. 卸载全部61-66软件"
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+    yellow "卸载命令行增强工具:"
+    green "70. 卸载 Neofetch 命令行获取系统信息"
+    green "71. 卸载 micro 命令行编辑器"
+    green "72. 卸载 cheat.sh  命令行命令示例"
+    green "73. 卸载 eg 命令行命令示例"
+    green "74. 卸载 eggs 命令行系统备份"
+    green "75. 卸载 v2rayA 设置网络代理"
+    yellow "79. 卸载全部68-73软件"
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+    yellow "卸载软件库工具:"
+    green "80. 卸载 Docker 和 Docker Compose"
+    green "81. 卸载 Snap 和 Snapstore 软件库"
+    green "82. 卸载 Flatpak 软件库"
+    green "83. 卸载 Homebrew 软件库"
+    yellow "89. 卸载全部75-78软件"
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+
     yellow "0. 退出脚本"
 
 }
@@ -1939,49 +2044,121 @@ handle_menu() {
     case $choice in
         # 桌面系统增强必备
         1) install_plank ;;
-        2) install_spacefm ;;
-        3) install_krusader ;;
-        4) install_konsole ;;
+        2) install_angrysearch ;;
+        3) install_pot_desktop ;;
+        4) install_geany ;;
+        5) install_stretchly ;;
+        6) install_ab_download_manager ;;
+        7) install_localsend ;;
+        8) install_spacefm ;;
+        9) install_krusader ;;
+        10) install_konsole ;;
+        11) install_plank
+            install_angrysearch
+            install_Pot-desktop
+            install_geany
+            install_stretchly
+            install_ab_download_manager
+            install_localsend
+            install_spacefm
+            install_krusader
+            install_konsole ;;
         
         # 桌面系统进阶常用软件
-        5) install_brave ;;
-        6) install_tabby ;;
-        7) install_wps ;;
-        8) install_pdfarranger ;;
-        9) install_localsend ;;
-        10) install_ab_download_manager ;;
-        11) install_pot_desktop ;;
+        20) install_tabby ;;
+        21) install_telegram ;;
+        22) install_brave ;;
+        23) install_vlc ;;
+        24) install_windsurf ;;
+        25) install_pdfarranger ;;
+        29) install_tabby
+            install_telegram
+            install_brave
+            install_vlc
+            install_windsurf
+            install_pdfarranger ;;
         
         # 命令行增强工具
-        12) install_docker_and_docker_compose ;;
-        13) install_micro ;;
-        14) install_geany ;;
-        15) install_windsurf ;;
+        30) install_neofetch ;;
+        31) install_micro ;;
+        32) install_cheatsh ;;
+        33) install_eg ;;
+        34) install_eggs ;;
+        35) install_v2raya ;;
+        39) install_neofetch
+            install_micro
+            install_cheatsh
+            install_eg
+            install_eggs
+            install_v2raya ;;
         
         # 软件库工具
-        16) install_snap ;;
-        17) install_flatpak ;;
-        18) install_homebrew ;;
-        
+        40) install_docker ;;
+        41) install_snap ;;
+        42) install_flatpak ;;
+        43) install_homebrew ;;
+        49) install_docker
+            install_snap
+            install_flatpak
+            install_homebrew ;;
+
         # 卸载选项
-        21) uninstall_plank ;;
-        22) uninstall_spacefm ;;
-        23) uninstall_krusader ;;
-        24) uninstall_konsole ;;
-        25) uninstall_brave ;;
-        26) uninstall_tabby ;;
-        27) uninstall_wps ;;
-        28) uninstall_pdfarranger ;;
-        29) uninstall_localsend ;;
-        30) uninstall_ab_download_manager ;;
-        31) uninstall_pot_desktop ;;
-        32) uninstall_docker_and_docker_compose ;;
-        33) uninstall_micro ;;
-        34) uninstall_geany ;;
-        35) uninstall_windsurf ;;
-        36) uninstall_snap ;;
-        37) uninstall_flatpak ;;
-        38) uninstall_homebrew ;;
+        50) uninstall_plank ;;
+        51) uninstall_angrysearch ;;
+        52) uninstall_pot_desktop ;;
+        53) uninstall_geany ;;
+        54) uninstall_stretchly ;;
+        55) uninstall_ab_download_manager ;;
+        56) uninstall_localsend ;;
+        57) uninstall_spacefm ;;
+        58) uninstall_krusader ;;
+        59) uninstall_konsole ;;
+        60) uninstall_plank
+            uninstall_angrysearch
+            uninstall_pot_desktop
+            uninstall_geany
+            uninstall_stretchly
+            uninstall_ab_download_manager
+            uninstall_localsend
+            uninstall_spacefm
+            uninstall_krusader
+            uninstall_konsole ;;
+
+        61) uninstall_tabby ;;
+        62) uninstall_telegram ;;
+        63) uninstall_brave ;;
+        64) uninstall_vlc ;;
+        65) uninstall_windsurf ;;
+        66) uninstall_pdfarranger ;;
+        69) uninstall_tabby
+            uninstall_telegram
+            uninstall_brave
+            uninstall_vlc
+            uninstall_windsurf
+            uninstall_pdfarranger ;;
+
+
+        70) uninstall_neofetch ;;
+        71) uninstall_micro ;;
+        72) uninstall_cheatsh ;;
+        73) uninstall_eg ;;
+        74) uninstall_eggs ;;
+        75) uninstall_v2raya ;;
+        79) uninstall_neofetch
+            uninstall_micro
+            uninstall_cheatsh
+            uninstall_eg
+            uninstall_eggs
+            uninstall_v2raya ;;
+
+        80) uninstall_docker ;;
+        81) uninstall_snap ;;
+        82) uninstall_flatpak ;;
+        83) uninstall_homebrew ;;
+        89) uninstall_docker
+            uninstall_snap
+            uninstall_flatpak
+            uninstall_homebrew ;;
         
         0) 
             log 1 "退出脚本"
