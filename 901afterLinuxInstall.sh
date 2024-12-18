@@ -150,8 +150,8 @@ function install_plank() {
         return 0
     fi
 
-    # 检查并安装依赖
-    local dependencies=("curl")
+    # 检查并安装依赖,把中文字体放到此处，省事
+    local dependencies=("curl" "fonts-wqy-zenhei" "fonts-noto-cjk" "fonts-wqy-microhei" "xfonts-wqy")
     if ! check_and_install_dependencies "${dependencies[@]}"; then
         log 3 "安装 Plank 失败"
         return 1
@@ -1137,168 +1137,124 @@ function uninstall_wps() {
 
 
 # 命令行增强工具
+# 函数：安装 Neofetch 命令行获取系统信息
+function install_neofetch() {
+    log 1 "检查是否已安装"
+    if check_if_installed "neofetch"; then
+        log 1 "neofetch 已安装"
+        return 0
+    fi
+
+    # 安装 neofetch
+    log 1 "开始安装 neofetch..."
+    if ! sudo apt install -y neofetch; then
+        log 3 "安装 neofetch 失败"
+        return 1
+    fi
+
+    log 1 "neofetch 安装完成"
+    return 0
+}
+
+# 函数：卸载 Neofetch 命令行获取系统信息
+function uninstall_neofetch() {
+    log 1 "检查是否已安装"
+    if ! check_if_installed "neofetch"; then
+        log 1 "neofetch 未安装"
+        return 0
+    fi
+
+    # 卸载 neofetch
+    log 1 "开始卸载 neofetch..."
+    if ! sudo apt purge -y neofetch; then
+        log 3 "卸载 neofetch 失败"
+        return 1
+    fi
+
+    log 1 "neofetch 卸载完成"
+    return 0
+}
+
 # 函数：pipx安装 micro 命令行编辑器
 function install_micro() {
-    log 1 检查是否已经安装了micro
+    log 1 "检查是否已经安装了micro"
     if check_if_installed "micro"; then
-        # 获取已安装版本
         local local_version=$(micro --version 2>&1 | grep -oP 'Version: \K[0-9.]+' || echo "unknown")
         log 1 "micro已安装，本地版本: $local_version"
-        
-        # 获取远程最新版本
-        get_download_link "https://github.com/zyedidia/micro/releases"
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        
-        # 比较版本号，检查本地版本是否包含远程版本
-        if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
-            return 0
-        else
-            log 1 "发现新版本，开始更新..."
-            micro_download_link=${DOWNLOAD_URL}
-            install_package ${micro_download_link}
-            if [ $? -eq 2 ]; then
-                log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
-                log 1 解压并手动安装
-                local install_dir="/tmp/micro_install" 
-                rm -rf "$install_dir"  # 清理可能存在的旧目录
-                mkdir -p "$install_dir"  # 创建新的临时目录
-                
-                # 检查源文件
-                if [ ! -f "${ARCHIVE_FILE}" ]; then
-                    log 3 "压缩包文件 ${ARCHIVE_FILE} 不存在"
-                    rm -rf "$install_dir"
-                    return 1
-                fi
-
-                log 1 "开始解压 ${ARCHIVE_FILE}..."
-                # -v: 显示解压过程
-                # -x: 解压
-                # -z: gzip格式
-                # -f: 指定文件
-                # 2>&1: 合并标准错误到标准输出
-                if ! tar -vxzf "${ARCHIVE_FILE}" -C "$install_dir" 2>&1; then
-                    log 3 "解压失败，可能是文件损坏或格式不正确"
-                    rm -rf "$install_dir"
-                    return 1
-                fi
-
-                # 检查解压结果
-                if [ ! "$(ls -A "$install_dir")" ]; then
-                    log 3 "解压后目录为空，解压可能失败"
-                    rm -rf "$install_dir"
-                    return 1
-                fi
-
-                # 检查是否存在micro-*目录
-                if [ ! -d "$install_dir"/micro-* ]; then
-                    log 3 "未找到 micro 程序目录"
-                    rm -rf "$install_dir"
-                    return 1
-                fi
-
-                log 1 "解压完成"
-                # 移动到系统路径
-                if ! sudo mv "$install_dir"/micro-* /usr/local/bin/micro; then
-                    log 3 "移动目录到 /usr/local/bin 失败"
-                    rm -rf "$install_dir"
-                    return 1
-                else
-                    log 1 "移动目录到 /usr/local/bin 成功！"
-                    echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.bashrc && source ~/.bashrc 
-                    # 环境变量目录不会自动继承,因此手动添加新生成的micro目录到环境变量
-                    echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.zshrc && source ~/.zshrc
-
-                fi
-
-                # 清理临时文件
-                rm -rf "$install_dir"
-                rm -f "${ARCHIVE_FILE}"
-                # 验证安装
-                if check_if_installed "micro"; then
-                    log 1 "micro 编辑器安装成功！"
-                    micro --version
-                else
-                    log 3 "micro 编辑器安装失败。"
-                    return 1
-                fi
-            fi        
-        fi
     else
-        # 获取最新的下载链接
-        log 1 "未找到micro，开始安装micro，请耐心等待..."
-        get_download_link "https://github.com/zyedidia/micro/releases" .*linux64\.tar\.gz$ 
-        micro_download_link=${DOWNLOAD_URL}
-        install_package ${micro_download_link}
-            if [ $? -eq 2 ]; then
-                log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
-                log 1 解压并安装，因为系统之前未安装micro
-                local install_dir="/tmp/micro_install" 
-                rm -rf "$install_dir"  # 清理可能存在的旧目录
-                mkdir -p "$install_dir"  # 创建新的临时目录
-                
-                # 检查源文件
-                if [ ! -f "${ARCHIVE_FILE}" ]; then
-                    log 3 "压缩包文件 ${ARCHIVE_FILE} 不存在"
-                    rm -rf "$install_dir"
-                    return 1
-                fi
+        log 1 "未找到micro，开始获得下载链接，请耐心等待"
+    fi
 
-                log 1 "开始解压 ${ARCHIVE_FILE}..."
-                # -v: 显示解压过程
-                # -x: 解压
-                # -z: gzip格式
-                # -f: 指定文件
-                # 2>&1: 合并标准错误到标准输出
-                if ! tar -vxzf "${ARCHIVE_FILE}" -C "$install_dir" 2>&1; then
-                    log 3 "解压失败，可能是文件损坏或格式不正确"
-                    rm -rf "$install_dir"
-                    return 1
-                fi
+    get_download_link "https://github.com/zyedidia/micro/releases"
+    remote_version=${LATEST_VERSION#v}
+    log 1 "远程最新版本: $remote_version"
 
-                # 检查解压结果
-                if [ ! "$(ls -A "$install_dir")" ]; then
-                    log 3 "解压后目录为空，解压可能失败"
-                    rm -rf "$install_dir"
-                    return 1
-                fi
+    if [[ "$local_version" == *"$remote_version"* ]]; then
+        log 1 "已经是最新版本，无需更新，返回主菜单"
+        return 0
+    else
+        log 1 "发现新版本，开始更新..."
+    fi
 
-                # 检查是否存在micro-*目录
-                if [ ! -d "$install_dir"/micro-* ]; then
-                    log 3 "未找到 micro 程序目录"
-                    rm -rf "$install_dir"
-                    return 1
-                fi
+    local install_dir="/tmp/micro_install"
+    rm -rf "$install_dir" && mkdir -p "$install_dir"
+    DOWNLOAD_URL=""
+    get_download_link "https://github.com/zyedidia/micro/releases" .*linux64\.tar\.gz$ 
+    micro_download_link=${DOWNLOAD_URL}
 
-                log 1 "解压完成"
-                # 移动到系统路径
-                if ! sudo mv "$install_dir"/micro-* /usr/local/bin/micro; then
-                    log 3 "移动目录到 /usr/local/bin 失败"
-                    rm -rf "$install_dir"
-                    return 1
-                else
-                    log 1 "移动目录到 /usr/local/bin 成功！"
-                    echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.bashrc && source ~/.bashrc 
-                    # 环境变量目录不会自动继承,因此手动添加新生成的micro目录到环境变量
-                    echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.zshrc && source ~/.zshrc
+    log 1 "下载链接: ${micro_download_link}"
+    
+    install_package ${micro_download_link}
+    
+    if [ $? -eq 2 ]; then
+        log 2 "下载文件 ${ARCHIVE_FILE} 是压缩包"
+        log 1 "解压并安装"
+        
+        if [ ! -f "${ARCHIVE_FILE}" ]; then
+            log 3 "压缩包文件 ${ARCHIVE_FILE} 不存在"
+            return 1
+        fi
 
-                fi
+        log 1 "开始解压 ${ARCHIVE_FILE}..."
+        if ! tar -vxzf "${ARCHIVE_FILE}" -C "$install_dir" 2>&1; then
+            log 3 "解压失败，可能是文件损坏或格式不正确"
+            return 1
+        fi
 
-                # 清理临时文件
-                rm -rf "$install_dir"
-                rm -f "${ARCHIVE_FILE}"
-                # 验证安装
-                if check_if_installed "micro"; then
-                    log 1 "micro 编辑器安装成功！"
-                    micro --version
-                else
-                    log 3 "micro 编辑器安装失败。"
-                    return 1
-                fi
-            fi        
-        # 验证安装
+        # 找到最深层的micro-*目录
+        deepest_dir=$(find "$install_dir" -type d -name "micro-*" | sort | tail -n 1)
+        if [ -z "$deepest_dir" ]; then
+            log 3 "未找到micro程序目录"
+            return 1
+        fi
+
+        log 1 "解压完成，找到程序目录: $deepest_dir"
+        # 确保目标目录存在且为空
+        sudo rm -rf /usr/local/bin/micro
+        sudo mkdir -p /usr/local/bin/micro
+
+        # 复制所有文件到目标目录
+        if ! sudo cp -r "$deepest_dir"/* /usr/local/bin/micro/; then
+            log 3 "复制文件到 /usr/local/bin/micro 失败"
+            return 1
+        fi
+        log 1 "移动目录到 /usr/local/bin 成功！"
+
+        # 添加环境变量并根据当前shell类型source对应的文件
+        echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.bashrc
+        echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.zshrc
+
+        # 根据当前shell类型source对应的配置文件
+        if [ -n "$BASH_VERSION" ]; then
+            # 当前是bash
+            source ~/.bashrc
+        elif [ -n "$ZSH_VERSION" ]; then
+            # 当前是zsh
+            source ~/.zshrc
+        fi
+
+        rm -rf "$install_dir" "${ARCHIVE_FILE}"
+
         if check_if_installed "micro"; then
             log 1 "micro 编辑器安装成功！"
             micro --version
@@ -1308,6 +1264,7 @@ function install_micro() {
         fi
     fi
 }
+
 # 函数：卸载 micro 命令行编辑器
 function uninstall_micro() {
     log 1 "开始卸载 micro 编辑器..."
@@ -1529,78 +1486,148 @@ function install_eg() {
       return 0
   fi
 
-  # 检查 Homebrew
-  if ! check_if_installed "brew"; then
-      log 3 "请先安装 Homebrew"
-      return 1
-  fi
+#   检查 Homebrew
+#   if ! check_if_installed "brew"; then
+#       log 3 "请先安装 Homebrew"
+#       return 1
+#   fi
 
-  brew install eg-examples
+  pipx install eg
   log 1 "eg 安装完成。使用方法：eg 命令 (例如 eg curl)"
 }
 
 # 函数：卸载 eg 命令行命令示例工具
 function uninstall_eg() {
-  log 1 "开始卸载 eg..."
-  # 删除主程序
-  if ! brew uninstall eg-examples; then
-      log 3 "删除 eg 主程序失败"
-      return 1
-  fi
-  log 1 "eg 卸载成功"
-  return 0
+    # 检查是否已安装
+    if ! check_if_installed "eg"; then
+        log 1 "eg 未安装"
+        return 0
+    fi
+
+    log 1 "开始卸载 eg..."
+    if ! pipx uninstall eg; then
+        log 3 "卸载 eg 失败"
+        return 1
+    fi
+    log 1 "eg 卸载成功"
+
+    return 0
 }
 
-# 函数：pipx安装 eggs 命令行系统备份
-# function install_eggs() {
-#    
-# }
+# 函数：安装 eggs 命令行系统备份
+function install_eggs() {
+    set -x
+    log 1 "检查是否已安装"
+    if check_if_installed "eggs"; then
+        log 1 "eggs 已安装"
+        return 0
+    fi
+
+    log 1 "检测到未安装eggs，准备git clone安装代码到$HOME/Downloads/eggs_install目录来安装开始安装 eggs..."
+    # 检查并安装依赖
+    local dependencies=("squashfs-tools" "xorriso" "grub-pc-bin" "grub-efi-amd64-bin" "mtools")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装依赖失败"
+        return 1
+    fi
+
+
+    log 1 "准备$HOME/Downloads/eggs_install文件夹来接收clone后的代码"
+    local install_dir="$HOME/Downloads/eggs_install"
+    if [ -d "$install_dir" ]; then
+        rm -rf "$install_dir"
+    fi
+    mkdir -p "$install_dir" || { log 3 "无法创建目录 $install_dir"; return 1; }
+
+    log 1 "开始git clone安装"
+    for i in {1..3}; do
+        git clone https://github.com/pieroproietti/get-eggs "$install_dir" && break || echo "Attempt $i failed. Retrying..." && sleep 5
+    done
+
+    # 检查 git clone 是否成功
+    if [ ! -d "$install_dir/.git" ]; then
+        log 3 "下载失败，无法找到 git 目录"
+        return 1
+    fi
+    log 1 "git clone 完成"
+
+    # 进入安装目录
+    cd "$install_dir" || { log 3 "无法进入目录 $install_dir"; return 1; }
+    log 2 "替换安装代码中的ppa.sh文件，加入对sparky7.5的支持，即在is_debian函数中添加orion-belt字符串"
+    sed -i 's/        trixie | excalibur | noble )/        trixie | excalibur | noble | orion-belt )/' ppa.sh
+    if ! sudo ./get-eggs.sh; then
+        log 3 "eggs 安装失败"
+        return 1
+    fi
+
+    log 1 "eggs 安装完成，还需要更改eggs的配置文件"
+    sudo sed -i '/# bookworm derivated/a - id: sparky\n  distroLike: Debian\n  family: debian\n  ids:\n    - orion-belt # SparkyLinux 7' /usr/lib/penguins-eggs/conf/derivatives.yaml
+    sudo eggs dad -d
+    set +x
+    return 0
+}
 
 # 函数：卸载 eggs 命令行系统备份
-# function uninstall_eggs() {
-#    
-# }
+function uninstall_eggs() {
+    log 1 "检查是否已安装"
+    if ! check_if_installed "eggs"; then
+        log 1 "eggs 未安装"
+        return 0
+    fi
 
-# 函数：pipx安装 v2rayA 网络代理设置
-function install_v2raya() {
-    read -p "请选择安装方法 (1: 使用脚本, 2: 使用软件源): " method
-    case $method in
-        1)
-            # 检查并安装依赖
-            local dependencies=("curl")
-            if ! check_and_install_dependencies "${dependencies[@]}"; then
-                log 3 "安装依赖失败"
-                return 1
-            fi
+    # 卸载 eggs
+    log 1 "开始卸载 eggs..."
+    if ! sudo apt purge -y penguins-eggs; then
+        log 3 "卸载 eggs 失败"
+        return 1
+    fi
 
-            curl -Ls https://mirrors.v2raya.org/go.sh | sudo bash
-            sudo systemctl disable v2ray --now
-            log 1 "v2rayA (脚本安装) 完成。systemd 服务已禁用"
-            ;;
-        2)
-            # 检查并安装依赖
-            local dependencies=("wget")
-            if ! check_and_install_dependencies "${dependencies[@]}"; then
-                log 3 "安装依赖失败"
-                return 1
-            fi
-
-            wget -qO - https://apt.v2raya.org/key/public-key.asc | sudo tee /etc/apt/trusted.gpg.d/v2raya.asc
-            echo "deb https://apt.v2raya.org/ v2raya main" | sudo tee /etc/apt/sources.list.d/v2raya.list
-            apt update && apt install -y v2raya
-            log 1 "v2rayA (软件源安装) 完成"
-            ;;
-        *) 
-            log 3 "无效的选项"
-            return 1
-            ;;
-    esac
+    sudo rm -rf /etc/apt/sources.list.d/penguins-eggs-ppa.list
+    sudo rm -rf /usr/share/keyrings/penguins-eggs-ppa.gpg
+    log 1 "eggs 卸载完成，并删除软件库配置"
+    return 0
 }
 
-# 函数：卸载 v2rayA 网络代理设置
-# function uninstall_v2rayA() {
-    
+# 函数：pipx安装 v2rayA 网络代理设置
+# function install_v2raya() {
+#     read -p "请选择安装方法 (1: 使用脚本, 2: 使用软件源): " method
+#     case $method in
+#         1)
+#             # 检查并安装依赖
+#             local dependencies=("curl")
+#             if ! check_and_install_dependencies "${dependencies[@]}"; then
+#                 log 3 "安装依赖失败"
+#                 return 1
+#             fi
+
+#             curl -Ls https://mirrors.v2raya.org/go.sh | sudo bash
+#             sudo systemctl disable v2ray --now
+#             log 1 "v2rayA (脚本安装) 完成。systemd 服务已禁用"
+#             ;;
+#         2)
+#             # 检查并安装依赖
+#             local dependencies=("wget")
+#             if ! check_and_install_dependencies "${dependencies[@]}"; then
+#                 log 3 "安装依赖失败"
+#                 return 1
+#             fi
+
+#             wget -qO - https://apt.v2raya.org/key/public-key.asc | sudo tee /etc/apt/trusted.gpg.d/v2raya.asc
+#             echo "deb https://apt.v2raya.org/ v2raya main" | sudo tee /etc/apt/sources.list.d/v2raya.list
+#             apt update && apt install -y v2raya
+#             log 1 "v2rayA (软件源安装) 完成"
+#             ;;
+#         *) 
+#             log 3 "无效的选项"
+#             return 1
+#             ;;
+#     esac
 # }
+
+# # 函数：卸载 v2rayA 网络代理设置
+# # function uninstall_v2rayA() {
+    
+# # }
 
 
 ## 添加各种软件库
@@ -1885,6 +1912,8 @@ function uninstall_docker_and_docker_compose() {
     return 0
 }
 
+
+
 # 生成菜单函数，用于显示菜单
 # 每个菜单项都是一个函数，添加合适的分类
 # 安装和卸载分开
@@ -1939,7 +1968,7 @@ show_menu() {
     green "32. 安装 cheat.sh  命令行命令示例"
     green "33. 安装 eg 命令行命令示例"
     green "34. 安装 eggs 命令行系统备份"
-    green "35. 安装 v2rayA 设置网络代理"
+    # green "35. 安装 v2rayA 设置网络代理"
     yellow "39. 安装全部30-35软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
@@ -1982,7 +2011,7 @@ show_menu() {
     green "72. 卸载 cheat.sh  命令行命令示例"
     green "73. 卸载 eg 命令行命令示例"
     green "74. 卸载 eggs 命令行系统备份"
-    green "75. 卸载 v2rayA 设置网络代理"
+    # green "75. 卸载 v2rayA 设置网络代理"
     yellow "79. 卸载全部70-75软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
@@ -1998,6 +2027,7 @@ show_menu() {
     yellow "0. 退出脚本"
 
 }
+
 
 # 处理菜单选择
 handle_menu() {
@@ -2109,23 +2139,23 @@ handle_menu() {
         32) install_cheatsh ;;
         33) install_eg ;;
         34) install_eggs ;;
-        35) install_v2raya ;;
+        # 35) install_v2raya ;;
         39) install_neofetch
             install_micro
             install_cheatsh
             install_eg
-            install_eggs
-            install_v2raya ;;
+            install_eggs ;;
+            # install_v2raya ;;
         
         # 软件库工具
         40) install_docker ;;
         41) install_snap ;;
         42) install_flatpak ;;
-        43) install_homebrew ;;
+        # 43) install_homebrew ;;
         49) install_docker
             install_snap
-            install_flatpak
-            install_homebrew ;;
+            install_flatpak ;;
+            # install_homebrew ;;
 
         # 卸载选项
         50) uninstall_plank ;;
@@ -2168,22 +2198,22 @@ handle_menu() {
         72) uninstall_cheatsh ;;
         73) uninstall_eg ;;
         74) uninstall_eggs ;;
-        75) uninstall_v2raya ;;
+        # 75) uninstall_v2raya ;;
         79) uninstall_neofetch
             uninstall_micro
             uninstall_cheatsh
             uninstall_eg
-            uninstall_eggs
-            uninstall_v2raya ;;
+            uninstall_eggs ;;
+            # uninstall_v2raya ;;
 
         80) uninstall_docker ;;
         81) uninstall_snap ;;
         82) uninstall_flatpak ;;
-        83) uninstall_homebrew ;;
+        # 83) uninstall_homebrew ;;
         89) uninstall_docker
             uninstall_snap
-            uninstall_flatpak
-            uninstall_homebrew ;;
+            uninstall_flatpak ;;
+            # uninstall_homebrew ;;
         
         0) 
             log 1 "退出脚本"
