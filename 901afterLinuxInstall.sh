@@ -1281,7 +1281,6 @@ function install_micro() {
             log 3 "未找到micro程序目录"
             return 1
         fi
-
         log 1 "解压完成，找到程序目录: $deepest_dir"
         # 确保目标目录存在且为空
         sudo rm -rf /usr/local/bin/micro
@@ -1294,7 +1293,7 @@ function install_micro() {
         fi
         log 1 "移动目录到 /usr/local/bin 成功！"
 
-        # 添加环境变量并根据当前shell类型source对应的文件
+        # 添加环境变量
         echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.bashrc
         echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.zshrc
 
@@ -1409,7 +1408,7 @@ function install_cheatsh() {
   fi
 
   # 设置 Bash 补全
-  if ! curl -s https://cheat.sh/:bash_completion > ~/.bash.d/cht.sh; then
+  if ! curl -s --retry 3 --retry-delay 2 https://cheat.sh/:bash_completion > ~/.bash.d/cht.sh; then
       log 3 "下载 Bash 补全脚本失败"
       rm -f ~/.local/bin/cht.sh
       rm -rf ~/.bash.d/cht.sh
@@ -1498,7 +1497,7 @@ function install_cheatsh() {
 
 # 函数：卸载 cheat.sh 命令行命令示例工具
 function uninstall_cheatsh() {
-  log 1 "开始卸载 cheat.sh...检查是否已安装"
+  log 1 "检查是否已安装"
   if ! check_if_installed "cht.sh"; then
       log 1 "cheat.sh 未安装"
       return 0
