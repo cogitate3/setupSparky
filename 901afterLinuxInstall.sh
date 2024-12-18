@@ -262,7 +262,7 @@ function uninstall_angrysearch() {
 # 函数：安装 Pot-desktop 翻译工具
 function install_pot_desktop() {
    # 检测是否已安装
-    if check_if_installed "pot-desktop"; then
+    if check_if_installed "pot"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*pot" | awk '{print $3}')
         log 1 "pot-desktop已安装，本地版本: $local_version"
