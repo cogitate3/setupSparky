@@ -146,7 +146,7 @@ get_package_version() {
 function install_plank() {
     log 1 “检查是否已安装”
     if check_if_installed "plank"; then
-        log 1 "Plank 已安装"
+        log 2 "Plank 已安装"
         return 0
     fi
 
@@ -169,14 +169,14 @@ function install_plank() {
         return 1
     fi
 
-    log 1 "Plank 快捷启动器安装完成"
+    log 2 "Plank 快捷启动器安装完成"
 }
 
 # 函数：卸载 Plank 快捷启动器
 function uninstall_plank() {
     log 1 “检查是否已安装”
     if ! check_if_installed "plank"; then
-        log 1 "Plank 未安装"
+        log 2 "Plank 未安装"
         return 0
     fi
 
@@ -186,7 +186,7 @@ function uninstall_plank() {
         return 1
     fi
 
-    log 1 "Plank 快捷启动器卸载完成"
+    log 2 "Plank 快捷启动器卸载完成"
 }
 
 # 函数：安装 angrysearch 类似everything的快速查找工具
@@ -196,7 +196,7 @@ function install_angrysearch() {
         # 获取本地版本
         local_version="1.0.4"
         # local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
-        log 1 "angrysearch已安装，本地版本: $local_version"
+        log 2 "angrysearch已安装，本地版本: $local_version"
         
         # 获取远程最新版本
         get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
@@ -209,12 +209,12 @@ function install_angrysearch() {
             # 如果远程本地版本包含远程版本，则说明是最新版本。例如本地1.0.4.1，远程1.0.4，说明已经是最新版
             # 例如本地是1.0.4.1，远程是1.0.5，说明是最新版本
             # 第壹次安装时，两者肯定时相同的，后面只有远程的版本号更新过，才会出现不一致。则只可能说明有新版了。
-            log 1 "已经是最新版本，无需更新"
+            log 2 "angrysearch 已经是最新版本，无需更新，返回主菜单"
             return 0
         fi
         log 1 "发现新版本，开始更新..."
     else
-        log 1 "angrysearch未安装，开始安装..."
+        log 2 "angrysearch未安装，开始安装..."
         # LATEST_VERSION="v1.0.4"
     fi
     
@@ -235,7 +235,7 @@ function install_angrysearch() {
         
         # 验证安装结果
         if check_if_installed "angrysearch"; then
-            log 1 "angrysearch 安装完成"
+            log 2 "angrysearch 安装完成"
             return 0
         else
             log 3 "angrysearch 安装失败"
@@ -250,13 +250,13 @@ function install_angrysearch() {
 function uninstall_angrysearch() {
     log 1 “检查是否已安装”
     if ! check_if_installed "angrysearch"; then
-        log 1 "angrysearch未安装"
+        log 2 "angrysearch未安装"
         return 0
     fi
 
     # 卸载 AngrySearch
     sudo rm -rfv $(find /usr -path "*angrysearch*")
-    log 1 "angrysearch卸载完成"
+    log 2 "angrysearch卸载完成"
 }
 
 # 函数：安装 Pot-desktop 翻译工具
@@ -278,12 +278,18 @@ function install_pot_desktop() {
         
     # 比较版本号，检查本地版本是否包含远程版本
     if [[ "$local_version" == *"$remote_version"* ]]; then
-        log 1 "已经是最新版本，无需更新，返回主菜单"
+        log 1 "pot-desktop已经是最新版本，无需更新，返回主菜单"
         return 0
     else
         log 1 "发现新版本，开始更新..."
     fi
     
+    # 检查并安装依赖
+    local dependencies=("xapp" "libxapp1" "libxapp-gtk3-module")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 pot-desktop 失败"
+        return 1
+    fi
     # 获取下载链接
     DOWNLOAD_URL=""
     get_download_link "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$"
@@ -297,7 +303,7 @@ function install_pot_desktop() {
 
     # 验证安装结果
     if check_if_installed "pot"; then
-        log 1 "pot-desktop 安装完成"
+        log 2 "pot-desktop 安装完成"
         return 0
     else
         log 3 "pot-desktop 安装失败"
@@ -321,7 +327,7 @@ function uninstall_pot_desktop() {
 
     log 1 "找到pot-desktop包名: ${pkg_name}"
     if sudo apt purge -y "$pkg_name"; then
-        log 1 "pot-desktop卸载成功"
+        log 2 "pot-desktop卸载成功"
         # 清理依赖
         sudo apt autoremove -y
         return 0
@@ -341,7 +347,7 @@ function install_geany() {
         return 0
     fi
 
-    log 1 "开始安装geany..."
+    log 2 "开始安装geany..."
     
     # 更新软件包列表并安装geany
     log 1 "更新软件包列表并安装Geany..."
@@ -353,16 +359,15 @@ function install_geany() {
     
     # 验证安装
     if check_if_installed "geany"; then
-        log 1 "Geany安装成功"
         version=$(get_package_version "geany" "geany --version")
-        log 1 "Geany版本: $version"
+        log 2 "Geany安装成功,版本是: $version"
         return 0
     else
         log 3 "Geany安装验证失败"
         return 1
     fi
 
-    log 1 "Geany安装成功"
+    log 2 "Geany安装成功"
     return 0
 }
 
@@ -370,7 +375,7 @@ function install_geany() {
 function uninstall_geany() {
     log 1 “检查是否已安装”
     if ! check_if_installed "geany"; then
-        log 1 "Geany 未安装"
+        log 2 "Geany 未安装"
         return 0
     fi
 
@@ -384,7 +389,7 @@ function uninstall_geany() {
     sudo apt purge -y geany geany-plugins geany-plugin-markdown
     sudo apt autoremove -y
     
-    log 1 "Geany 卸载成功"
+    log 2 "Geany 卸载成功"
     return 0
 }
 # 函数：安装 stretchly 定时休息桌面
@@ -393,7 +398,7 @@ function install_stretchly() {
     if check_if_installed "stretchly"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*stretchly" | awk '{print $3}')
-        log 1 "stretchly已安装，本地版本: $local_version"
+        log 2 "stretchly已安装，本地版本: $local_version"
         
         # 获取远程最新版本
         get_download_link "https://github.com/hovancik/stretchly/releases"
@@ -403,7 +408,7 @@ function install_stretchly() {
         
         # 比较版本号，检查本地版本是否包含远程版本
         if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
+            log 2 "stretchly 已经是最新版本，无需更新，返回主菜单"
             return 0
         else
             log 1 "发现新版本，开始更新..."
@@ -437,7 +442,7 @@ function install_stretchly() {
 function uninstall_stretchly() {
     log 1 “检查是否已安装”
     if ! check_if_installed "stretchly"; then
-        log 1 "stretchly未安装"
+        log 2 "stretchly未安装"
         return 0
     else
         log 1 "找到stretchly包名: ${stretchly}"
@@ -445,7 +450,7 @@ function uninstall_stretchly() {
         sudo apt-get remove stretchly
         sudo apt-get autoremove
         sudo apt-get autoclean
-        log 1 "stretchly卸载完成"
+        log 2 "stretchly卸载完成"
     fi
 
 }
@@ -456,7 +461,7 @@ function install_ab_download_manager() {
     if check_if_installed "abdownloadmanager"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*abdownloadmanager" | awk '{print $3}')
-        log 1 "ab-download-manager已安装，本地版本: $local_version"
+        log 2 "ab-download-manager已安装，本地版本: $local_version"
         
         # 获取远程最新版本
         get_download_link "https://github.com/amir1376/ab-download-manager/releases"
@@ -466,7 +471,7 @@ function install_ab_download_manager() {
         
         # 比较版本号，检查本地版本是否包含远程版本
         if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
+            log 2 "ab-download-manager 已经是最新版本，无需更新，返回主菜单"
             return 0
         else
             log 1 "发现新版本，开始更新..."
@@ -504,7 +509,7 @@ function install_ab_download_manager() {
 function uninstall_ab_download_manager() {
     # 检查是否已经安装了ab-download-manager
     if ! check_if_installed "abdownloadmanager"; then
-        log 1 "ab-download-manager未安装"
+        log 2 "ab-download-manager未安装"
         return 0
     fi
 
@@ -519,7 +524,7 @@ function uninstall_ab_download_manager() {
     sudo apt purge -y abdownloadmanager
     sudo apt autoremove -y
     
-    log 1 "ab-download-manager卸载成功"
+    log 2 "ab-download-manager卸载成功"
     return 0
 }
 
@@ -529,7 +534,7 @@ function install_localsend() {
     if check_if_installed "localsend"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*localsend" | awk '{print $3}')
-        log 1 "localsend已安装，本地版本: $local_version"
+        log 2 "localsend已安装，本地版本: $local_version"
         
         # 获取远程最新版本
         get_download_link "https://github.com/localsend/localsend/releases"
@@ -539,16 +544,16 @@ function install_localsend() {
         
         # 比较版本号，检查本地版本是否包含远程版本
         if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新"
+            log 2 "localsend 已经是最新版本，无需更新，返回主菜单"
             return 0
         else
-            log 1 "发现新版本，开始更新..."
+            log 2 "发现新版本，开始更新..."
             DOWNLOAD_URL=""
             get_download_link "https://github.com/localsend/localsend/releases" ".*linux-x86-64.*\.deb$"            
             localsend_download_link=${DOWNLOAD_URL}
             install_package ${localsend_download_link}
         fi
-        log 1 "localsend已经安装"
+        log 2 "localsend已经安装"
         return 0
     else
         # 获取最新的下载链接,要先将之前保存的下载链接清空
@@ -561,7 +566,6 @@ function install_localsend() {
         # $：表示字符串的结尾。
         localsend_download_link=${DOWNLOAD_URL}
         install_package ${localsend_download_link}
-        log 1 "localsend已经安装"
         return 0
     fi
 }
@@ -570,7 +574,7 @@ function install_localsend() {
 function uninstall_localsend() {
     # 检查是否已经安装了localsend
     if ! check_if_installed "localsend"; then
-        log 1 "localsend未安装"
+        log 2 "localsend未安装"
         return 0
     fi
 
@@ -580,7 +584,7 @@ function uninstall_localsend() {
         log 3 "卸载localsend失败"
         return 1
     fi
-    log 1 "localsend卸载成功"
+    log 2 "localsend卸载成功"
     return 0
 }
 
@@ -588,9 +592,8 @@ function uninstall_localsend() {
 function install_spacefm() {
     log 1 “检查是否已安装”
     if check_if_installed "spacefm"; then
-        log 1 "spacefm已经安装"
         version=$(get_package_version "spacefm" "spacefm --version")
-        log 1 "spacefm版本: $version"
+        log 2 "spacefm已经安装最新版本: $version , 返回主菜单"
         return 0
     fi
 
@@ -606,16 +609,15 @@ function install_spacefm() {
     
     # 验证安装
     if check_if_installed "spacefm"; then
-        log 1 "spacefm安装成功"
         version=$(get_package_version "spacefm" "spacefm --version")
-        log 1 "spacefm版本: $version"
+        log 2 "spacefm安装成功, 版本是: $version"
         return 0
     else
         log 3 "spacefm安装验证失败"
         return 1
     fi
 
-    log 1 "spacefm安装成功"
+    log 2 "spacefm安装成功"
     return 0
 }
 
@@ -623,7 +625,7 @@ function install_spacefm() {
 function uninstall_spacefm() {
     log 1 “检查是否已安装”
     if ! check_if_installed "spacefm"; then
-        log 1 "spacefm未安装"
+        log 2 "spacefm未安装"
         return 0
     fi
 
@@ -634,17 +636,16 @@ function uninstall_spacefm() {
         return 1
     fi
 
-    log 1 "spacefm卸载成功"
+    log 2 "spacefm卸载成功"
     return 0
 }
 
 # 函数：安装 Krusader 双面板文件管理器
 function install_krusader() {
-    log 1 "开始检查软件安装状态..."
+    log 1 "检查软件是否已安装"
     if check_if_installed "krusader"; then
-        log 1 "Krusader 已安装"
         version=$(get_package_version "krusader" "krusader --version")
-        log 1 "Krusader版本: $version"
+        log 2 "Krusader 已安装最新版本: $version , 返回主菜单"
         return 0
     fi
     
@@ -658,7 +659,7 @@ function install_krusader() {
     
     # 验证安装
     if check_if_installed "krusader"; then
-        log 1 "Krusader 安装成功"
+        log 2 "Krusader 安装成功"
         return 0
     else
         log 3 "Krusader 安装验证失败"
@@ -670,7 +671,7 @@ function install_krusader() {
 function uninstall_krusader() {
     log 1 "开始检查软件卸载状态..."
     if ! check_if_installed "krusader"; then
-        log 1 "Krusader 未安装"
+        log 2 "Krusader 未安装"
         return 0
     fi
     
@@ -682,7 +683,7 @@ function uninstall_krusader() {
         return 1
     fi
     
-    log 1 "Krusader 卸载成功"
+    log 2 "Krusader 卸载成功"
     return 0
 }
 
@@ -690,9 +691,8 @@ function uninstall_krusader() {
 function install_konsole() {
     log 1 "开始检查软件安装状态..."
     if check_if_installed "konsole"; then
-        log 1 "Konsole 已安装"
         version=$(get_package_version "konsole" "konsole --version")
-        log 1 "Konsole版本: $version"
+        log 2 "Konsole已安装最新版本: $version , 返回主菜单"
         return 0
     fi
     
@@ -706,7 +706,7 @@ function install_konsole() {
     
     # 验证安装
     if check_if_installed "konsole"; then
-        log 1 "Konsole 安装成功"
+        log 2 "Konsole 安装成功"
         return 0
     else
         log 3 "Konsole 安装验证失败"
@@ -718,7 +718,7 @@ function install_konsole() {
 function uninstall_konsole() {
     log 1 "开始检查软件卸载状态..."
     if ! check_if_installed "konsole"; then
-        log 1 "Konsole 未安装"
+        log 2 "Konsole 未安装"
         return 0
     fi
     
@@ -730,7 +730,7 @@ function uninstall_konsole() {
         return 1
     fi
     
-    log 1 "Konsole 卸载成功"
+    log 2 "Konsole 卸载成功"
     return 0
 }
 
@@ -742,20 +742,20 @@ function install_tabby() {
     if check_if_installed "tabby"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*tabby" | awk '{print $3}')
-        log 1 "Tabby已安装，本地版本: $local_version"
+        log 2 "Tabby已安装，本地版本: $local_version"
         
         # 获取远程最新版本
         get_download_link "https://github.com/Eugeny/tabby/releases"
         # 从LATEST_VERSION中提取版本号（去掉v前缀）
         remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
+        log 2 "远程最新版本: $remote_version"
         
         # 比较版本号，检查本地版本是否包含远程版本
         if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
+            log 2 "tabby 已经是最新版本，无需更新，返回主菜单"
             return 0
         else
-            log 1 "发现新版本，开始下载安装..."
+            log 2 "发现新版本，开始下载安装..."
             # 获取最新的下载链接,要先将之前保存的下载链接清空
             DOWNLOAD_URL=""
             get_download_link "https://github.com/Eugeny/tabby/releases" ".*linux-x64.*\.deb$"
@@ -786,7 +786,7 @@ function install_tabby() {
 function uninstall_tabby() {
     # 检测是否已安装
     if ! check_if_installed "tabby"; then
-        log 1 "Tabby未安装"
+        log 2 "Tabby未安装"
         return 0
     else
         log 1 "开始卸载Tabby..."
@@ -798,7 +798,7 @@ function uninstall_tabby() {
         fi
         log 1 "找到Tabby包名: ${pkg_name}"
         if sudo apt purge -y"$pkg_name"; then
-            log 1 "Tabby卸载成功"
+            log 2 "Tabby卸载成功"
             return 0
         else
             log 3 "Tabby卸载失败"
@@ -807,13 +807,60 @@ function uninstall_tabby() {
     fi
 }
 
+# 函数：安装 telegram 最好的聊天软件
+function install_telegram() {
+    log 1 "开始检查软件安装状态..."
+    if check_if_installed "telegram-desktop"; then
+        version=$(dpkg -l | grep "^ii\s*telegram-desktop" | awk '{print $3}')
+        log 2 "Telegram 已安装，版本是: $version , 返回主菜单"
+        return 0
+    fi
+    
+    # 更新软件包列表并安装 Telegram
+    log 1 "更新软件包列表并安装 Telegram..."
+    sudo apt update
+    if ! sudo apt install -y telegram-desktop; then
+        log 3 "安装 Telegram 失败"
+        return 1
+    fi
+    
+    # 验证安装
+    if check_if_installed "telegram-desktop"; then
+        log 2 "Telegram 安装成功"
+        return 0
+    else
+        log 3 "Telegram 安装验证失败"
+        return 1
+    fi
+}
+
+# 函数：卸载 Telegram 最好的聊天软件
+function uninstall_telegram() {
+    log 1 "开始检查软件卸载状态..."
+    if ! check_if_installed "telegram-desktop"; then
+        log 2 "Telegram 未安装"
+        return 0
+    fi
+    
+    # 卸载 Telegram
+    log 1 "卸载 Telegram..."
+    sudo apt purge -y telegram-desktop
+    if [ $? -ne 0 ]; then
+        log 3 "卸载 Telegram 失败"
+        return 1
+    fi
+    
+    log 2 "Telegram 卸载成功"
+    return 0
+}
+
+
 # 函数：安装 Brave 浏览器函数
 function install_brave() {
     log 1 “检查是否已安装”
     if check_if_installed "brave-browser"; then
-        log 1 "Brave浏览器已经安装"
         version=$(get_package_version "brave-browser" "brave-browser --version")
-        log 1 "Brave版本: $version"
+        log 2 "Brave浏览器已安装, 版本是: $version"
         return 0
     fi
     
@@ -881,9 +928,8 @@ function install_brave() {
 
     # 验证安装
     if check_if_installed "brave-browser"; then
-        log 1 "Brave浏览器安装成功"
         version=$(get_package_version "brave-browser" "brave-browser --version")
-        log 1 "已安装Brave版本: $version"
+        log 2 "Brave浏览器安装成装, 版本: $version"
         return 0
     else
         log 3 "Brave浏览器安装验证失败"
@@ -895,7 +941,7 @@ function install_brave() {
 function uninstall_brave() {
     log 1 “检查是否已安装”
     if ! check_if_installed "brave-browser"; then
-        log 1 "Brave浏览器未安装"
+        log 2 "Brave浏览器未安装"
         return 0
     fi
 
@@ -925,7 +971,7 @@ function uninstall_brave() {
     log 1 "清理不需要的依赖..."
     sudo apt autoremove -y
     
-    log 1 "Brave浏览器卸载完成"
+    log 2 "Brave浏览器卸载完成"
     return 0
 }
 
@@ -935,7 +981,7 @@ function install_VLC() {
     if check_if_installed "vlc"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*vlc" | awk '{print $3}')
-        log 1 "VLC已安装，本地版本: $local_version"
+        log 2 "VLC已安装，本地版本: $local_version"
         return 0    
     fi
 
@@ -949,16 +995,14 @@ function install_VLC() {
 
     # 验证安装
     if check_if_installed "vlc"; then
-        log 1 "VLC安装成功"
         version=$(get_package_version "vlc" "vlc --version")
-        log 1 "VLC版本: $version"
+        log 2 "VLC安装成功,版本: $version"
         return 0
     else
         log 3 "VLC安装验证失败"
         return 1
     fi
 
-    log 1 "VLC安装成功"
     return 0
 }
 
@@ -966,7 +1010,7 @@ function install_VLC() {
 function uninstall_VLC() {
     # 检查是否已安装
     if ! check_if_installed "vlc"; then
-        log 1 "VLC未安装"
+        log 2 "VLC未安装"
         return 0
     fi
 
@@ -978,7 +1022,7 @@ function uninstall_VLC() {
         return 1
     fi
 
-    log 1 "VLC卸载成功"
+    log 2 "VLC卸载成功"
     return 0
 }
 
@@ -986,9 +1030,8 @@ function uninstall_VLC() {
 function install_windsurf() {
     log 1 “检查是否已安装Windsurf” 
     if check_if_installed "windsurf"; then
-        log 1 "Windsurf 已经安装"
         version=$(get_package_version "windsurf" "windsurf --version")
-        log 1 "Windsurf版本: $version"
+        log 2 "Windsurf 已经安装, 版本: $version"
         return 0
     fi
 
@@ -1026,10 +1069,10 @@ function install_windsurf() {
 
     # 检查安装是否成功
     if check_if_installed "windsurf"; then
-        log 1 "Windsurf安装成功"
+        log 2 "Windsurf 安装成功"
         return 0
     else
-        log 3 "Windsurf安装失败，请查看日志获取详细信息"
+        log 3 "Windsurf 安装失败，请查看日志获取详细信息"
         return 1
     fi
 
@@ -1039,7 +1082,7 @@ function install_windsurf() {
 function uninstall_windsurf() {
     log 1 “检查是否已安装Windsurf” 
     if ! check_if_installed "windsurf"; then
-        log 1 "Windsurf未安装"
+        log 2 "Windsurf未安装"
         return 0
     fi
     
@@ -1057,7 +1100,7 @@ function uninstall_windsurf() {
     sudo rm -f /etc/apt/sources.list.d/windsurf.list
     sudo rm -f /usr/share/keyrings/windsurf-stable-archive-keyring.gpg
     
-    log 1 "Windsurf卸载成功"
+    log 2 "Windsurf卸载成功"
     return 0
 }
 
@@ -1065,9 +1108,8 @@ function uninstall_windsurf() {
 function install_pdfarranger() {
     log 1 "检查是否已安装"
     if check_if_installed "pdfarranger"; then
-        log 1 "pdfarranger已安装"
         version=$(get_package_version "pdfarranger" "pdfarranger --version")
-        log 1 "已安装pdfarranger版本: $version"
+        log 2 "pdfarranger 已安装, 版本: $version"
         return 0
     fi
 
@@ -1092,7 +1134,7 @@ function install_pdfarranger() {
         log 3 "安装pdfarranger失败"
         return 1
     fi
-    log 1 "pdfarranger安装成功"
+    log 2 "pdfarranger 安装成功"
     return 0
 }
 
@@ -1100,7 +1142,7 @@ function install_pdfarranger() {
 function uninstall_pdfarranger() {
     log 1 "检查是否已安装"
     if ! check_if_installed "pdfarranger"; then
-        log 1 "pdfarranger未安装"
+        log 2 "pdfarranger未安装"
         return 0
     fi
 
@@ -1110,7 +1152,7 @@ function uninstall_pdfarranger() {
         log 3 "卸载pdfarranger失败"
         return 1
     fi
-    log 1 "pdfarranger卸载成功"
+    log 2 "pdfarranger卸载成功"
     return 0
 }
 
@@ -1118,7 +1160,7 @@ function uninstall_pdfarranger() {
 function install_wps() {
     log 1 “检查是否已安装”
     if check_if_installed "wps-office"; then
-        log 1 "WPS Office 已安装"
+        log 2 "WPS Office 已安装"
         return 0
     fi
 
@@ -1126,7 +1168,7 @@ function install_wps() {
     wget https://wps-linux-personal.wpscdn.cn/wps/download/ep/Linux2019/11664/wps-office_11.1.0.11664_amd64.deb
     sudo dpkg -i wps-office_11.1.0.11664_amd64.deb
     sudo apt-mark hold wps-office  # 阻止 WPS 自动更新
-    log 1 "WPS Office 安装完成。已阻止自动更新"
+    log 2 "WPS Office 安装完成。已阻止自动更新"
 }
 
 # 函数：卸载 WPS Office
@@ -1198,7 +1240,7 @@ function install_micro() {
     log 1 "远程最新版本: $remote_version"
 
     if [[ "$local_version" == *"$remote_version"* ]]; then
-        log 1 "已经是最新版本，无需更新，返回主菜单"
+        log 1 "micro 已经是最新版本，无需更新，返回主菜单"
         return 0
     else
         log 1 "发现新版本，开始更新..."
@@ -1524,7 +1566,6 @@ function uninstall_eg() {
 
 # 函数：安装 eggs 命令行系统备份
 function install_eggs() {
-    set -x
     log 1 "检查是否已安装"
     if check_if_installed "eggs"; then
         log 1 "eggs 已安装"
@@ -1571,7 +1612,6 @@ function install_eggs() {
     log 1 "eggs 安装完成，还需要更改eggs的配置文件"
     sudo sed -i '/# bookworm derivated/a - id: sparky\n  distroLike: Debian\n  family: debian\n  ids:\n    - orion-belt # SparkyLinux 7' /usr/lib/penguins-eggs/conf/derivatives.yaml
     sudo eggs dad -d
-    set +x
     return 0
 }
 
@@ -1639,13 +1679,60 @@ function uninstall_eggs() {
 
 
 ## 添加各种软件库
+# 函数：安装 snap和snapstore 软件库
+function install_snap() {
+    log 1 "检查 snap和snapstore 是否已安装"
+    if check_if_installed "snap"; then
+        log 2 "snap已安装,版本是$(snap --version)"
+        return 0
+    fi
+
+    log 1 "开始安装 snap和snapstore..."
+    sudo apt install -y snapd
+    log 2 "snap 安装完成"
+
+    # 更新 snap 路径 (对于某些发行版可能需要)
+    sudo systemctl restart snapd.socket
+    sudo systemctl enable snapd.socket
+    # 等待 snapd 启动完成 (可选，但可以提高稳定性)
+    sleep 5
+  
+    log 1 "检查 snap-store 是否已安装"
+    if check_if_installed "snap-store"; then
+        log 2 "snap-store 已安装"
+    else
+        log 1 "开始安装 snap-store..."
+        sudo snap install snap-store
+        log 2 "snap-store 安装完成"
+    fi
+
+    return 0
+}
+
+# 函数：卸载 snap和snapstore 软件库
+function uninstall_snap() {
+    log 1 "检查 snap和snapstore 是否已安装"
+    if ! check_if_installed "snap-store"; then
+        log 2 "snapstore 未安装"
+        return 0
+    fi
+
+    log 1 "开始卸载 snapstore..."
+    sudo snap remove snap-store
+    log 2 "snapstore 卸载完成"
+
+    log 1 "开始卸载 snap..."
+    sudo apt remove -y snapd
+    log 2 "snap 卸载完成"
+    return 0
+}
+
 # 函数：pipx安装 Flatpak 软件库
 function install_flatpak() {
-    log 1 "开始安装Flatpak..."
+    log 1 "检查 Flatpak 是否已安装..."
 
-    log 1 “检查是否已安装”
     if check_if_installed "flatpak"; then
-        log 1 "Flatpak已经安装，版本是$(flatpak --version)"
+        log 2 "Flatpak已经安装，版本是$(flatpak --version)"
         return 0
     fi
 
@@ -1681,23 +1768,21 @@ function install_flatpak() {
         return 1
     fi
 
-    log 1 "Flatpak安装完成，您可能需要重启系统以使更改生效"
+    log 2 "Flatpak安装完成，您可能需要重启系统以使更改生效"
     return 0
 }
 
 # 函数：卸载 Flatpak 软件库
 function uninstall_flatpak() {
-    log 1 "开始卸载Flatpak..."
-
-    log 1 “检查是否已安装”
+    log 1 "检查 flatpak 是否已安装"
     if ! check_if_installed "flatpak"; then
-        log 1 "Flatpak未安装"
+        log 2 "Flatpak未安装"
         return 0
     fi
 
     # 首先卸载所有已安装的Flatpak应用
     log 1 "卸载所有Flatpak应用..."
-    flatpak uninstall -y --all || log 2 "没有找到已安装的Flatpak应用"
+    flatpak uninstall --all || log 2 "没有找到已安装的Flatpak应用"
 
     # 移除所有远程仓库
     log 1 "移除所有Flatpak仓库..."
@@ -1721,7 +1806,7 @@ function uninstall_flatpak() {
     rm -rf ~/.local/share/flatpak
     rm -rf ~/.cache/flatpak
 
-    log 1 "Flatpak完全卸载成功"
+    log 2 "Flatpak完全卸载成功"
     return 0
 }
 
@@ -1984,8 +2069,8 @@ show_menu() {
     green "40. 安装 Docker 和 Docker Compose"
     green "41. 安装 Snap 和 Snapstore 软件库"
     green "42. 安装 Flatpak 软件库"
-    green "43. 安装 Homebrew 软件库"
-    yellow "49. 安装全部41-44软件"
+    # green "43. 安装 Homebrew 软件库"
+    yellow "49. 安装全部40-42软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "卸载选项:"
@@ -2137,7 +2222,7 @@ handle_menu() {
         29) install_tabby
             install_telegram
             install_brave
-            install_vlc
+            install_VLC
             install_windsurf
             install_pdfarranger ;;
         
@@ -2156,11 +2241,11 @@ handle_menu() {
             # install_v2raya ;;
         
         # 软件库工具
-        40) install_docker ;;
+        40) install_docker_and_docker_compose ;;
         41) install_snap ;;
         42) install_flatpak ;;
         # 43) install_homebrew ;;
-        49) install_docker
+        49) install_docker_and_docker_compose
             install_snap
             install_flatpak ;;
             # install_homebrew ;;
@@ -2196,7 +2281,7 @@ handle_menu() {
         69) uninstall_tabby
             uninstall_telegram
             uninstall_brave
-            uninstall_vlc
+            uninstall_VLC
             uninstall_windsurf
             uninstall_pdfarranger ;;
 
@@ -2214,11 +2299,11 @@ handle_menu() {
             uninstall_eggs ;;
             # uninstall_v2raya ;;
 
-        80) uninstall_docker ;;
+        80) uninstall_docker_and_docker_compose ;;
         81) uninstall_snap ;;
         82) uninstall_flatpak ;;
         # 83) uninstall_homebrew ;;
-        89) uninstall_docker
+        89) uninstall_docker_and_docker_compose
             uninstall_snap
             uninstall_flatpak ;;
             # uninstall_homebrew ;;

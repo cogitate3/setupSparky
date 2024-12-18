@@ -124,13 +124,13 @@ install_package() {
             deb)
                 log 1 "安装 $filename..."
                 if sudo dpkg -i "$tmp_dir/$filename"; then # dpkg -i 不需要联网
-                    log 1 "安装成功"
+                    log 2 "$filename 安装成功"
                 else
                     log 2 "首次安装失败，尝试修复依赖..."
                     if sudo apt-get install -f -y; then # apt-get install -f -y 需要联网
-                        log 1 "依赖修复成功，重试安装"
+                        log 2 "依赖修复成功，重试安装"
                         if sudo dpkg -i "$tmp_dir/$filename"; then
-                            log 1 "安装成功"
+                            log 2 "安装成功"
                         else
                             log 3 "安装失败"
                             install_status=1
