@@ -447,8 +447,8 @@ function uninstall_stretchly() {
     else
         log 1 "找到stretchly包名: ${stretchly}"
         log 1 "卸载stretchly..."
-        sudo apt-get remove stretchly
-        sudo apt-get autoremove
+        sudo apt purge -y stretchly
+        sudo apt-get autoremove -y
         sudo apt-get autoclean
         log 2 "stretchly卸载完成"
     fi
@@ -631,6 +631,7 @@ function uninstall_spacefm() {
 
     log 1 "开始卸载spacefm..."
     sudo apt purge -y spacefm
+    sudo apt autoremove -y
     if [ $? -ne 0 ]; then
         log 3 "卸载spacefm失败"
         return 1
@@ -678,6 +679,7 @@ function uninstall_krusader() {
     # 卸载 Krusader
     log 1 "卸载 Krusader..."
     sudo apt purge -y krusader
+    sudo apt autoremove -y
     if [ $? -ne 0 ]; then
         log 3 "卸载 Krusader 失败"
         return 1
@@ -725,6 +727,7 @@ function uninstall_konsole() {
     # 卸载 Konsole
     log 1 "卸载 Konsole..."
     sudo apt purge -y konsole
+    sudo apt autoremove -y
     if [ $? -ne 0 ]; then
         log 3 "卸载 Konsole 失败"
         return 1
@@ -785,7 +788,7 @@ function install_tabby() {
 # 函数：卸载 Tabby 可同步终端
 function uninstall_tabby() {
     # 检测是否已安装
-    if ! check_if_installed "tabby"; then
+    if ! check_if_installed "tabby-terminal"; then
         log 2 "Tabby未安装"
         return 0
     else
@@ -797,7 +800,7 @@ function uninstall_tabby() {
             return 1
         fi
         log 1 "找到Tabby包名: ${pkg_name}"
-        if sudo apt purge -y"$pkg_name"; then
+        if sudo apt purge -y "$pkg_name"; then
             log 2 "Tabby卸载成功"
             return 0
         else
@@ -845,6 +848,7 @@ function uninstall_telegram() {
     # 卸载 Telegram
     log 1 "卸载 Telegram..."
     sudo apt purge -y telegram-desktop
+    sudo apt autoremove -y
     if [ $? -ne 0 ]; then
         log 3 "卸载 Telegram 失败"
         return 1
@@ -955,14 +959,14 @@ function uninstall_brave() {
 
     # 删除软件源
     log 1 "删除Brave软件源..."
-    rm -f /etc/apt/sources.list.d/brave-browser-release.list
+    sudo rm -f /etc/apt/sources.list.d/brave-browser-release.list
     if [ $? -ne 0 ]; then
         log 3 "删除Brave软件源文件失败"
     fi
 
     # 删除GPG密钥
     log 1 "删除Brave GPG密钥..."
-    rm -f /usr/share/keyrings/brave-browser-archive-keyring.gpg
+    sudo rm -f /usr/share/keyrings/brave-browser-archive-keyring.gpg
     if [ $? -ne 0 ]; then
         log 3 "删除Brave GPG密钥失败"
     fi
@@ -1016,7 +1020,8 @@ function uninstall_VLC() {
 
     # 卸载VLC
     log 1 "卸载VLC..."
-    sudo apt-get remove -y vlc
+    sudo apt purge -y vlc
+    sudo apt autoremove -y
     if [ $? -ne 0 ]; then
         log 3 "卸载VLC失败"
         return 1
@@ -1093,7 +1098,6 @@ function uninstall_windsurf() {
     fi
     
     # 清理配置文件和依赖
-    sudo apt purge -y windsurf
     sudo apt autoremove -y
     
     # 删除仓库配置
@@ -2085,7 +2089,7 @@ show_menu() {
     green "57. 卸载 SpaceFM 双面板文件管理器"  
     green "58. 卸载 Krusader 双面板文件管理器"
     green "59. 卸载 Konsole KDE's Terminal Emulator"
-    yellow "60. 卸载全部50-59软件"
+    yellow "69. 卸载全部50-59软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "卸载桌面系统进阶常用软件:"
@@ -2095,7 +2099,7 @@ show_menu() {
     green "64. 卸载 VLC 视频播放器 apt"
     green "65. 卸载 Windsurf IDE 编程工具"
     green "66. 卸载 PDF Arranger PDF页面编辑器"
-    yellow "67. 卸载全部61-66软件"
+    yellow "69. 卸载全部61-66软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "卸载命令行增强工具:"
