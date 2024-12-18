@@ -264,55 +264,63 @@ function install_pot_desktop() {
    # 检测是否已安装
     if check_if_installed "pot-desktop"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*pot-desktop" | awk '{print $3}')
+        local_version=$(dpkg -l | grep  "^ii\s*pot" | awk '{print $3}')
         log 1 "pot-desktop已安装，本地版本: $local_version"
+    else
+        log 1 "未找到pot-desktop，开始获得下载链接，请耐心等待"
+    fi
+    
+    # 获取下载链接
+    get_download_link "https://github.com/pot-app/pot-desktop/releases"
+    # 从LATEST_VERSION中提取版本号（去掉v前缀）
+    remote_version=${LATEST_VERSION#v}
+    log 1 "远程最新版本: $remote_version"
         
-        # 获取远程最新版本
-        get_download_link "https://github.com/pot-app/pot-desktop/releases"
-        # 从LATEST_VERSION中提取版本号（去掉v前缀）
-        remote_version=${LATEST_VERSION#v}
-        log 1 "远程最新版本: $remote_version"
-        
-        # 比较版本号，检查本地版本是否包含远程版本
-        if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 1 "已经是最新版本，无需更新，返回主菜单"
-            return 0
-        else
-            log 1 "发现新版本，开始更新..."
-            pot_desktop_download_link=${DOWNLOAD_URL}
-            install_package ${pot_desktop_download_link}
-        fi
+    # 比较版本号，检查本地版本是否包含远程版本
+    if [[ "$local_version" == *"$remote_version"* ]]; then
+        log 1 "已经是最新版本，无需更新，返回主菜单"
         return 0
     else
-        # 获取最新的下载链接,要先将之前保存的下载链接清空
-        DOWNLOAD_URL=""
-        get_download_link "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$"
-        # .*：表示任意字符（除换行符外）出现零次或多次。
-        # linux-x86-64：匹配字符串“linux-x86-64”。
-        # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
-        # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
-        # $：表示字符串的结尾。
-        pot_desktop_download_link=${DOWNLOAD_URL}
-        install_package ${pot_desktop_download_link}
+        log 1 "发现新版本，开始更新..."
+    fi
+    
+    # 获取下载链接
+    DOWNLOAD_URL=""
+    get_download_link "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$"
+    # .*：表示任意字符（除换行符外）出现零次或多次。
+    # linux-x86-64：匹配字符串“linux-x86-64”。
+    # .*：再次表示任意字符出现零次或多次，以便在“linux-x86-64”之后可以有其他字符。
+    # \.deb：匹配字符串“.deb”。注意，点号 . 在正则表达式中是一个特殊字符，表示任意单个字符，因此需要用反斜杠 \ 转义。
+    # $：表示字符串的结尾。
+    pot_desktop_download_link=${DOWNLOAD_URL}
+    install_package ${pot_desktop_download_link}
+
+    # 验证安装结果
+    if check_if_installed "pot"; then
+        log 1 "pot-desktop 安装完成"
+        return 0
+    else
+        log 3 "pot-desktop 安装失败"
+        return 1
     fi
 }
 
 # 卸载pot-desktop的函数
 function uninstall_pot_desktop() {
     log 1 “检查是否已安装”
-    if ! check_if_installed "pot-desktop"; then
+    if ! check_if_installed "pot"; then
         log 1 "pot-desktop未安装"
         return 0
     fi
 
     # 获取实际的包名
-    pkg_name=$(dpkg -l | grep -i pot-desktop | awk '{print $2}')
+    pkg_name=$(dpkg -l | grep -i pot | awk '{print $2}')
     if [ -z "$pkg_name" ]; then
         log 3 "未找到已安装的pot-desktop"
     fi
 
     log 1 "找到pot-desktop包名: ${pkg_name}"
-    if sudo dpkg -r "$pkg_name"; then
+    if sudo apt purge -y "$pkg_name"; then
         log 1 "pot-desktop卸载成功"
         # 清理依赖
         sudo apt autoremove -y
