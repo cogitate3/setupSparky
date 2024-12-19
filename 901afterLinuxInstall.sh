@@ -199,7 +199,7 @@ function install_angrysearch() {
         log 2 "angrysearch已安装，本地版本: $local_version"
         
         # 获取远程最新版本
-        get_assets_links "https://github.com/DoTheEvo/ANGRYsearch/releases"
+
         get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
         # 从LATEST_VERSION中提取版本号（去掉v前缀）
         remote_version=${LATEST_VERSION#v}
@@ -512,6 +512,7 @@ function install_ab_download_manager() {
     fi
 
     # 获取最新的下载链接
+
     get_download_link "https://github.com/amir1376/ab-download-manager/releases" ".*linux_x64.*\.deb$"
     ab_download_manager_download_link=${DOWNLOAD_URL}
     install_package ${ab_download_manager_download_link}
@@ -525,7 +526,7 @@ function uninstall_ab_download_manager() {
         return 0
     fi
 
-    log 1 "开始卸载ab-download-manager..."
+    log 1 "检测到已安装ab-download-manager，开始卸载..."
     
     if ! sudo apt purge -y abdownloadmanager; then
         log 3 "卸载ab-download-manager失败"
@@ -533,7 +534,6 @@ function uninstall_ab_download_manager() {
     fi
     
     # 清理配置文件和依赖
-    sudo apt purge -y abdownloadmanager
     sudo apt autoremove -y
     
     log 2 "ab-download-manager卸载成功"
@@ -804,7 +804,7 @@ function uninstall_tabby() {
         log 2 "Tabby未安装"
         return 0
     else
-        log 1 "开始卸载Tabby..."
+        log 1 "检测到已安装Tabby，开始卸载..."
         # 获取实际的包名
         pkg_name=$(dpkg -l | grep -i tabby | awk '{print $2}')
         if [ -z "$pkg_name" ]; then
@@ -858,7 +858,7 @@ function uninstall_telegram() {
     fi
     
     # 卸载 Telegram
-    log 1 "卸载 Telegram..."
+    log 1 "检测到已安装Telegram，开始卸载..."
     sudo apt purge -y telegram-desktop
     sudo apt autoremove -y
     if [ $? -ne 0 ]; then
@@ -962,7 +962,7 @@ function uninstall_brave() {
     fi
 
     # 卸载Brave浏览器
-    log 1 "卸载Brave浏览器..."
+    log 1 "检测到已安装Brave浏览器，开始卸载..."
     sudo apt purge -y brave-browser
     if [ $? -ne 0 ]; then
         log 3 "卸载Brave浏览器失败"
@@ -1031,7 +1031,7 @@ function uninstall_VLC() {
     fi
 
     # 卸载VLC
-    log 1 "卸载VLC..."
+    log 1 "检测到已安装VLC，开始卸载..."
     sudo apt purge -y vlc
     sudo apt autoremove -y
     if [ $? -ne 0 ]; then
@@ -1097,13 +1097,13 @@ function install_windsurf() {
 
 # 函数：卸载 Windsurf IDE 编程工具
 function uninstall_windsurf() {
-    log 1 “检查是否已安装Windsurf” 
+    # 检查是否已安装 
     if ! check_if_installed "windsurf"; then
         log 2 "Windsurf未安装"
         return 0
     fi
     
-    # 卸载Windsurcd source
+    log 1 "检测到已安装Windsurf，开始卸载..."
     if ! sudo apt purge -y windsurf; then
         log 3 "卸载Windsurf失败"
         return 1
@@ -1156,13 +1156,13 @@ function install_pdfarranger() {
 
 # 卸载：PDF Arranger PDF页面编辑器
 function uninstall_pdfarranger() {
-    log 1 "检查是否已安装"
+    # 检查是否已安装
     if ! check_if_installed "pdfarranger"; then
         log 2 "pdfarranger未安装"
         return 0
     fi
 
-    log 1 "开始卸载pdfarranger..."
+    log 1 "检测到已安装pdfarranger，开始卸载..."
     pipx uninstall pdfarranger
     if [ $? -ne 0 ]; then
         log 3 "卸载pdfarranger失败"
@@ -1174,7 +1174,7 @@ function uninstall_pdfarranger() {
 
 # 函数：安装 WPS Office
 function install_wps() {
-    log 1 “检查是否已安装”
+    # 检查是否已安装
     if check_if_installed "wps-office"; then
         log 2 "WPS Office 已安装"
         return 0
@@ -1224,14 +1224,14 @@ function install_neofetch() {
 
 # 函数：卸载 Neofetch 命令行获取系统信息
 function uninstall_neofetch() {
-    log 1 "检查是否已安装"
+    # 检查是否已安装
     if ! check_if_installed "neofetch"; then
         log 1 "neofetch 未安装"
         return 0
     fi
 
     # 卸载 neofetch
-    log 1 "开始卸载 neofetch..."
+    log 1 "检测到已安装neofetch，开始卸载..."
     if ! sudo apt purge -y neofetch; then
         log 3 "卸载 neofetch 失败"
         return 1

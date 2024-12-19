@@ -1,3 +1,63 @@
+#!/bin/bash
+
+
+# fonts color,简单快速输出颜色字
+# Usage:red "字母"
+red(){
+    echo -e "\033[31m\033[01m$1\033[0m"
+}
+green(){
+    echo -e "\033[32m\033[01m$1\033[0m"
+}
+yellow(){
+    echo -e "\033[33m\033[01m$1\033[0m"
+}
+blue(){
+    echo -e "\033[34m\033[01m$1\033[0m"
+}
+bold(){
+    echo -e "\033[1m\033[01m$1\033[0m"
+}
+
+
+
+# 安装依赖的函数
+    DEPENDENCIES=(
+        "curl"
+        "wget"
+        "git"
+        "terminator"
+        "bat" # 使用命令是batcat
+        "python3"
+        "python3-venv"
+        "python3-pip"  # 添加 pip
+        "pipx"
+        "build-essential"
+        "apt-transport-https"
+        "ca-certificates"
+        "gnupg"
+        "lsb-release"
+        "software-properties-common"
+    )
+
+install_dependencies() {
+    local dependencies=("$@")  # Accept dependencies as function arguments
+
+    for dep in "${dependencies[@]}"; do
+        if ! dpkg -l | grep -q "^ii  $dep"; then
+            echo -e "${yellow}正在安装 $dep...${plain}"
+            sudo apt install -y "$dep"
+            if [ $? -ne 0 ]; then
+                echo -e "${red}安装 $dep 失败${plain}"
+                return 1
+            fi
+        else
+            echo -e "${green}$dep 已经安装${plain}"
+        fi
+    done
+    return 0
+}
+
 # 日志记录函数,参数分别为日志级别、消息、颜色。如果指定颜色参数为"NC"，则不遵循后面的设定的日志级别的颜色
 log() {
     local level=$1
@@ -79,23 +139,7 @@ get_download_link() {
   log "INFO" "下载链接: $download_links_json"
 }
 
-# fonts color,简单快速输出颜色字
-# Usage:red "字母"
-red(){
-    echo -e "\033[31m\033[01m$1\033[0m"
-}
-green(){
-    echo -e "\033[32m\033[01m$1\033[0m"
-}
-yellow(){
-    echo -e "\033[33m\033[01m$1\033[0m"
-}
-blue(){
-    echo -e "\033[34m\033[01m$1\033[0m"
-}
-bold(){
-    echo -e "\033[1m\033[01m$1\033[0m"
-}
+
 # 系统检测版本
 function getLinuxOSVersion(){
     # copy from 秋水逸冰 ss scripts
@@ -162,6 +206,11 @@ function install_micro() {
 
 # 菜单，用法
 # start_menu "first"
+# 颜色变量
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[0;33m'
+plain='\033[0m'
 function start_menu(){
     clear
 
@@ -290,51 +339,7 @@ function start_menu(){
             start_menu
         ;;
     esac
-}
 
-
-
-
-
-
-    yellow "安装选项:"
-    green "1. 安装 Docker 和 Docker Compose"
-    green "2. 安装 Brave 浏览器"
-    green "3. 安装 Tabby 终端"
-    green "4. 安装 Konsole、VLC、Neofetch和Krusader"
-    green "5. 安装 Pot-desktop 翻译工具"
-    green "6. 安装 Geany 编辑器"
-    green "7. 安装 Windsurf IDE"
-    green "8. 安装 PDF Arranger"
-    green "9. 安装 SpaceFM 文件管理器"
-    green "10. 安装 Flatpak"
-    green "11. 安装 AB Download Manager"
-    green "12. 安装 LocalSend"
-
-
-terminator
-batcat
-
-    # 定义依赖列表
-    local dependencies=(
-        "libgit2-1.5"
-        "gconf2"
-        "gconf-service"
-        "curl"
-        "wget"
-        "git"
-        "tldr"
-        "ca-certificates"
-        "gnupg"
-        "software-properties-common"
-        "apt-transport-https"
-        "neofetch"
-        "bat"
-        "geany"
-        "terminator"
-    )
-
-    # 函数：安装 cheat.sh
 install_cheatsh() {
   apt install -y rlwrap
   curl -s https://cht.sh/:cht.sh | sudo tee /usr/local/bin/cht.sh && chmod +x /usr/local/bin/cht.sh
@@ -518,3 +523,262 @@ else
     echo "提示：sudo 快捷键仅在 zsh 下生效，当前 shell 不是 zsh。"
 fi
 
+# 待安装的软件列表
+software_list=(
+    "zsh"
+    "micro"
+    "plank"
+    "eggs"
+    "cheat.sh"
+    "angrysearch"
+    "WPS Office"
+)
+# 
+
+
+# 过程函数：检查GitHub版本是否比本地版本更新
+check_github_update_available() {
+    local package_name="$1"      # 包名称
+    local local_version="$2"     # 本地版本号
+    local github_version="$3"    # GitHub上的版本号
+    local skip_v="${4:-false}"   # 是否跳过版本号前的'v'，默认为false
+
+    # 移除版本号前的'v'（如果需要）
+    if [ "$skip_v" = "true" ]; then
+        github_version=${github_version#v}
+        local_version=${local_version#v}
+    fi
+
+    log 1 "$package_name 本地版本: $local_version"
+    log 1 "$package_name GitHub版本: $github_version"
+
+    # 如果版本号相同，不需要更新
+    if [ "$local_version" = "$github_version" ]; then
+        log 1 "$package_name 已是最新版本"
+        return 1
+    fi
+
+    # 将版本号分割为数组
+    IFS='.' read -ra local_parts <<< "$local_version"
+    IFS='.' read -ra github_parts <<< "$github_version"
+
+    # 比较版本号的每个部分
+    for i in "${!local_parts[@]}"; do
+        # 如果GitHub版本数组较短，则本地版本更新
+        if [ -z "${github_parts[$i]}" ]; then
+            log 1 "$package_name 本地版本更新"
+            return 1
+        fi
+        
+        # 比较数字部分
+        if [ "${local_parts[$i]}" -lt "${github_parts[$i]}" ]; then
+            log 1 "发现 $package_name 新版本"
+            return 0
+        elif [ "${local_parts[$i]}" -gt "${github_parts[$i]}" ]; then
+            log 1 "$package_name 本地版本更新"
+            return 1
+        fi
+    done
+
+    # 如果GitHub版本有更多的部分，则GitHub版本更新
+    if [ "${#github_parts[@]}" -gt "${#local_parts[@]}" ]; then
+        log 1 "发现 $package_name 新版本"
+        return 0
+    fi
+
+    log 1 "$package_name 已是最新版本"
+    return 1
+}
+
+function uninstall_spacefm() {
+    log 1 "开始检查软件卸载状态..."
+    local packages=("spacefm")
+    local packages_to_remove=()
+    local all_uninstalled=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if check_if_installed "$pkg"; then
+            packages_to_remove+=("$pkg")
+            all_uninstalled=false
+            log 1 "$pkg 已安装，将进行卸载"
+        else
+            log 1 "$pkg 未安装"
+        fi
+    done
+    
+    # 如果所有软件都未安装，直接返回
+    if [ "$all_uninstalled" = true ]; then
+        log 1 "所有软件都未安装，无需操作"
+        return 0
+    fi
+    
+    # 卸载已安装的软件
+    if [ ${#packages_to_remove[@]} -gt 0 ]; then
+        log 1 "开始卸载软件: ${packages_to_remove[*]}"
+        if ! sudo apt remove -y "${packages_to_remove[@]}"; then
+            log 3 "卸载失败: ${packages_to_remove[*]}"
+            return 1
+        fi
+        
+        # 清理配置文件
+        log 1 "清理软件配置..."
+        sudo apt purge -y "${packages_to_remove[@]}"
+        sudo apt autoremove -y
+        
+        log 1 "所有软件卸载成功"
+    fi
+    
+    return 0
+}
+
+# 函数：安装 Krusader 双面板文件管理器
+function install_krusader() {
+    log 1 "开始检查软件安装状态..."
+    local packages=("krusader")
+    local packages_to_install=()
+    local all_installed=true
+    
+    # 检查每个软件的安装状态
+    for pkg in "${packages[@]}"; do
+        if ! check_if_installed "$pkg"; then
+            packages_to_install+=("$pkg")
+            all_installed=false
+            log 1 "$pkg 未安装，将进行安装"
+        else
+            log 1 "$pkg 已安装"
+        fi
+    done
+    
+    # 如果所有软件都已安装，直接返回
+    if [ "$all_installed" = true ]; then
+        log 1 "所有软件都已安装，无需操作"
+        return 0
+    fi
+    
+    # 安装未安装的软件
+    if [ ${#packages_to_install[@]} -gt 0 ]; then
+        log 1 "开始安装未安装的软件: ${packages_to_install[*]}"
+        sudo apt update
+        if ! sudo apt install -y "${packages_to_install[@]}"; then
+            log 3 "安装失败: ${packages_to_install[*]}"
+            return 1
+        fi
+        log 1 "所有软件安装成功"
+    fi
+    
+    return 0
+}
+
+        # 获取压缩包中的目录名
+        extracted_dir=$(tar -tzf ${LATEST_VERSION}.tar.gz | head -1 | cut -f1 -d"/")
+        log 1 "解压目录名: ${extracted_dir}"
+
+        # 函数：安装字体
+function install_fonts() {
+    local font_list=("JetBrainsMono" "CascadiaCode" "SourceHanMono")
+    local font_url
+    local font_file
+    local install_dir="/usr/share/fonts/truetype"
+    local tmp_dir="/tmp/fonts"
+
+    # 创建临时目录和安装目录
+    rm -rf "$tmp_dir" && mkdir -p "$tmp_dir"
+    # Check if the fonts directory exists, create it if not
+    if [ ! -d "$install_dir" ]; then
+        sudo mkdir -p "$install_dir" || { log 3 "创建字体目录失败"; return 1; }
+    fi
+
+    for font_name in "${font_list[@]}"; do
+        case "$font_name" in
+            "JetBrainsMono")
+                # JetBrains Mono - 最新版本包含所有变体
+                font_url="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
+                font_file="$tmp_dir/${font_name}.zip"
+                download_and_install_zip "$font_name" "$font_url" "$font_file" "$tmp_dir" "$install_dir"
+                ;;
+            "CascadiaCode")
+                # Cascadia Code - 包含等宽和非等宽变体
+                font_url="https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip"
+                font_file="$tmp_dir/${font_name}.zip"
+                download_and_install_zip "$font_name" "$font_url" "$font_file" "$tmp_dir" "$install_dir"
+                ;;
+            "SourceHanMono")
+                # Source Han Mono - 思源等宽字体，支持中日韩
+                font_url="https://github.com/adobe-fonts/source-han-mono/releases/download/1.002/SourceHanMono.ttc"
+                font_file="$tmp_dir/${font_name}.ttc"
+                download_and_install_ttc "$font_name" "$font_url" "$font_file" "$install_dir"
+                ;;
+        esac
+    done
+
+    # 清理临时文件
+    rm -rf "$tmp_dir"
+
+    # 更新字体缓存
+    log 1 "更新字体缓存..."
+    if ! sudo fc-cache -fv; then
+        log 3 "更新字体缓存失败"
+        return 1
+    fi
+    log 1 "字体安装完成"
+}
+
+# 辅助函数：下载并安装zip格式的字体
+download_and_install_zip() {
+    local font_name="$1"
+    local font_url="$2"
+    local font_file="$3"
+    local tmp_dir="$4"
+    local install_dir="$5"
+
+    log 1 "下载 ${font_name} 字体..."
+    if ! wget -q --show-progress "$font_url" -O "$font_file"; then
+        log 3 "下载 ${font_name} 失败"
+        return 1
+    fi
+
+    log 1 "解压 ${font_name}..."
+    if ! unzip -q "$font_file" -d "$tmp_dir/${font_name}"; then
+        log 3 "解压 ${font_name} 失败"
+        return 1
+    fi
+
+    # 移动所有字体文件（支持ttf和otf）
+    local font_count=0
+    while IFS= read -r font; do
+        sudo mv "$font" "$install_dir/"
+        ((font_count++))
+    done < <(find "$tmp_dir/${font_name}" -type f \( -name "*.ttf" -o -name "*.otf" \))
+
+    if [ "$font_count" -eq 0 ]; then
+        log 3 "未找到任何字体文件"
+        return 1
+    fi
+
+    log 1 "${font_name} 安装成功，共安装 ${font_count} 个字体文件"
+    return 0
+}
+
+# 辅助函数：下载并安装ttc格式的字体
+download_and_install_ttc() {
+    local font_name="$1"
+    local font_url="$2"
+    local font_file="$3"
+    local install_dir="$4"
+
+    log 1 "下载 ${font_name} 字体..."
+    if ! wget -q --show-progress "$font_url" -O "$font_file"; then
+        log 3 "下载 ${font_name} 失败"
+        return 1
+    fi
+
+    # 直接移动ttc文件
+    if ! sudo mv "$font_file" "$install_dir/"; then
+        log 3 "移动 ${font_name} 失败"
+        return 1
+    fi
+
+    log 1 "${font_name} 安装成功"
+    return 0
+}

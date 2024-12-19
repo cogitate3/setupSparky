@@ -184,11 +184,13 @@ logger1() {
   if [[ "$1" == "error" ]]; then
     # 如果是"error"，则用红色显示错误信息
     # 在控制台输出错误信息，并附加到日志文件中
+    # shellcheck disable=SC2145
     echo -e "${timestamp} -- "$0" [Error]: \033[0;31m$@\033[0m" | tee -a ${LOG_FILE}
   else
     # $0表示当前脚本的文件名
     # 如果不是"error"，则用默认颜色显示信息
     # 在控制台输出信息，并附加到日志文件中
+    # shellcheck disable=SC2145
     echo -e "${timestamp} -- "$0" [Info]: $@" | tee -a ${LOG_FILE}
   fi
 }

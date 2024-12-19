@@ -16,8 +16,8 @@ get_download_link() {
   fi
 
   local url="$1"
-  get_assets_links "$url"  >/dev/null 2>&1 # 调用 get_assets_links 函数，获得全局变量 DOWNLOAD_LINKS 
-
+  get_assets_links "$url" >/dev/null 2>&1
+  
   # 访问参数1的页面，找到规律，写一个正则表达式匹配规则，作为第二个参数，比如".*linux-[^/]*\.deb$"
   # 用chatgpt生成匹配规则
   local regex="$2"  
@@ -25,8 +25,11 @@ get_download_link() {
   # 如果参数2不为空，参数2为正则表达式，函数输出匹配的下载链接；
   # 输入参数2时，不要加两边的双引号
   if [ -z "$regex" ]; then
-    log 1 "未提供匹配规则，输出获取的远程最新版本号"
-    log 1 "远程最新版本号是:$LATEST_VERSION"
+    get_assets_links "$url" >/dev/null 2>&1
+    # log 1 "未提供匹配规则，输出获取的远程最新版本号: $LATEST_VERSION "
+    # log 1 "LATEST_VERSION 这个变量的值来自 get_assets_links 函数"
+    # log 1 "获得全局变量 LATEST_VERSION 的值必须执行一次这个函数"
+
     return 0
   fi
 
@@ -87,13 +90,17 @@ install_package() {
     # -L: 跟随重定向
     # --progress-bar: 显示下载进度条
     # --fail-early: 在错误时尽早失败
+
+    local tmp_dir="/tmp/downloads"
+    mkdir -p "$tmp_dir"
+    
     log 1 "开始下载: ${download_link}..."
     while [ $retry_count -lt $max_retries ] && [ "$success" = false ]; do
         if curl -fSL --progress-bar --fail-early \
             --connect-timeout $timeout \
             --retry $max_retries \
             --retry-delay $retry_delay \
-            -o "./$(basename "$download_link")" \
+            -o "$tmp_dir/$(basename "$download_link")" \
             "${download_link}"; then
             success=true
             log 1 "下载成功"
@@ -121,14 +128,14 @@ install_package() {
         case "${filename##*.}" in
             deb)
                 log 1 "安装 $filename..."
-                if sudo dpkg -i ./$filename; then
-                    log 1 "安装成功"
+                if sudo dpkg -i "$tmp_dir/$filename"; then # dpkg -i 不需要联网
+                    log 2 "$filename 安装成功"
                 else
                     log 2 "首次安装失败，尝试修复依赖..."
-                    if sudo apt-get install -f -y; then
-                        log 1 "依赖修复成功，重试安装"
-                        if sudo dpkg -i ./$filename; then
-                            log 1 "安装成功"
+                    if sudo apt-get install -f -y; then # apt-get install -f -y 需要联网
+                        log 2 "依赖修复成功，重试安装"
+                        if sudo dpkg -i "$tmp_dir/$filename"; then
+                            log 2 "安装成功"
                         else
                             log 3 "安装失败"
                             install_status=1
@@ -143,7 +150,7 @@ install_package() {
                 if [[ "$filename" == *.tar.gz || "$filename" == *.tgz ]]; then
                     log 1 "下载的文件是压缩包: $filename，无法使用apt或者dpkg安装，需要手动安装"
                     install_status=2
-                    ARCHIVE_FILE="./$filename"
+                    ARCHIVE_FILE="$tmp_dir/$filename"
                     need_cleanup=false  # 保留文件供后续使用
                     install_status=2    # 需要手动安装
                     log 2 "文件已保存到: $ARCHIVE_FILE，请手动完成安装"
@@ -159,7 +166,7 @@ install_package() {
         # 根据需要清理文件
         if [ "$need_cleanup" = true ]; then
             log 1 "清理下载的文件..."
-            rm -f ./$filename
+            rm -f "$tmp_dir/$filename"
         fi
         
         return $install_status
