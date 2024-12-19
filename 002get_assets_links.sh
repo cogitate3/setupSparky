@@ -44,7 +44,7 @@ get_assets_links() {
   # 1. 首先检查 https://api.github.com/repos/microsoft/vscode/releases/latest 是否能访问
   # 2. 如果能访问，获取JSON数据并提取版本号（比如 "1.85.0"）
   if [ $? -ne 0 ] || [ -z "$LATEST_VERSION" ]; then
-    log 3 "无法获取最新版本号: curl 返回码 $?，版本号: $LATEST_VERSION"
+    log 3 "无法获取最新版本号: curl 返回码 $?，版本号: $LATEST_VERSION "
     return 1
   fi
 
@@ -52,7 +52,7 @@ get_assets_links() {
   local download_links_json=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/$owner_repo/releases/latest" | grep -q 200 && curl -s "https://api.github.com/repos/$owner_repo/releases/latest" | jq -r '.assets[] | .browser_download_url')
 
   if [ $? -ne 0 ] || [ -z "$download_links_json" ]; then
-    log 3 "无法获取下载链接: curl 返回码 $?，链接: $download_links_json"
+    log 3 "无法获取下载链接: curl 返回码 $?，链接: $download_links_json 为空，但得到了最新版本号：$LATEST_VERSION "
     return 1
   fi
 
