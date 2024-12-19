@@ -3,8 +3,10 @@
 # 日志相关配置
 # source 001log2File.sh 003get_download_link.sh里面引入了001log2File.sh和002get_assets_links.sh
 source 003get_download_link.sh
-# log "./logs/901.log" "第一条消息，同时设置日志文件"     # 设置日志文件并记录消息，
-# echo 日志记录在"./logs/901.log"
+source 005get_fonts.sh
+# 先设置日志
+log "/tmp/logs/901.log" 1 "第一条消息，同时设置日志文件"
+log 2 "日志记录在/tmp/logs/901.log"
 
 
 # check_root函数
@@ -101,6 +103,7 @@ show_package_dependencies() {
 }
 
 # 过程函数：统一检查软件是否已安装的函数
+# 返回0表示已安装，返回1表示未安装
 check_if_installed() {
     local package_name="$1"
     
@@ -1697,12 +1700,12 @@ function uninstall_eggs() {
 # 函数：安装 snap和snapstore 软件库
 function install_snap() {
     log 1 "检查 snap和snapstore 是否已安装"
-    if check_if_installed "snapd"; then
-        log 2 "snapd已安装,版本是$(snapd --version)"
+    if check_if_installed "snap"; then
+        log 2 "snapd已安装,版本是：\n$(snap --version)"
         return 0
     fi
 
-    log 1 "开始安装 snap和snapstore..."
+    log 2 "检测到未安装snap软件库，开始安装..."
     sudo apt install -y snapd
     log 2 "snap 安装完成"
 
@@ -1716,7 +1719,7 @@ function install_snap() {
     if check_if_installed "snap-store"; then
         log 2 "snap-store 已安装"
     else
-        log 1 "开始安装 snap-store..."
+        log 2 "检测到未安装snap-store，开始安装..."
         sudo snap install snap-store
         log 2 "snap-store 安装完成"
     fi
@@ -1724,20 +1727,19 @@ function install_snap() {
     return 0
 }
 
-# 函数：卸载 snap和snapstore 软件库
+# 函数：卸载 snap 软件库
 function uninstall_snap() {
-    log 1 "检查 snap和snapstore 是否已安装"
-    if ! check_if_installed "snap-store"; then
+    log 1 "检查 snap 是否已安装"
+    if ! check_if_installed "snap"; then
         log 2 "snapstore 未安装"
         return 0
     fi
 
-    log 1 "开始卸载 snapstore..."
+    log 2 "检测到已安装snap ，开始卸载..."
     sudo snap remove snap-store
     log 2 "snapstore 卸载完成"
 
-    log 1 "开始卸载 snap..."
-    sudo apt remove -y snapd
+    sudo apt purge -y snapd
     log 2 "snap 卸载完成"
     return 0
 }
@@ -1747,12 +1749,12 @@ function install_flatpak() {
     log 1 "检查 Flatpak 是否已安装..."
 
     if check_if_installed "flatpak"; then
-        log 2 "Flatpak已经安装，版本是$(flatpak --version)"
+        log 2 "检测到Flatpak已经安装，版本是$(flatpak --version)"
         return 0
     fi
 
     # 安装Flatpak
-    log 1 "安装Flatpak..."
+    log 1 "检测到未安装Flatpak，开始安装..."
     if ! sudo apt install -y flatpak; then
         log 3 "安装Flatpak失败，请检查网络连接和软件源"
         return 1
@@ -1783,7 +1785,7 @@ function install_flatpak() {
         return 1
     fi
 
-    log 2 "Flatpak安装完成，您可能需要重启系统以使更改生效"
+    log 2 "Flatpak安装完成，您需要重启系统以使更改生效"
     return 0
 }
 
@@ -1796,12 +1798,21 @@ function uninstall_flatpak() {
     fi
 
     # 首先卸载所有已安装的Flatpak应用
-    log 1 "卸载所有Flatpak应用..."
+    log 1 "检测到已安装Flatpak，首先卸载所有Flatpak应用..."
     flatpak uninstall --all || log 2 "没有找到已安装的Flatpak应用"
 
     # 移除所有远程仓库
     log 1 "移除所有Flatpak仓库..."
-    flatpak remote-delete --force -y --all || log 2 "没有找到Flatpak仓库"
+    # Get a list of remotes, excluding the header line
+    localremotes=$(flatpak remotes | tail -n +2 | awk '{print $1}')
+
+    # Loop through each remote and delete it
+    for remote in $remotes; do
+    echo "Deleting remote: $remote"
+    flatpak remote-delete --force "$remote"
+    done
+
+    log "All remotes deleted." 
 
     # 卸载Flatpak和相关插件
     log 1 "卸载Flatpak及相关插件..."
@@ -1888,18 +1899,16 @@ function uninstall_homebrew() {
 
 # 函数：pipx安装 docker和docker-compose 虚拟化平台
 function install_docker_and_docker_compose() {
-    log 1 "开始安装Docker和Docker Compose"
-    
-    # 检查是否已经安装
+    log 1 "检查是否已安装Docker和Docker Compose"
     if check_if_installed "docker-ce"; then
-        log 1 "Docker已经安装"
         version=$(get_package_version "docker-ce" "docker --version")
-        log 1 "Docker版本: $version"
+        log 2 "检测到Docerk已安装，Docker版本: $version"
         compose_version=$(get_package_version "docker-compose-plugin" "docker compose version")
-        log 1 "Docker Compose版本: $compose_version"
+        log 2 "检测到Docker Compose版本: $compose_version"
         return 0
     fi
 
+    log 2 "检测到未安装Docker和Docker Compose，开始安装..."
     # 检查必要的依赖
     local deps=("apt-transport-https" "ca-certificates" "curl" "gnupg" "lsb-release")
     if ! check_and_install_dependencies "${deps[@]}"; then
@@ -1973,7 +1982,7 @@ function install_docker_and_docker_compose() {
     
     # 验证安装
     if check_if_installed "docker-ce"; then
-        log 1 "Docker安装和配置全部完成"
+        log 2 "Docker安装和配置全部完成"
         version=$(get_package_version "docker-ce" "docker --version")
         log 1 "Docker版本: $version"
         compose_version=$(get_package_version "docker-compose-plugin" "docker compose version")
@@ -1987,9 +1996,13 @@ function install_docker_and_docker_compose() {
 
 # 函数：卸载 docker和docker-compose 虚拟化平台
 function uninstall_docker_and_docker_compose() {
-    log 1 "开始卸载Docker和Docker Compose"
-    
-    # 停止所有运行的容器
+    log 1 "检查是否已安装Docker"
+    if ! check_if_installed "docker-ce"; then
+        log 2 "Docker未安装"
+        return 0
+    fi
+
+    log 21 "检测到安装Docker，开始卸载..."
     if check_if_installed "docker"; then
         log 1 "停止所有运行的容器"
         docker stop $(docker ps -aq) 2>/dev/null
@@ -2026,25 +2039,12 @@ function uninstall_docker_and_docker_compose() {
 # 每个菜单项都是一个函数，添加合适的分类
 # 安装和卸载分开
 show_menu() {
-    # fonts color,简单快速输出颜色字
-    # Usage:red "字母"
-    red(){
-        echo -e "\033[31m\033[01m$1\033[0m"
-    }
-    green(){
-        echo -e "\033[32m\033[01m$1\033[0m"
-    }
-    yellow(){
-        echo -e "\033[33m\033[01m$1\033[0m"
-    }
-    blue(){
-        echo -e "\033[34m\033[01m$1\033[0m"
-    }
-    bold(){
-        echo -e "\033[1m\033[01m$1\033[0m"
-    }
+
     green "==================================="
     green "Linux软件一键安装脚本"
+    green "Github: https://github.com/cogitate3/setupSparkyLinux"
+    green "当前脚本在Sparky7.5检测通过"
+    green "安装日志记录在/tmp/SparkyLinux.log"
     green "==================================="
     yellow "桌面系统增强必备:"
     green "1. 安装 Plank 快捷启动器"
@@ -2120,15 +2120,15 @@ show_menu() {
     green "73. 卸载 eg 命令行命令示例"
     green "74. 卸载 eggs 命令行系统备份"
     # green "75. 卸载 v2rayA 设置网络代理"
-    yellow "79. 卸载全部70-75软件"
+    yellow "79. 卸载全部70-74软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "卸载软件库工具:"
     green "80. 卸载 Docker 和 Docker Compose"
     green "81. 卸载 Snap 和 Snapstore 软件库"
     green "82. 卸载 Flatpak 软件库"
-    green "83. 卸载 Homebrew 软件库"
-    yellow "89. 卸载全部80-83软件"
+    # green "83. 卸载 Homebrew 软件库"
+    yellow "89. 卸载全部80-82软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 
@@ -2336,9 +2336,6 @@ handle_menu() {
 # 主循环
 main() {
     clear
-    log "./logs/901.log" 1 "第一条消息，同时设置日志文件"
-    log 1 "日志记录在./logs/901.log"
-
     # 系统更新，分开执行并检查错误
     log 1 "更新系统软件包列表..."
     if ! sudo apt update; then
@@ -2361,7 +2358,9 @@ main() {
     done
 }
 
+main
+
 # 如果脚本被直接运行而不是被source，则执行main函数
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main
-fi
+# if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+#     main
+# fi
