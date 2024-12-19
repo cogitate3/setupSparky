@@ -2220,11 +2220,11 @@ handle_menu() {
             fi
             
             # 打印安装结果汇总
-            echo -e "\n=== 软件安装结果汇总 ==="
+            log 1 "\n=== 软件安装结果汇总 ==="
             for app in "${apps[@]}"; do
                 printf "%-20s: %s\n" "$app" "${install_results[$app]}"
             done
-            echo "======================="
+            log 1 "\n======================"
             ;;
         
         # 桌面系统进阶常用软件
