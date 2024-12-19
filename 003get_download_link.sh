@@ -16,7 +16,8 @@ get_download_link() {
   fi
 
   local url="$1"
-
+  get_assets_links "$url" >/dev/null 2>&1
+  
   # 访问参数1的页面，找到规律，写一个正则表达式匹配规则，作为第二个参数，比如".*linux-[^/]*\.deb$"
   # 用chatgpt生成匹配规则
   local regex="$2"  
@@ -24,9 +25,11 @@ get_download_link() {
   # 如果参数2不为空，参数2为正则表达式，函数输出匹配的下载链接；
   # 输入参数2时，不要加两边的双引号
   if [ -z "$regex" ]; then
-    log 1 "未提供匹配规则，输出获取的远程最新版本号: $LATEST_VERSION "
-    log 1 LATEST_VERSION 这个变量的值来自 get_assets_links 函数，
-    log 1 获得全局变量 LATEST_VERSION 的值必须执行一次这个函数
+    get_assets_links "$url" >/dev/null 2>&1
+    # log 1 "未提供匹配规则，输出获取的远程最新版本号: $LATEST_VERSION "
+    # log 1 "LATEST_VERSION 这个变量的值来自 get_assets_links 函数"
+    # log 1 "获得全局变量 LATEST_VERSION 的值必须执行一次这个函数"
+
     return 0
   fi
 
