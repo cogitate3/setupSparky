@@ -2043,8 +2043,8 @@ show_menu() {
     green "==================================="
     green "Linux软件一键安装脚本"
     green "Github: https://github.com/SparkyLinux"
-    green "==================================="
     green "当前脚本在Sparky7.5检测通过"
+    green "安装日志记录在/tmp/SparkyLinux.log"
     green "==================================="
     yellow "桌面系统增强必备:"
     green "1. 安装 Plank 快捷启动器"
@@ -2120,15 +2120,15 @@ show_menu() {
     green "73. 卸载 eg 命令行命令示例"
     green "74. 卸载 eggs 命令行系统备份"
     # green "75. 卸载 v2rayA 设置网络代理"
-    yellow "79. 卸载全部70-75软件"
+    yellow "79. 卸载全部70-74软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "卸载软件库工具:"
     green "80. 卸载 Docker 和 Docker Compose"
     green "81. 卸载 Snap 和 Snapstore 软件库"
     green "82. 卸载 Flatpak 软件库"
-    green "83. 卸载 Homebrew 软件库"
-    yellow "89. 卸载全部80-83软件"
+    # green "83. 卸载 Homebrew 软件库"
+    yellow "89. 卸载全部80-82软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 
