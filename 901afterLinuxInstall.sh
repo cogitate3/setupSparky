@@ -2042,7 +2042,7 @@ show_menu() {
 
     green "==================================="
     green "Linux软件一键安装脚本"
-    green "Github: https://github.com/SparkyLinux"
+    green "Github: https://github.com/cogitate3/setupSparkyLinux"
     green "当前脚本在Sparky7.5检测通过"
     green "安装日志记录在/tmp/SparkyLinux.log"
     green "==================================="
@@ -2335,7 +2335,7 @@ handle_menu() {
 
 # 主循环
 main() {
-   # clear
+    clear
     # 系统更新，分开执行并检查错误
     log 1 "更新系统软件包列表..."
     if ! sudo apt update; then
