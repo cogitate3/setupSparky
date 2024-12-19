@@ -199,6 +199,7 @@ function install_angrysearch() {
         log 2 "angrysearch已安装，本地版本: $local_version"
         
         # 获取远程最新版本
+        get_assets_links "https://github.com/DoTheEvo/ANGRYsearch/releases"
         get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
         # 从LATEST_VERSION中提取版本号（去掉v前缀）
         remote_version=${LATEST_VERSION#v}
@@ -214,23 +215,33 @@ function install_angrysearch() {
         fi
         log 1 "发现新版本，开始更新..."
     else
-        log 2 "angrysearch未安装，开始安装..."
+        log 2 "angrysearch未安装，开始下载"
         # LATEST_VERSION="v1.0.4"
     fi
     
-    # 获取下载链接
+    log 1 "获取远程最新版本下载链接..."
+    get_assets_links "https://github.com/DoTheEvo/ANGRYsearch/releases"
+    get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
+    # 从LATEST_VERSION中提取版本号（去掉v前缀）
+    remote_version=${LATEST_VERSION#v}
+    log 1 "远程最新版本: $remote_version"
+    log 1 "angrysearch github releases只提供源代码的压缩包，无法使用get_download_link函数获得最新版下载链接，手动设置远程最新版本下载链接"
     DOWNLOAD_URL="https://github.com/DoTheEvo/ANGRYsearch/archive/refs/tags/${LATEST_VERSION}.tar.gz"
     angrysearch_download_link=${DOWNLOAD_URL}
+    log 1 "手动设置的远程最新版本下载链接: ${angrysearch_download_link}"
     
+
     # 下载并安装
     install_package ${angrysearch_download_link}
     if [ $? -eq 2 ]; then
-        # 获取压缩包中的目录名
-        extracted_dir=$(tar -tzf ${LATEST_VERSION}.tar.gz | head -1 | cut -f1 -d"/")
-        log 1 "解压目录名: ${extracted_dir}"
+        # 下面的目录来自函数install_package，程序都是下载到/tmp/downloads中
+        cd /tmp/downloads
         
-        tar -zxvf ${LATEST_VERSION}.tar.gz -C ~/Downloads
-        cd ~/Downloads/${extracted_dir}
+        extracted_dir=$(tar -tzf ${LATEST_VERSION}.tar.gz | head -1 | cut -f1 -d"/")
+        log 1 "获取解压目录名: ${extracted_dir}"
+        
+        tar -zxvf "${ARCHIVE_FILE}"
+        cd "${extracted_dir}"
         sudo ./install.sh
         
         # 验证安装结果
@@ -242,16 +253,17 @@ function install_angrysearch() {
             return 1
         fi
     fi
-    
     return 1
 }
 
 # 函数：卸载 angrysearch 类似everything的快速查找工具
 function uninstall_angrysearch() {
-    log 1 “检查是否已安装”
+
     if ! check_if_installed "angrysearch"; then
-        log 2 "angrysearch未安装"
+        log 2 "检测到angrysearch未安装"
         return 0
+    else
+        log 1 "检测到angrysearch已安装，开始卸载"
     fi
 
     # 卸载 AngrySearch
@@ -1685,8 +1697,8 @@ function uninstall_eggs() {
 # 函数：安装 snap和snapstore 软件库
 function install_snap() {
     log 1 "检查 snap和snapstore 是否已安装"
-    if check_if_installed "snap"; then
-        log 2 "snap已安装,版本是$(snap --version)"
+    if check_if_installed "snapd"; then
+        log 2 "snapd已安装,版本是$(snapd --version)"
         return 0
     fi
 
@@ -2088,7 +2100,7 @@ show_menu() {
     green "57. 卸载 SpaceFM 双面板文件管理器"  
     green "58. 卸载 Krusader 双面板文件管理器"
     green "59. 卸载 Konsole KDE's Terminal Emulator"
-    yellow "69. 卸载全部50-59软件"
+    yellow "60. 卸载全部50-59软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "卸载桌面系统进阶常用软件:"
