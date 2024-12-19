@@ -70,3 +70,17 @@ This project is licensed under the GPL-3.0 License. See the LICENSE file for det
 ## Acknowledgments
 
 **Special thanks to [Emer Chen](https://sourceforge.net/u/ldsemerchen/profile/)**, this enthusiastic brother who introduced me to Sparky Linux and patiently answered all sorts of beginner questions from me, a Linux novice. The [Live Debian System (Debian Respin)](https://sourceforge.net/projects/antix-mate-respin/) customized by Emer Chen is extremely user-friendly, with thorough localization, an attractive interface, and comes pre-installed with many practical applications.
+
+**A huge shoutout to these incredible tools and platforms** for making our lives as developers and users so much easier:
+
+- **[devv.ai](https://devv.ai/)**: A game-changer for programmers. Just throw your errors in, and out comes the answer. So effortless!
+
+- **[ChatGPT-Next-Web](https://github.com/ChatGPTNextWeb/ChatGPT-Next-Web)**: With this open-source project, you can self-deploy OpenAI's API, giving you the flexibility to manage and use AI services in your own way.
+
+- **[chatgpt.com](https://chatgpt.com/)**: The ultimate know-it-all. It's got the answers for everything you can think of.
+
+- **[Claude.ai](https://claude.ai/new)**: When it comes to programming, Claude really knows its stuff and can provide some solid solutions.
+
+- **Grok-beta**: No more fear of dealing with broken English, thanks to this handy tool.
+
+These tools and platforms together make navigating through tech challenges a breeze, boosting our efficiency like never before. Thanks for existing and making our work and learning experiences smoother and more productive!
