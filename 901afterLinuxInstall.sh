@@ -1312,12 +1312,12 @@ function install_micro() {
         echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.bashrc
         echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.zshrc
 
-        # 根据当前shell类型source对应的配置文件
+        log 1 "添加环境变量成功！ 根据当前shell类型source对应的配置文件"
         if [ -n "$BASH_VERSION" ]; then
-            # 当前是bash
-            source ~/.bashrc
+            log 1 "当前是bash, 执行source ~/.bashrc"
+            source $HOME/.bashrc
         elif [ -n "$ZSH_VERSION" ]; then
-            # 当前是zsh
+            log 1 "当前是zsh,source ~/.zshrc"
             source ~/.zshrc
         fi
 
@@ -1335,14 +1335,19 @@ function install_micro() {
 
 # 函数：卸载 micro 命令行编辑器
 function uninstall_micro() {
-    log 1 "开始卸载 micro 编辑器..."
-    # 删除micro可执行文件
-    if [ -f /usr/local/bin/micro ]; then
-        log 1 "删除 micro 可执行文件..."
-        if sudo rm -f /usr/local/bin/micro; then
-            log 1 "成功删除 micro 可执行文件"
+    # 检查是否已安装
+    if ! check_if_installed "micro"; then
+        log 1 "micro 未安装，返回主菜单"
+        return 0
+    fi
+
+    log 1 "检测到micro已安装，开始卸载..."
+    if [ -f /usr/local/bin/micro/micro ]; then
+        log 1 "删除 micro 文件夹..."
+        if sudo rm -rf /usr/local/bin/micro; then
+            log 1 "成功删除 micro 文件夹"
         else
-            log 3 "删除 micro 可执行文件失败"
+            log 3 "删除 micro 文件夹失败"
             return 1
         fi
     else
@@ -1395,9 +1400,15 @@ function install_cheatsh() {
       return 1
   fi
 
-  # 添加到 PATH（如果需要）
+  # 检查并添加 ~/.local/bin 到 PATH
   if ! echo $PATH | grep -q "$HOME/.local/bin"; then
+      # 添加到 .bashrc
       echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+      # 添加到 .zshrc（如果存在）
+      if [ -f ~/.zshrc ]; then
+          echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+      fi
+      # 立即更新当前会话的 PATH
       export PATH="$HOME/.local/bin:$PATH"
   fi
 
@@ -1534,6 +1545,11 @@ function uninstall_cheatsh() {
       fi
   fi
 
+  # 从 .bashrc 中删除 cht.sh 相关配置
+  if [ -f ~/.bashrc ]; then
+      sed -i '/\. ~\/\.bash\.d\/cht\.sh/d' ~/.bashrc
+  fi
+  
   # 删除 ZSH 补全
   if [ -f ~/.zsh.d/_cht ]; then
       if ! rm ~/.zsh.d/_cht; then
@@ -1554,25 +1570,27 @@ function install_eg() {
       return 0
   fi
 
-#   检查 Homebrew
-#   if ! check_if_installed "brew"; then
-#       log 3 "请先安装 Homebrew"
-#       return 1
-#   fi
+  log 1 "检测eg未安装，准备安装依赖..."
+  local dependencies=("python3-full" "python3-pip" "pipx") 
+  if ! check_and_install_dependencies "${dependencies[@]}"; then
+      log 3 "安装依赖失败"
+      return 1
+  fi
 
+  log 1 "开始安装eg..."
   pipx install eg
   log 1 "eg 安装完成。使用方法：eg 命令 (例如 eg curl)"
 }
 
 # 函数：卸载 eg 命令行命令示例工具
 function uninstall_eg() {
-    # 检查是否已安装
+    log 1 "检查是否已安装eg "
     if ! check_if_installed "eg"; then
-        log 1 "eg 未安装"
+        log 1 "eg 未安装, 无需卸载, 返回菜单"
         return 0
     fi
 
-    log 1 "开始卸载 eg..."
+    log 1 "检测到已安装eg，开始卸载..."
     if ! pipx uninstall eg; then
         log 3 "卸载 eg 失败"
         return 1
@@ -1935,15 +1953,16 @@ function install_docker_and_docker_compose() {
         sudo rm /etc/apt/sources.list.d/docker.list
     fi
 
-    # 获取系统版本代号
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        codename=$DEBIAN_CODENAME
-        log 1 "检测到系统版本代号: $codename"
-    else
-        log 3 "无法检测系统版本"
-        return 1
-    fi
+    # 获取系统版本代号，直接写死算了，只管基于bookworm的系统
+    # if [ -f /etc/os-release ]; then
+    #     . /etc/os-release
+    #     codename=$DEBIAN_CODENAME
+    #     log 1 "检测到系统版本代号: $codename"
+    # else
+    #     log 3 "无法检测系统版本"
+    #     return 1
+    # fi
+    local codename="bookworm"
 
     # 添加Docker存储库
     echo \
