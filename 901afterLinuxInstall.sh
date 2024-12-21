@@ -1297,20 +1297,20 @@ function install_micro() {
             return 1
         fi
         log 1 "解压完成，找到程序目录: $deepest_dir"
-        # 确保目标目录存在且为空
+        # 删除旧文件
         sudo rm -rf /usr/local/bin/micro
-        sudo mkdir -p /usr/local/bin/micro
+        # sudo mkdir -p /usr/local/bin/micro
 
         # 复制所有文件到目标目录
-        if ! sudo cp -r "$deepest_dir"/* /usr/local/bin/micro/; then
+        if ! sudo cp -r "$deepest_dir"/micro /usr/local/bin/; then
             log 3 "复制文件到 /usr/local/bin/micro 失败"
             return 1
         fi
         log 1 "移动目录到 /usr/local/bin 成功！"
 
         # 添加环境变量
-        echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.bashrc
-        echo 'export PATH=$PATH:/usr/local/bin/micro' >> ~/.zshrc
+        echo 'export PATH=$PATH:/usr/local/bin' >> ~/.bashrc
+        echo 'export PATH=$PATH:/usr/local/bin' >> ~/.zshrc
 
         log 1 "添加环境变量成功！ 根据当前shell类型source对应的配置文件"
         if [ -n "$BASH_VERSION" ]; then
@@ -1342,19 +1342,20 @@ function uninstall_micro() {
     fi
 
     log 1 "检测到micro已安装，开始卸载..."
-    if [ -f /usr/local/bin/micro/micro ]; then
-        log 1 "删除 micro 文件夹..."
-        if sudo rm -rf /usr/local/bin/micro; then
-            log 1 "成功删除 micro 文件夹"
+    if [ -f /usr/local/bin/micro ]; then
+        log 1 "删除 micro 成功..."
+        if sudo rm -f /usr/local/bin/micro; then
+            log 1 "成功删除 micro 可执行文件"
         else
-            log 3 "删除 micro 文件夹失败"
+            log 3 "删除 micro 可执行文件失败"
             return 1
         fi
     else
         log 1 "未找到 micro 可执行文件，可能已被删除"
     fi
 
-    # 删除micro的环境变量
+    # 删除micro的环境变量，由于安装时加入的是export PATH=$PATH:/usr/local/bin'
+    # 因此只需要删除export PATH=$PATH:/usr/local/bin，下面的代码不起作用，以后再处理吧
     log 1 "清理环境变量配置..."
     if grep -q 'micro' ~/.bashrc; then
         if sed -i '/micro/d' ~/.bashrc; then
