@@ -2377,6 +2377,7 @@ main() {
     done
 }
 
+check_and_install_dependencies "jq" "git" "curl" "wget" "sudo"
 main
 
 # 如果脚本被直接运行而不是被source，则执行main函数
