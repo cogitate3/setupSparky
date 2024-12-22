@@ -16,7 +16,7 @@ get_assets_links() {
 
   # 使用更可靠的方法提取 owner 和 repo
   local owner_repo=$(echo "$url" | grep -oP 'github\.com/\K[^/]+/[^/]+')
-
+  sudo apt install jq curl wget -y
   # 获取最新版本号，并检查 curl 和 jq 的返回值
   # 这行代码分为几个步骤，我们一步一步来执行：
   # 
