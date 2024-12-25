@@ -4,9 +4,10 @@
 # source 001log2File.sh 003get_download_link.sh里面引入了001log2File.sh和002get_assets_links.sh
 source 003get_download_link.sh
 source 005get_fonts.sh
+source 006double-Esc-to-sudo.sh
 # 先设置日志
 log "/tmp/logs/901.log" 1 "第一条消息，同时设置日志文件"
-log 2 "日志记录在/tmp/logs/901.log"
+log 2 "日志记录在${CURRENT_LOG_FILE}"
 
 
 # check_root函数
@@ -100,6 +101,33 @@ show_package_dependencies() {
     done
     
     return 0
+}
+
+# 过程函数：多列对齐显示
+display_items() {
+    local cols="$1"          # 第一个参数为显示的列数
+    shift                     # 移除第一个参数，剩余参数为数组
+    local items=("$@")        # 将剩余参数作为数组
+    green_inline() {
+    printf "\033[32m%s\033[0m" "$@" # 格式化文本为绿色
+    }
+    # 格式化数组内容
+    local formatted_items=()
+    for item in "${items[@]}"; do
+        formatted_items+=("$(green_inline "$item")")
+    done
+
+    # 使用 paste 和 column 命令实现多列显示
+    # 1. printf "%s\n" "${formatted_items[@]}" : 将格式化后的数组项每项单独输出为一行
+    # 2. paste - $(printf -- '- %.0s' $(seq 1 $((cols - 1)))) : 
+    #    - seq 1 $((cols - 1)) 生成从1到(列数-1)的序列
+    #    - printf -- '- %.0s' 对每个序列数字生成一个 '-' 作为占位符
+    #    - paste 命令将多行内容合并为多列，'-' 代表标准输入，每个额外的 '-' 创建一个新列
+    # 3. column -t -s $'\t' : 
+    #    - -t 选项让 column 命令创建一个表格式的输出
+    #    - -s $'\t' 指定制表符为列之间的分隔符
+    # 整体效果：将一列数据转换为多列对齐的表格输出
+    printf "%s\n" "${formatted_items[@]}" | paste - $(printf -- '- %.0s' $(seq 1 $((cols - 1)))) | column -t -s $'\t'
 }
 
 # 过程函数：统一检查软件是否已安装的函数
@@ -426,7 +454,7 @@ function install_stretchly() {
             log 2 "stretchly 已经是最新版本，无需更新，返回主菜单"
             return 0
         else
-            log 1 "发现新版本，开始更新..."
+            log 2 "发现新版本，开始更新..."
             # 获取最新的下载链接,要先将之前保存的下载链接清空
             DOWNLOAD_URL=""
             get_download_link "https://github.com/hovancik/stretchly/releases" ".*amd64\.deb$"
@@ -1206,44 +1234,6 @@ function uninstall_wps() {
 
 
 # 命令行增强工具
-# 函数：安装 Neofetch 命令行获取系统信息
-function install_neofetch() {
-    log 1 "检查是否已安装"
-    if check_if_installed "neofetch"; then
-        log 1 "neofetch 已安装"
-        return 0
-    fi
-
-    # 安装 neofetch
-    log 1 "开始安装 neofetch..."
-    if ! sudo apt install -y neofetch; then
-        log 3 "安装 neofetch 失败"
-        return 1
-    fi
-
-    log 1 "neofetch 安装完成"
-    return 0
-}
-
-# 函数：卸载 Neofetch 命令行获取系统信息
-function uninstall_neofetch() {
-    # 检查是否已安装
-    if ! check_if_installed "neofetch"; then
-        log 1 "neofetch 未安装"
-        return 0
-    fi
-
-    # 卸载 neofetch
-    log 1 "检测到已安装neofetch，开始卸载..."
-    if ! sudo apt purge -y neofetch; then
-        log 3 "卸载 neofetch 失败"
-        return 1
-    fi
-
-    log 1 "neofetch 卸载完成"
-    return 0
-}
-
 # 函数：pipx安装 micro 命令行编辑器
 function install_micro() {
     log 1 "检查是否已经安装了micro"
@@ -1395,7 +1385,7 @@ function install_cheatsh() {
   mkdir -p ~/.local/bin
 
   # 安装主程序
-  if ! curl -s https://cht.sh/:cht.sh > ~/.local/bin/cht.sh || ! chmod +x ~/.local/bin/cht.sh; then
+  if ! curl -Ls https://cht.sh/:cht.sh > ~/.local/bin/cht.sh || ! chmod +x ~/.local/bin/cht.sh; then
       log 3 "下载或安装 cht.sh 失败"
       rm -f ~/.local/bin/cht.sh
       return 1
@@ -1545,7 +1535,7 @@ function uninstall_cheatsh() {
           return 1
       fi
   fi
-
+  
   # 从 .bashrc 中删除 cht.sh 相关配置
   if [ -f ~/.bashrc ]; then
       sed -i '/\. ~\/\.bash\.d\/cht\.sh/d' ~/.bashrc
@@ -1855,14 +1845,6 @@ function uninstall_flatpak() {
     return 0
 }
 
-# 函数：pipx安装 snap和snapstore 软件库
-# function install_snap() {    
-# }
-
-# 函数：卸载 snap和snapstore 软件库
-# function uninstall_snap() {    
-# }
-
 # 函数：pipx安装 Homebrew 
 function install_homebrew() {
     install_common_dependencies
@@ -2059,99 +2041,117 @@ function uninstall_docker_and_docker_compose() {
 # 每个菜单项都是一个函数，添加合适的分类
 # 安装和卸载分开
 show_menu() {
+    desktop_enhance=(
+        "01. 安装 Plank 快捷启动器"
+        "02. 安装 angrysearch 类似everything的快速查找工具"
+        "03. 安装 Pot-desktop 翻译工具"
+        "04. 安装 Geany 简洁清凉的文字编辑器"
+        "05. 安装 stretchly 定时休息设置"
+        "06. 安装 AB Download Manager下载工具"
+        "07. 安装 LocalSend 局域网传输工具"
+        "08. 安装 SpaceFM 双面板文件管理器"
+        "09. 安装 Krusader 双面板文件管理器"
+        "10. 安装 Konsole KDE's Terminal Emulator"
+    )
+
+    command_enhance=(
+        "20. 安装 Tabby 终端"
+        "21. 安装 telegram 聊天软件 "
+        "22. 安装 Brave 浏览器"
+        "23. 安装 VLC 视频播放器 apt"
+        "24. 安装 Windsurf IDE 最新编程工具"
+        "25. 安装 PDF Arranger PDF页面编辑器"
+    )
+
+   cli_enhance=(
+        "30. 安装Neofetch命令行获取系统信息"
+        "31. 安装 micro 命令行编辑器"
+        "32. 安装 cheat.sh  命令行命令示例"
+        "33. 安装 eg 命令行命令示例"
+        "34. 安装 eggs 命令行系统备份"
+        "35. 安装 按两次Esc键命令前加sudo"
+    ) 
+
+    software_library=(
+        "40. 安装 Docker  和 Docker Compose"
+        "41. 安装 Snap 和 Snapstore 软件库"
+        "42. 安装 Flatpak 软件库"
+        "43. 安装三种字体JetBrains Mono等宽、Cascadia Code等宽和Source Han Mono中日韩等宽字体"
+    )
+
+    uninstall_software=(
+        '50. 卸载 Plank 快捷启动器'
+        '51. 卸载 angrysearch 快速查找工具'
+        '52. 卸载 Pot-desktop 翻译工具'
+        '53. 卸载 Geany 简洁清凉的文字编辑器'
+        '54. 卸载 stretchly 定时休息设置'
+        '55. 卸载 AB Download Manager下载工具'
+        '56. 卸载 LocalSend 局域网传输工具'
+        '57. 卸载 SpaceFM 双面板文件管理器'
+        '58. 卸载 Krusader 双面板文件管理器'
+        "59. 卸载 Konsole KDE's Terminal Emulator"
+        "--------------------------------"
+        "--------------------------------"
+        '61. 卸载 Tabby 终端'
+        '62. 卸载 telegram 聊天软件 '
+        '63. 卸载 Brave 浏览器'
+        '64. 卸载 VLC 视频播放器 apt'
+        '65. 卸载 Windsurf IDE 编程工具'
+        '66. 卸载 PDF Arranger PDF页面编辑器'
+        "--------------------------------"
+        "--------------------------------"
+        '70. 卸载Neofetch 命令行获取系统信息'
+        '71. 卸载 micro 命令行编辑器'
+        '72. 卸载 cheat.sh  命令行命令示例'
+        '73. 卸载 eg 命令行命令示例'
+        '74. 卸载 eggs 命令行系统备份'
+        "75. 卸载 按两次Esc键命令前加sudo"
+        "--------------------------------"
+        "--------------------------------"
+        '80. 卸载 Docker 和 Docker Compose'
+        '81. 卸载 Snap 和 Snapstore 软件库'
+        '82. 卸载 Flatpak 软件库'
+        "..............................."
+    )
 
     green "==================================="
     green "Linux软件一键安装脚本"
     green "Github: https://github.com/cogitate3/setupSparkyLinux"
     green "当前脚本在Sparky7.5检测通过"
-    green "安装日志记录在/tmp/SparkyLinux.log"
+    green "安装日志记录在${CURRENT_LOG_FILE}文件中"
     green "==================================="
-    yellow "桌面系统增强必备:"
-    green "1. 安装 Plank 快捷启动器"
-    green "2. 安装 angrysearch 类似everything的快速查找工具"
-    green "3. 安装 Pot-desktop 翻译工具"
-    green "4. 安装 Geany 简洁清凉的文字编辑器"
-    green "5. 安装 stretchly 定时休息设置"
-    green "6. 安装 AB Download Manager下载工具"
-    green "7. 安装 LocalSend 局域网传输工具"
-    green "8. 安装 SpaceFM 双面板文件管理器"  
-    green "9. 安装 Krusader 双面板文件管理器"
-    green "10. 安装 Konsole KDE's Terminal Emulator"
-    yellow "11. 安装全部1-10软件"
     
+    yellow "桌面系统增强必备:"
+    display_items 2 "${desktop_enhance[@]}"
+    yellow "11. 安装全部1-10软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+
     yellow "桌面系统进阶常用软件:"
-    green "20. 安装 Tabby 终端"
-    green "21. 安装 telegram 聊天软件 "
-    green "22. 安装 Brave 浏览器"
-    green "23. 安装 VLC 视频播放器 apt"
-    green "24. 安装 Windsurf IDE 编程工具"
-    green "25. 安装 PDF Arranger PDF页面编辑器"
+    display_items 2 "${command_enhance[@]}"
     yellow "29. 安装全部20-25软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "命令行增强工具:"
-    green "30. 安装 Neofetch 命令行获取系统信息"
-    green "31. 安装 micro 命令行编辑器"
-    green "32. 安装 cheat.sh  命令行命令示例"
-    green "33. 安装 eg 命令行命令示例"
-    green "34. 安装 eggs 命令行系统备份"
-    # green "35. 安装 v2rayA 设置网络代理"
+    display_items 2 "${cli_enhance[@]}"
     yellow "39. 安装全部30-35软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "软件库工具:"
-    green "40. 安装 Docker 和 Docker Compose"
-    green "41. 安装 Snap 和 Snapstore 软件库"
-    green "42. 安装 Flatpak 软件库"
-    # green "43. 安装 Homebrew 软件库"
+    display_items 2 "${software_library[@]}"
     yellow "49. 安装全部40-42软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "卸载选项:"
-    yellow "卸载桌面系统增强必备"
-    green "50. 卸载 Plank 快捷启动器"
-    green "51. 卸载 angrysearch 类似everything的快速查找工具"
-    green "52. 卸载 Pot-desktop 翻译工具"
-    green "53. 卸载 Geany 简洁清凉的文字编辑器"
-    green "54. 卸载 stretchly 定时休息设置"
-    green "55. 卸载 AB Download Manager下载工具"
-    green "56. 卸载 LocalSend 局域网传输工具"
-    green "57. 卸载 SpaceFM 双面板文件管理器"  
-    green "58. 卸载 Krusader 双面板文件管理器"
-    green "59. 卸载 Konsole KDE's Terminal Emulator"
-    yellow "60. 卸载全部50-59软件"
+    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    display_items 2 "${uninstall_software[@]}"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-    yellow "卸载桌面系统进阶常用软件:"
-    green "61. 卸载 Tabby 终端"
-    green "62. 卸载 telegram 聊天软件 "
-    green "63. 卸载 Brave 浏览器"
-    green "64. 卸载 VLC 视频播放器 apt"
-    green "65. 卸载 Windsurf IDE 编程工具"
-    green "66. 卸载 PDF Arranger PDF页面编辑器"
-    yellow "69. 卸载全部61-66软件"
+    yellow "60. 按顺序执行50-59软件卸载"
+    yellow "69. 按顺序执行61-66软件卸载"
+    yellow "79. 按顺序执行70-74软件卸载"
+    yellow "83. 按顺序执行80-82软件卸载"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-
-    yellow "卸载命令行增强工具:"
-    green "70. 卸载 Neofetch 命令行获取系统信息"
-    green "71. 卸载 micro 命令行编辑器"
-    green "72. 卸载 cheat.sh  命令行命令示例"
-    green "73. 卸载 eg 命令行命令示例"
-    green "74. 卸载 eggs 命令行系统备份"
-    # green "75. 卸载 v2rayA 设置网络代理"
-    yellow "79. 卸载全部70-74软件"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-
-    yellow "卸载软件库工具:"
-    green "80. 卸载 Docker 和 Docker Compose"
-    green "81. 卸载 Snap 和 Snapstore 软件库"
-    green "82. 卸载 Flatpak 软件库"
-    # green "83. 卸载 Homebrew 软件库"
-    yellow "89. 卸载全部80-82软件"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-
-
     yellow "0. 退出脚本"
 
 }
@@ -2267,22 +2267,24 @@ handle_menu() {
         32) install_cheatsh ;;
         33) install_eg ;;
         34) install_eggs ;;
-        # 35) install_v2raya ;;
+        35) setup_double_esc_sudo ;;
         39) install_neofetch
             install_micro
             install_cheatsh
             install_eg
-            install_eggs ;;
+            install_eggs
+            setup_double_esc_sudo ;;
             # install_v2raya ;;
         
         # 软件库工具
         40) install_docker_and_docker_compose ;;
         41) install_snap ;;
         42) install_flatpak ;;
-        # 43) install_homebrew ;;
+        43) install_fonts ;;
         49) install_docker_and_docker_compose
             install_snap
-            install_flatpak ;;
+            install_flatpak
+            install_fonts ;;
             # install_homebrew ;;
 
         # 卸载选项
@@ -2326,12 +2328,13 @@ handle_menu() {
         72) uninstall_cheatsh ;;
         73) uninstall_eg ;;
         74) uninstall_eggs ;;
-        # 75) uninstall_v2raya ;;
+        75) cancel_double_esc_sudo ;;
         79) uninstall_neofetch
             uninstall_micro
             uninstall_cheatsh
             uninstall_eg
-            uninstall_eggs ;;
+            uninstall_eggs
+            cancel_double_esc_sudo ;;
             # uninstall_v2raya ;;
 
         80) uninstall_docker_and_docker_compose ;;
