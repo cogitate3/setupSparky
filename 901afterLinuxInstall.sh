@@ -2076,6 +2076,7 @@ show_menu() {
         "40. 安装 Docker  和 Docker Compose"
         "41. 安装 Snap 和 Snapstore 软件库"
         "42. 安装 Flatpak 软件库"
+        "43. 安装三种字体JetBrains Mono等宽、Cascadia Code等宽和Source Han Mono中日韩等宽字体"
     )
 
     uninstall_software=(
@@ -2279,10 +2280,11 @@ handle_menu() {
         40) install_docker_and_docker_compose ;;
         41) install_snap ;;
         42) install_flatpak ;;
-        # 43) install_homebrew ;;
+        43) install_fonts ;;
         49) install_docker_and_docker_compose
             install_snap
-            install_flatpak ;;
+            install_flatpak
+            install_fonts ;;
             # install_homebrew ;;
 
         # 卸载选项
