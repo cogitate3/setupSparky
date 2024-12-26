@@ -56,7 +56,7 @@ The script contains extensive comments to aid my learning and serve as a resourc
 
 ## Next Steps:
 
-- One-click installation and configuration of zsh with its plugins and interface customization
+- [x] One-click installation and configuration of zsh with its plugins and interface customization
 - One-click configuration for mounting webdav remote folders
 - One-click installation of Chinese input method
 - Test and optimize scripts for compatibility with MX Linux and Linux Mint distributions

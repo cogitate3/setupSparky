@@ -2267,13 +2267,13 @@ handle_menu() {
         32) install_cheatsh ;;
         33) install_eg ;;
         34) install_eggs ;;
-        35) setup_double_esc_sudo ;;
+        35) install_double_esc_sudo ;;
         39) install_neofetch
             install_micro
             install_cheatsh
             install_eg
             install_eggs
-            setup_double_esc_sudo ;;
+            install_double_esc_sudo ;;
             # install_v2raya ;;
         
         # 软件库工具
