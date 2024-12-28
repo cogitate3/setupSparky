@@ -107,6 +107,7 @@ identify_the_operating_system_and_architecture() {
         exit 1
         ;;
     esac
+    
     if [[ ! -f '/etc/os-release' ]]; then
       echo "error: Don't use outdated Linux distributions."
       exit 1
