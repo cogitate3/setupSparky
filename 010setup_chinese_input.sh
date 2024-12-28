@@ -27,7 +27,7 @@ apt install -y \
     fcitx5 \
     fcitx5-chinese-addons \
     fcitx5-pinyin \
-    fcitix5-rime
+    fcitx5-rime \
     fcitx5-frontend-qt5 \
     fcitx5-frontend-gtk3 \
     fcitx5-frontend-gtk4 \
