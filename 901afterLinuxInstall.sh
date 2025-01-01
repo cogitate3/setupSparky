@@ -2126,116 +2126,72 @@ function uninstall_docker_and_docker_compose() {
 # 安装和卸载分开
 show_menu() {
     desktop_enhance=(
-        "01. 安装 Plank 快捷启动器"
-        "02. 安装 angrysearch 类似everything的快速查找工具"
-        "03. 安装 Pot-desktop 翻译工具"
-        "04. 安装 Geany 简洁清凉的文字编辑器"
-        "05. 安装 stretchly 定时休息设置"
-        "06. 安装 AB Download Manager下载工具"
-        "07. 安装 LocalSend 局域网传输工具"
-        "08. 安装 SpaceFM 双面板文件管理器"
-        "09. 安装 Krusader 双面板文件管理器"
-        "10. 安装 Konsole KDE's Terminal Emulator"
+        "01. Plank 快捷启动器"
+        "02. angrysearch 类似everything的快速查找工具"
+        "03. Pot-desktop 翻译工具"
+        "04. Geany 简洁清凉的文字编辑器"
+        "05. stretchly 定时休息设置"
+        "06. AB Download Manager下载工具"
+        "07. LocalSend 局域网传输工具"
+        "08. SpaceFM 双面板文件管理器"
+        "09. Krusader 双面板文件管理器"
+        "10. Konsole KDE's Terminal Emulator"
     )
 
     command_enhance=(
-        "20. 安装 Tabby 终端"
-        "21. 安装 telegram 聊天软件 "
-        "22. 安装 Brave 浏览器"
-        "23. 安装 VLC 视频播放器 apt"
-        "24. 安装 Windsurf IDE 最新编程工具"
-        "25. 安装 PDF Arranger PDF页面编辑器"
+        "20. Tabby 终端"
+        "21. telegram 聊天软件 "
+        "22. Brave 浏览器"
+        "23. VLC 视频播放器 apt"
+        "24. Windsurf IDE 最新编程工具"
+        "25. PDF Arranger PDF页面编辑器"
     )
 
    cli_enhance=(
-        "30. 安装Neofetch命令行获取系统信息"
-        "31. 安装 micro 命令行编辑器"
-        "32. 安装 cheat.sh  命令行命令示例"
-        "33. 安装 eg 命令行命令示例"
-        "34. 安装 eggs 命令行系统备份"
-        "35. 安装 按两次Esc键命令前加sudo"
+        "30. Neofetch 命令行获取系统信息"
+        "31. micro 命令行编辑器"
+        "32. cheat.sh  命令行命令示例"
+        "33. eg 命令行命令示例"
+        "34. eggs 命令行系统备份"
+        "35. 按两次Esc键命令前加sudo"
     ) 
 
     software_library=(
-        "40. 安装 Docker  和 Docker Compose"
-        "41. 安装 Snap 和 Snapstore 软件库"
-        "42. 安装 Flatpak 软件库"
-        "43. 安装三种字体JetBrains Mono等宽、Cascadia Code等宽和Source Han Mono中日韩等宽字体"
+        "40. Docker  和 Docker Compose"
+        "41. Snap 和 Snapstore 软件库"
+        "42. Flatpak 软件库"
+        # "43. 安装三种字体JetBrains Mono等宽、Cascadia Code等宽和Source Han Mono中日韩等宽字体"
     )
-
-    uninstall_software=(
-        '50. 卸载 Plank 快捷启动器'
-        '51. 卸载 angrysearch 快速查找工具'
-        '52. 卸载 Pot-desktop 翻译工具'
-        '53. 卸载 Geany 简洁清凉的文字编辑器'
-        '54. 卸载 stretchly 定时休息设置'
-        '55. 卸载 AB Download Manager下载工具'
-        '56. 卸载 LocalSend 局域网传输工具'
-        '57. 卸载 SpaceFM 双面板文件管理器'
-        '58. 卸载 Krusader 双面板文件管理器'
-        "59. 卸载 Konsole KDE's Terminal Emulator"
-        "--------------------------------"
-        "--------------------------------"
-        '61. 卸载 Tabby 终端'
-        '62. 卸载 telegram 聊天软件 '
-        '63. 卸载 Brave 浏览器'
-        '64. 卸载 VLC 视频播放器 apt'
-        '65. 卸载 Windsurf IDE 编程工具'
-        '66. 卸载 PDF Arranger PDF页面编辑器'
-        "--------------------------------"
-        "--------------------------------"
-        '70. 卸载Neofetch 命令行获取系统信息'
-        '71. 卸载 micro 命令行编辑器'
-        '72. 卸载 cheat.sh  命令行命令示例'
-        '73. 卸载 eg 命令行命令示例'
-        '74. 卸载 eggs 命令行系统备份'
-        "75. 卸载 按两次Esc键命令前加sudo"
-        "--------------------------------"
-        "--------------------------------"
-        '80. 卸载 Docker 和 Docker Compose'
-        '81. 卸载 Snap 和 Snapstore 软件库'
-        '82. 卸载 Flatpak 软件库'
-        "..............................."
-    )
-
     green "==================================="
     green "Linux软件一键安装脚本"
     green "Github: https://github.com/cogitate3/setupSparkyLinux"
     green "当前脚本在Sparky7.5检测通过"
     green "安装日志记录在${CURRENT_LOG_FILE}文件中"
     green "==================================="
+    green "安装时输入序号，卸载时输入序号+100, 如01表示安装Plank, 101表示卸载Plank, 依此类推"
+
     
     yellow "桌面系统增强必备:"
     display_items 2 "${desktop_enhance[@]}"
-    yellow "11. 安装全部1-10软件"
+    yellow "19. 安装全部1-10软件            119. 卸载全部1-10软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 
     yellow "桌面系统进阶常用软件:"
     display_items 2 "${command_enhance[@]}"
-    yellow "29. 安装全部20-25软件"
+    yellow "29. 安装全部20-25软件            129. 卸载全部20-25软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "命令行增强工具:"
     display_items 2 "${cli_enhance[@]}"
-    yellow "39. 安装全部30-35软件"
+    yellow "39. 安装全部30-35软件            139. 卸载全部30-35软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "软件库工具:"
     display_items 2 "${software_library[@]}"
-    yellow "49. 安装全部40-42软件"
+    yellow "49. 安装全部40-42软件            149. 卸载全部40-42软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-    yellow "卸载选项:"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    display_items 2 "${uninstall_software[@]}"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-
-    yellow "60. 按顺序执行50-59软件卸载"
-    yellow "69. 按顺序执行61-66软件卸载"
-    yellow "79. 按顺序执行70-74软件卸载"
-    yellow "83. 按顺序执行80-82软件卸载"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     yellow "0. 退出脚本"
 
 }
@@ -2257,70 +2213,70 @@ handle_menu() {
         8) install_spacefm ;;
         9) install_krusader ;;
         10) install_konsole ;;
-        11)
+        19)
             # 创建数组存储安装结果
-            declare -A install_results
+            declare -A install_results_11
             local apps=("plank" "angrysearch" "Pot-desktop" "geany" "stretchly" "ab-download-manager" "localsend" "spacefm" "krusader" "konsole")
             
             # 执行安装并记录结果
             if install_plank; then
-                install_results["plank"]="成功"
+                install_results_11["plank"]="成功"
             else
-                install_results["plank"]="失败"
+                install_results_11["plank"]="失败"
             fi
             
             if install_angrysearch; then
-                install_results["angrysearch"]="成功"
+                install_results_11["angrysearch"]="成功"
             else
-                install_results["angrysearch"]="失败"
+                install_results_11["angrysearch"]="失败"
             fi
             
             if install_pot_desktop; then
-                install_results["Pot-desktop"]="成功"
+                install_results_11["Pot-desktop"]="成功"
             else
-                install_results["Pot-desktop"]="失败"
+                install_results_11["Pot-desktop"]="失败"
             fi
             
             if install_geany; then
-                install_results["geany"]="成功"
+                install_results_11["geany"]="成功"
             else
-                install_results["geany"]="失败"
+                install_results_11["geany"]="失败"
             fi
             
             if install_stretchly; then
-                install_results["stretchly"]="成功"
+                install_results_11["stretchly"]="成功"
             else
-                install_results["stretchly"]="失败"
+                install_results_11["stretchly"]="失败"
             fi
             
             if install_ab_download_manager; then
-                install_results["ab-download-manager"]="成功"
+                install_results_11["ab-download-manager"]="成功"
             else
-                install_results["ab-download-manager"]="失败"
+                install_results_11["ab-download-manager"]="失败"
             fi
             
             if install_localsend; then
-                install_results["localsend"]="成功"
+                install_results_11["localsend"]="成功"
             else
-                install_results["localsend"]="失败"
+                install_results_11["localsend"]="失败"
             fi
             
             if install_spacefm; then
-                install_results["spacefm"]="成功"
+                install_results_11["spacefm"]="成功"
             else
-                install_results["spacefm"]="失败"
+                install_results_11["spacefm"]="失败"
             fi
             
             if install_krusader; then
-                install_results["krusader"]="成功"
+                install_results_11["krusader"]="成功"
             else
-                install_results["krusader"]="失败"
+                install_results_11["krusader"]="失败"
             fi
             
             if install_konsole; then
-                install_results["konsole"]="成功"
+                install_results_11["konsole"]="成功"
             else
-                install_results["konsole"]="失败"
+                install_results_11["konsole"]="失败"
             fi
             
             # 打印安装结果汇总
@@ -2338,13 +2294,56 @@ handle_menu() {
         23) install_vlc ;;
         24) install_windsurf ;;
         25) install_pdfarranger ;;
-        29) install_tabby
-            install_telegram
-            install_brave
-            install_VLC
-            install_windsurf
-            install_pdfarranger ;;
-        
+        29) 
+           # 创建数组存储安装结果
+            declare -A install_results_29
+            local apps=("tabby" "telegram" "brave" "vlc" "windsurf" "pdfarranger")
+            
+            # 执行安装并记录结果
+            if install_tabby; then
+                install_results_29["tabby"]="成功"
+            else
+                install_results_29["tabby"]="失败"
+            fi
+            
+            if install_telegram; then
+                install_results_29["telegram"]="成功"
+            else
+                install_results_29["telegram"]="失败"
+            fi
+            
+            if install_brave; then
+                install_results_29["brave"]="成功"
+            else
+                install_results_29["brave"]="失败"
+            fi
+            
+            if install_vlc; then
+                install_results_29["vlc"]="成功"
+            else
+                install_results_29["vlc"]="失败"
+            fi
+            
+            if install_windsurf; then
+                install_results_29["windsurf"]="成功"
+            else
+                install_results_29["windsurf"]="失败"
+            fi
+            
+            if install_pdfarranger; then
+                install_results_29["pdfarranger"]="成功"
+            else
+                install_results_29["pdfarranger"]="失败"
+            fi
+            
+            # 打印安装结果汇总
+            log 1 "\n=== 软件安装结果汇总 ==="
+            for app in "${apps[@]}"; do
+                printf "%-20s: %s\n" "$app" "${install_results_29[$app]}"
+            done
+            log 1 "\n======================"
+            ;;                    
+      
         # 命令行增强工具
         30) install_neofetch ;;
         31) install_micro ;;
@@ -2352,37 +2351,107 @@ handle_menu() {
         33) install_eg ;;
         34) install_eggs ;;
         35) install_double_esc_sudo ;;
-        39) install_neofetch
-            install_micro
-            install_cheatsh
-            install_eg
-            install_eggs
-            install_double_esc_sudo ;;
-            # install_v2raya ;;
-        
+        39) 
+           # 创建数组存储安装结果
+           declare -A install_results_39
+           local apps=("neofetch" "micro" "cheat.sh" "eg" "eggs" "double-esc-sudo")
+           
+           # 执行安装并记录结果
+           if install_neofetch; then
+               install_results_39["neofetch"]="成功"
+           else
+               install_results_39["neofetch"]="失败"
+           fi
+           
+           if install_micro; then
+               install_results_39["micro"]="成功"
+           else
+               install_results_39["micro"]="失败"
+           fi
+           
+           if install_cheatsh; then
+               install_results_39["cheat.sh"]="成功"
+           else
+               install_results_39["cheat.sh"]="失败"
+           fi
+           
+           if install_eg; then
+               install_results_39["eg"]="成功"
+           else
+               install_results_39["eg"]="失败"
+           fi
+           
+           if install_eggs; then
+               install_results_39["eggs"]="成功"
+           else
+               install_results_39["eggs"]="失败"
+           fi
+           
+           if install_double_esc_sudo; then
+               install_results_39["double-esc-sudo"]="成功"
+           else
+               install_results_39["double-esc-sudo"]="失败"
+           fi
+           
+           # 打印安装结果汇总
+           log 1 "\n=== 软件安装结果汇总 ==="
+           for app in "${apps[@]}"; do
+               printf "%-20s: %s\n" "$app" "${install_results_39[$app]}"
+           done
+           log 1 "\n======================"
+           ;;
+           
         # 软件库工具
         40) install_docker_and_docker_compose ;;
         41) install_snap ;;
         42) install_flatpak ;;
-        43) install_fonts ;;
-        49) install_docker_and_docker_compose
-            install_snap
-            install_flatpak
-            install_fonts ;;
-            # install_homebrew ;;
+        #   43) install_fonts ;;
+        49) 
+            # 创建数组存储安装结果
+            declare -A install_results_49
+            local apps=("docker" "docker-compose" "snap" "flatpak" "fonts")
+            
+            # 执行安装并记录结果
+            if install_docker_and_docker_compose; then
+                install_results_49["docker"]="成功"
+                install_results_49["docker-compose"]="成功"
+            else
+                install_results_49["docker"]="失败"
+                install_results_49["docker-compose"]="失败"
+            fi
+            
+            if install_snap; then
+                install_results_49["snap"]="成功"
+            else
+                install_results_49["snap"]="失败"
+            fi
+            
+            if install_flatpak; then
+                install_results_49["flatpak"]="成功"
+            else
+                install_results_49["flatpak"]="失败"
+            fi
+                      
+            # 打印安装结果汇总
+            log 1 "\n=== 软件安装结果汇总 ==="
+            for app in "${apps[@]}"; do
+                printf "%-20s: %s\n" "$app" "${install_results_49[$app]}"
+            done
+            ;;
 
         # 卸载选项
-        50) uninstall_plank ;;
-        51) uninstall_angrysearch ;;
-        52) uninstall_pot_desktop ;;
-        53) uninstall_geany ;;
-        54) uninstall_stretchly ;;
-        55) uninstall_ab_download_manager ;;
-        56) uninstall_localsend ;;
-        57) uninstall_spacefm ;;
-        58) uninstall_krusader ;;
-        59) uninstall_konsole ;;
-        60) uninstall_plank
+        101) uninstall_plank ;;
+        102) uninstall_angrysearch ;;
+        103) uninstall_pot_desktop ;;
+        104) uninstall_geany ;;
+        105) uninstall_stretchly ;;
+        106) uninstall_ab_download_manager ;;
+        107) uninstall_localsend ;;
+        108) uninstall_spacefm ;;
+        109) uninstall_krusader ;;
+        110) uninstall_konsole ;;
+
+        119) uninstall_plank
             uninstall_angrysearch
             uninstall_pot_desktop
             uninstall_geany
@@ -2393,13 +2462,14 @@ handle_menu() {
             uninstall_krusader
             uninstall_konsole ;;
 
-        61) uninstall_tabby ;;
-        62) uninstall_telegram ;;
-        63) uninstall_brave ;;
-        64) uninstall_vlc ;;
-        65) uninstall_windsurf ;;
-        66) uninstall_pdfarranger ;;
-        69) uninstall_tabby
+        120) uninstall_tabby ;;
+        121) uninstall_telegram ;;
+        122) uninstall_brave ;;
+        123) uninstall_VLC ;;
+        124) uninstall_windsurf ;;
+        125) uninstall_pdfarranger ;;
+
+        129) uninstall_tabby
             uninstall_telegram
             uninstall_brave
             uninstall_VLC
@@ -2407,13 +2477,14 @@ handle_menu() {
             uninstall_pdfarranger ;;
 
 
-        70) uninstall_neofetch ;;
-        71) uninstall_micro ;;
-        72) uninstall_cheatsh ;;
-        73) uninstall_eg ;;
-        74) uninstall_eggs ;;
-        75) uninstall_double_esc_sudo ;;
-        79) uninstall_neofetch
+        130) uninstall_neofetch ;;
+        131) uninstall_micro ;;
+        132) uninstall_cheatsh ;;
+        133) uninstall_eg ;;
+        134) uninstall_eggs ;;
+        135) uninstall_double_esc_sudo ;;
+
+        139) uninstall_neofetch
             uninstall_micro
             uninstall_cheatsh
             uninstall_eg
@@ -2421,11 +2492,12 @@ handle_menu() {
             uninstall_double_esc_sudo ;;
             # uninstall_v2raya ;;
 
-        80) uninstall_docker_and_docker_compose ;;
-        81) uninstall_snap ;;
-        82) uninstall_flatpak ;;
-        # 83) uninstall_homebrew ;;
-        89) uninstall_docker_and_docker_compose
+        140) uninstall_docker_and_docker_compose ;;
+        141) uninstall_snap ;;
+        142) uninstall_flatpak ;;
+        # 143) uninstall_homebrew ;;
+
+        149) uninstall_docker_and_docker_compose
             uninstall_snap
             uninstall_flatpak ;;
             # uninstall_homebrew ;;

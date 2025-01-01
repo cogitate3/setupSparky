@@ -3,7 +3,7 @@
 # Source all required scripts
 source "$(dirname "$0")/001log2File.sh"
 source "$(dirname "$0")/003get_download_link.sh"
-source "$(dirname "$0")/004detect_install_cmd.sh"
+
 source "$(dirname "$0")/005get_fonts.sh"
 source "$(dirname "$0")/006double-Esc-to-sudo.sh"
 source "$(dirname "$0")/007setupDavfs2.sh"
@@ -203,12 +203,12 @@ install_all_packages() {
         log 3 "PDF Arranger安装失败"
     fi
 
-    log 1 "正在安装WPS Office..."
-    if install_wps; then
-        log 1 "WPS Office安装成功"
-    else
-        log 3 "WPS Office安装失败"
-    fi
+    # log 1 "正在安装WPS Office..."
+    # if install_wps; then
+    #     log 1 "WPS Office安装成功"
+    # else
+    #     log 3 "WPS Office安装失败"
+    # fi
 
     # Command Line Tools
     log 1 "开始安装命令行工具..."
@@ -258,12 +258,12 @@ install_all_packages() {
         log 3 "Flatpak安装失败"
     fi
 
-    log 1 "正在安装Homebrew..."
-    if install_homebrew; then
-        log 1 "Homebrew安装成功"
-    else
-        log 3 "Homebrew安装失败"
-    fi
+    # log 1 "正在安装Homebrew..."
+    # if install_homebrew; then
+    #     log 1 "Homebrew安装成功"
+    # else
+    #     log 3 "Homebrew安装失败"
+    # fi
 
     log 1 "正在安装Docker..."
     if install_docker_and_docker_compose; then
@@ -276,7 +276,7 @@ install_all_packages() {
 }
 
 # Run the main installation function
-# install_all_packages
+ install_all_packages
 
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     # 如果脚本是被 source 引用的，就直接返回，不继续执行后面的代码
