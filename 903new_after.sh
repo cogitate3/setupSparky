@@ -205,6 +205,7 @@ function install_plank() {
 
 # 函数：卸载 Plank 快捷启动器
 function uninstall_plank() {
+
     log 1 “检查是否已安装”
     if ! check_if_installed "plank"; then
         log 2 "Plank 未安装"
@@ -1290,7 +1291,7 @@ function install_neofetch() {
     fi
 
     log 1 "开始安装neofetch..."
-    sudo apt install neofetch
+    sudo apt install -y neofetch
     if [ $? -ne 0 ]; then
         log 3 "安装neofetch失败"
         return 1
@@ -1867,8 +1868,10 @@ function install_flatpak() {
         if ! sudo apt install -y plasma-discover-backend-flatpak; then
             log 3 "安装KDE Plasma Flatpak后端失败，Flatpak功能可能受限"
         fi
+    elif [[ "$desktop_env" == "cinnamon" ]]; then
+        log 1 "Cinnamon 环境下 Mintinstall 已内置 Flatpak 支持，无需额外安装插件。"
     else
-        log 3 "未安装特定的Flatpak插件，您可能需要手动配置Flatpak"
+        log 3 "未安装特定的Flatpak插件，您可能需要手动配置Flatpak 或使用命令行安装。"
     fi
 
     # 添加Flathub仓库
@@ -2105,6 +2108,7 @@ function uninstall_docker_and_docker_compose() {
     # 卸载Docker包
     log 1 "卸载Docker包"
     sudo apt-get purge -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    sudo apt-get autoremove -y
     if [ $? -ne 0 ]; then
         log 3 "Docker包卸载失败"
         return 1
@@ -2126,77 +2130,77 @@ function uninstall_docker_and_docker_compose() {
 # 安装和卸载分开
 show_menu() {
     desktop_enhance=(
-        "01. 安装 Plank 快捷启动器"
-        "02. 安装 angrysearch 类似everything的快速查找工具"
-        "03. 安装 Pot-desktop 翻译工具"
-        "04. 安装 Geany 简洁清凉的文字编辑器"
-        "05. 安装 stretchly 定时休息设置"
-        "06. 安装 AB Download Manager下载工具"
-        "07. 安装 LocalSend 局域网传输工具"
-        "08. 安装 SpaceFM 双面板文件管理器"
-        "09. 安装 Krusader 双面板文件管理器"
-        "10. 安装 Konsole KDE's Terminal Emulator"
+        "01. Plank 快捷启动器"
+        "02. angrysearch 类似everything的快速查找工具"
+        "03. Pot-desktop 翻译工具"
+        "04. Geany 简洁清凉的文字编辑器"
+        "05. stretchly 定时休息设置"
+        "06. AB Download Manager下载工具"
+        "07. LocalSend 局域网传输工具"
+        "08. SpaceFM 双面板文件管理器"
+        "09. Krusader 双面板文件管理器"
+        "10. Konsole KDE's Terminal Emulator"
     )
 
     command_enhance=(
-        "20. 安装 Tabby 终端"
-        "21. 安装 telegram 聊天软件 "
-        "22. 安装 Brave 浏览器"
-        "23. 安装 VLC 视频播放器 apt"
-        "24. 安装 Windsurf IDE 最新编程工具"
-        "25. 安装 PDF Arranger PDF页面编辑器"
+        "20. Tabby 终端"
+        "21. telegram 聊天软件 "
+        "22. Brave 浏览器"
+        "23. VLC 视频播放器 apt"
+        "24. Windsurf IDE 最新编程工具"
+        "25. PDF Arranger PDF页面编辑器"
     )
 
    cli_enhance=(
-        "30. 安装Neofetch命令行获取系统信息"
-        "31. 安装 micro 命令行编辑器"
-        "32. 安装 cheat.sh  命令行命令示例"
-        "33. 安装 eg 命令行命令示例"
-        "34. 安装 eggs 命令行系统备份"
-        "35. 安装 按两次Esc键命令前加sudo"
+        "30. Neofetch 获取系统信息 "
+        "31. micro 命令行编辑器"
+        "32. cheat.sh 输出简洁命令示例 "
+        "33. eg 命令行命令示例"
+        "34. eggs 命令行系统备份"
+        "35. 按两次Esc键命令前加sudo"
     ) 
 
     software_library=(
-        "40. 安装 Docker  和 Docker Compose"
-        "41. 安装 Snap 和 Snapstore 软件库"
-        "42. 安装 Flatpak 软件库"
-        "43. 安装三种字体JetBrains Mono等宽、Cascadia Code等宽和Source Han Mono中日韩等宽字体"
+        "40. Docker  和 Docker Compose"
+        "41. Snap 和 Snapstore 软件库"
+        "42. Flatpak 软件库"
+        "43. 三种字体JetBrains Mono等宽、Cascadia Code等宽和Source Han Mono中日韩等宽字体"
     )
 
-    uninstall_software=(
-        '50. 卸载 Plank 快捷启动器'
-        '51. 卸载 angrysearch 快速查找工具'
-        '52. 卸载 Pot-desktop 翻译工具'
-        '53. 卸载 Geany 简洁清凉的文字编辑器'
-        '54. 卸载 stretchly 定时休息设置'
-        '55. 卸载 AB Download Manager下载工具'
-        '56. 卸载 LocalSend 局域网传输工具'
-        '57. 卸载 SpaceFM 双面板文件管理器'
-        '58. 卸载 Krusader 双面板文件管理器'
-        "59. 卸载 Konsole KDE's Terminal Emulator"
-        "--------------------------------"
-        "--------------------------------"
-        '61. 卸载 Tabby 终端'
-        '62. 卸载 telegram 聊天软件 '
-        '63. 卸载 Brave 浏览器'
-        '64. 卸载 VLC 视频播放器 apt'
-        '65. 卸载 Windsurf IDE 编程工具'
-        '66. 卸载 PDF Arranger PDF页面编辑器'
-        "--------------------------------"
-        "--------------------------------"
-        '70. 卸载Neofetch 命令行获取系统信息'
-        '71. 卸载 micro 命令行编辑器'
-        '72. 卸载 cheat.sh  命令行命令示例'
-        '73. 卸载 eg 命令行命令示例'
-        '74. 卸载 eggs 命令行系统备份'
-        "75. 卸载 按两次Esc键命令前加sudo"
-        "--------------------------------"
-        "--------------------------------"
-        '80. 卸载 Docker 和 Docker Compose'
-        '81. 卸载 Snap 和 Snapstore 软件库'
-        '82. 卸载 Flatpak 软件库'
-        "..............................."
-    )
+    # uninstall_software=(
+    #     '50. 卸载 Plank 快捷启动器'
+    #     '51. 卸载 angrysearch 快速查找工具'
+    #     '52. 卸载 Pot-desktop 翻译工具'
+    #     '53. 卸载 Geany 简洁清凉的文字编辑器'
+    #     '54. 卸载 stretchly 定时休息设置'
+    #     '55. 卸载 AB Download Manager下载工具'
+    #     '56. 卸载 LocalSend 局域网传输工具'
+    #     '57. 卸载 SpaceFM 双面板文件管理器'
+    #     '58. 卸载 Krusader 双面板文件管理器'
+    #     "59. 卸载 Konsole KDE's Terminal Emulator"
+    #     "--------------------------------"
+    #     "--------------------------------"
+    #     '61. 卸载 Tabby 终端'
+    #     '62. 卸载 telegram 聊天软件 '
+    #     '63. 卸载 Brave 浏览器'
+    #     '64. 卸载 VLC 视频播放器 apt'
+    #     '65. 卸载 Windsurf IDE 编程工具'
+    #     '66. 卸载 PDF Arranger PDF页面编辑器'
+    #     "--------------------------------"
+    #     "--------------------------------"
+    #     '70. 卸载Neofetch 命令行获取系统信息'
+    #     '71. 卸载 micro 命令行编辑器'
+    #     '72. 卸载 cheat.sh  命令行命令示例'
+    #     '73. 卸载 eg 命令行命令示例'
+    #     '74. 卸载 eggs 命令行系统备份'
+    #     "75. 卸载 按两次Esc键命令前加sudo"
+    #     "--------------------------------"
+    #     "--------------------------------"
+    #     '80. 卸载 Docker 和 Docker Compose'
+    #     '81. 卸载 Snap 和 Snapstore 软件库'
+    #     '82. 卸载 Flatpak 软件库'
+    #     "..............................."
+    # )
 
     green "==================================="
     green "Linux软件一键安装脚本"
@@ -2204,147 +2208,169 @@ show_menu() {
     green "当前脚本在Sparky7.5检测通过"
     green "安装日志记录在${CURRENT_LOG_FILE}文件中"
     green "==================================="
-    
+
+    yellow "~~~~~~~~~~~~~~~~~安装单选直接输入序号，卸载单选输入序号+100~~~~~~~~~~~~~~~~~~~"
+    yellow "~~~~~~~~~~~~~~~~~比如安装Plank输入01，卸载Plank输入101~~~~~~~~~~~~~~~~~~~~~~"
     yellow "桌面系统增强必备:"
     display_items 2 "${desktop_enhance[@]}"
-    yellow "11. 安装全部1-10软件"
+    yellow "19. 安装全部1-10软件           119. 卸载全部1-10软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-
 
     yellow "桌面系统进阶常用软件:"
     display_items 2 "${command_enhance[@]}"
-    yellow "29. 安装全部20-25软件"
+    yellow "29. 安装全部20-25软件          129. 卸载全部20-25软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "命令行增强工具:"
     display_items 2 "${cli_enhance[@]}"
-    yellow "39. 安装全部30-35软件"
+    yellow "39. 安装全部30-35软件          139. 卸载全部30-35软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "软件库工具:"
     display_items 2 "${software_library[@]}"
-    yellow "49. 安装全部40-42软件"
+    yellow "49. 安装全部40-42软件          149. 卸载全部40-42软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-    yellow "卸载选项:"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    display_items 2 "${uninstall_software[@]}"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-
-    yellow "60. 按顺序执行50-59软件卸载"
-    yellow "69. 按顺序执行61-66软件卸载"
-    yellow "79. 按顺序执行70-74软件卸载"
-    yellow "83. 按顺序执行80-82软件卸载"
-    green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     yellow "0. 退出脚本"
 
 }
 
-
-# 处理菜单选择
+##
+# 新的：处理菜单选择
 handle_menu() {
     local choice
     read -p "请输入选项编号: " choice
+    
+    # 定义所有软件类别的安装函数和名称映射
+    declare -A desktop_basic=(
+        ["install_plank"]="plank"
+        ["install_angrysearch"]="angrysearch"
+        ["install_pot_desktop"]="Pot-desktop"
+        ["install_geany"]="geany"
+        ["install_stretchly"]="stretchly"
+        ["install_ab_download_manager"]="ab-download-manager"
+        ["install_localsend"]="localsend"
+        ["install_spacefm"]="spacefm"
+        ["install_krusader"]="krusader"
+        ["install_konsole"]="konsole"
+    )
+    
+    declare -A desktop_advanced=(
+        ["install_tabby"]="tabby"
+        ["install_telegram"]="telegram"
+        ["install_brave"]="brave"
+        ["install_VLC"]="vlc"
+        ["install_windsurf"]="windsurf"
+        ["install_pdfarranger"]="pdfarranger"
+    )
+    
+    declare -A cli_tools=(
+        ["install_neofetch"]="neofetch"
+        ["install_micro"]="micro"
+        ["install_cheatsh"]="cheatsh"
+        ["install_eg"]="eg"
+        ["install_eggs"]="eggs"
+        ["install_double_esc_sudo"]="double-esc-sudo"
+    )
+    
+    declare -A package_tools=(
+        ["install_docker_and_docker_compose"]="docker-compose"
+        ["install_snap"]="snap"
+        ["install_flatpak"]="flatpak"
+        ["install_fonts"]="fonts"
+    )
+
+    # 批量安装并记录结果的函数
+    batch_install() {
+        local -n funcs=$1  # 通过引用传递数组
+        local -A results
+        
+        for func in "${!funcs[@]}"; do
+            if $func; then
+                results[${funcs[$func]}]="成功"
+            else
+                results[${funcs[$func]}]="失败"
+            fi
+        done
+        
+        # 打印安装结果
+        log 1 "\n=== 软件安装结果汇总 ==="
+        for app in "${!results[@]}"; do
+            if [[ "${results[$app]}" == *"失败"* ]]; then
+                printf "%-20s: " "$app"
+                red "${results[$app]}"
+            else
+                printf "%-20s: %s\n" "$app" "${results[$app]}"
+            fi
+        done
+        log 1 "\n======================"
+        
+        return 0
+    }
+
+    # 批量卸载并记录结果的函数
+    batch_uninstall() {
+        local -n funcs=$1  # 通过引用传递数组
+        local -A results
+        declare -A uninstall_funcs
+        
+        # 将安装函数名转换为卸载函数名
+        for func in "${!funcs[@]}"; do
+            local uninstall_func=${func/install/uninstall}
+            uninstall_funcs[$uninstall_func]=${funcs[$func]}
+        done
+        
+        # 执行卸载
+        for func in "${!uninstall_funcs[@]}"; do
+            if $func; then
+                results[${uninstall_funcs[$func]}]="成功"
+            else
+                results[${uninstall_funcs[$func]}]="失败"
+            fi
+        done
+        
+        # 打印卸载结果
+        log 1 "\n=== 软件卸载结果汇总 ==="
+        for app in "${!results[@]}"; do
+            if [[ "${results[$app]}" == *"失败"* ]]; then
+                printf "%-20s: " "$app"
+                red "${results[$app]}"
+            else
+                printf "%-20s: %s\n" "$app" "${results[$app]}"
+            fi
+        done
+        log 1 "\n======================"
+        
+        return 0
+    }
+
     case $choice in
         # 桌面系统增强必备
-        1) install_plank ;;
-        2) install_angrysearch ;;
-        3) install_pot_desktop ;;
-        4) install_geany ;;
-        5) install_stretchly ;;
-        6) install_ab_download_manager ;;
-        7) install_localsend ;;
-        8) install_spacefm ;;
-        9) install_krusader ;;
+        01) install_plank ;;
+        02) install_angrysearch ;;
+        03) install_pot_desktop ;;
+        04) install_geany ;;
+        05) install_stretchly ;;
+        06) install_ab_download_manager ;;
+        07) install_localsend ;;
+        08) install_spacefm ;;
+        09) install_krusader ;;
         10) install_konsole ;;
-        11)
-            # 创建数组存储安装结果
-            declare -A install_results
-            local apps=("plank" "angrysearch" "Pot-desktop" "geany" "stretchly" "ab-download-manager" "localsend" "spacefm" "krusader" "konsole")
-            
-            # 执行安装并记录结果
-            if install_plank; then
-                install_results["plank"]="成功"
-            else
-                install_results["plank"]="失败"
-            fi
-            
-            if install_angrysearch; then
-                install_results["angrysearch"]="成功"
-            else
-                install_results["angrysearch"]="失败"
-            fi
-            
-            if install_pot_desktop; then
-                install_results["Pot-desktop"]="成功"
-            else
-                install_results["Pot-desktop"]="失败"
-            fi
-            
-            if install_geany; then
-                install_results["geany"]="成功"
-            else
-                install_results["geany"]="失败"
-            fi
-            
-            if install_stretchly; then
-                install_results["stretchly"]="成功"
-            else
-                install_results["stretchly"]="失败"
-            fi
-            
-            if install_ab_download_manager; then
-                install_results["ab-download-manager"]="成功"
-            else
-                install_results["ab-download-manager"]="失败"
-            fi
-            
-            if install_localsend; then
-                install_results["localsend"]="成功"
-            else
-                install_results["localsend"]="失败"
-            fi
-            
-            if install_spacefm; then
-                install_results["spacefm"]="成功"
-            else
-                install_results["spacefm"]="失败"
-            fi
-            
-            if install_krusader; then
-                install_results["krusader"]="成功"
-            else
-                install_results["krusader"]="失败"
-            fi
-            
-            if install_konsole; then
-                install_results["konsole"]="成功"
-            else
-                install_results["konsole"]="失败"
-            fi
-            
-            # 打印安装结果汇总
-            log 1 "\n=== 软件安装结果汇总 ==="
-            for app in "${apps[@]}"; do
-                printf "%-20s: %s\n" "$app" "${install_results[$app]}"
-            done
-            log 1 "\n======================"
-            ;;
+
+        19) batch_install desktop_basic ;;
+
         
         # 桌面系统进阶常用软件
         20) install_tabby ;;
         21) install_telegram ;;
         22) install_brave ;;
-        23) install_vlc ;;
+        23) install_VLC ;;
         24) install_windsurf ;;
         25) install_pdfarranger ;;
-        29) install_tabby
-            install_telegram
-            install_brave
-            install_VLC
-            install_windsurf
-            install_pdfarranger ;;
-        
+
+        29) batch_install desktop_advanced ;;
+
+
         # 命令行增强工具
         30) install_neofetch ;;
         31) install_micro ;;
@@ -2352,90 +2378,66 @@ handle_menu() {
         33) install_eg ;;
         34) install_eggs ;;
         35) install_double_esc_sudo ;;
-        39) install_neofetch
-            install_micro
-            install_cheatsh
-            install_eg
-            install_eggs
-            install_double_esc_sudo ;;
-            # install_v2raya ;;
+
+        39) batch_install cli_tools ;;
+
         
         # 软件库工具
         40) install_docker_and_docker_compose ;;
         41) install_snap ;;
         42) install_flatpak ;;
         43) install_fonts ;;
-        49) install_docker_and_docker_compose
-            install_snap
-            install_flatpak
-            install_fonts ;;
-            # install_homebrew ;;
-
-        # 卸载选项
-        50) uninstall_plank ;;
-        51) uninstall_angrysearch ;;
-        52) uninstall_pot_desktop ;;
-        53) uninstall_geany ;;
-        54) uninstall_stretchly ;;
-        55) uninstall_ab_download_manager ;;
-        56) uninstall_localsend ;;
-        57) uninstall_spacefm ;;
-        58) uninstall_krusader ;;
-        59) uninstall_konsole ;;
-        60) uninstall_plank
-            uninstall_angrysearch
-            uninstall_pot_desktop
-            uninstall_geany
-            uninstall_stretchly
-            uninstall_ab_download_manager
-            uninstall_localsend
-            uninstall_spacefm
-            uninstall_krusader
-            uninstall_konsole ;;
-
-        61) uninstall_tabby ;;
-        62) uninstall_telegram ;;
-        63) uninstall_brave ;;
-        64) uninstall_vlc ;;
-        65) uninstall_windsurf ;;
-        66) uninstall_pdfarranger ;;
-        69) uninstall_tabby
-            uninstall_telegram
-            uninstall_brave
-            uninstall_VLC
-            uninstall_windsurf
-            uninstall_pdfarranger ;;
-
-
-        70) uninstall_neofetch ;;
-        71) uninstall_micro ;;
-        72) uninstall_cheatsh ;;
-        73) uninstall_eg ;;
-        74) uninstall_eggs ;;
-        75) uninstall_double_esc_sudo ;;
-        79) uninstall_neofetch
-            uninstall_micro
-            uninstall_cheatsh
-            uninstall_eg
-            uninstall_eggs
-            uninstall_double_esc_sudo ;;
-            # uninstall_v2raya ;;
-
-        80) uninstall_docker_and_docker_compose ;;
-        81) uninstall_snap ;;
-        82) uninstall_flatpak ;;
-        # 83) uninstall_homebrew ;;
-        89) uninstall_docker_and_docker_compose
-            uninstall_snap
-            uninstall_flatpak ;;
-            # uninstall_homebrew ;;
         
+        49) batch_install package_tools ;;
+
+        # 卸载选项 - 桌面系统增强必备
+        101) uninstall_plank ;;
+        102) uninstall_angrysearch ;;
+        103) uninstall_pot_desktop ;;
+        104) uninstall_geany ;;
+        105) uninstall_stretchly ;;
+        106) uninstall_ab_download_manager ;;
+        107) uninstall_localsend ;;
+        108) uninstall_spacefm ;;
+        109) uninstall_krusader ;;
+        110) uninstall_konsole ;;
+        
+        119) batch_uninstall desktop_basic ;;
+
+        # 卸载选项 - 桌面系统进阶常用软件
+        120) uninstall_tabby ;;
+        121) uninstall_telegram ;;
+        122) uninstall_brave ;;
+        123) uninstall_VLC ;;
+        124) uninstall_windsurf ;;
+        125) uninstall_pdfarranger ;;
+
+        129) batch_uninstall desktop_advanced ;;
+
+        # 卸载选项 - 命令行增强工具
+        130) uninstall_neofetch ;;
+        131) uninstall_micro ;;
+        132) uninstall_cheatsh ;;
+        133) uninstall_eg ;;
+        134) uninstall_eggs ;;
+        135) uninstall_double_esc_sudo ;;
+
+        139) batch_uninstall cli_tools ;;
+
+        # 卸载选项 - 软件库工具
+        140) uninstall_docker_and_docker_compose ;;
+        141) uninstall_snap ;;
+        142) uninstall_flatpak ;;
+
+        149) batch_uninstall package_tools ;;
+
         0) 
             log 1 "退出脚本"
             exit 0 
             ;;
         *)
             log 3 "无效的选项，请重新选择"
+            return 1
             ;;
     esac
 }

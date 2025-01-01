@@ -85,7 +85,7 @@ EOF
 
 
 # 函数：取消上述设置，恢复.bashrc或.zshrc文件
-cancel_double_esc_sudo() {
+uninstall_double_esc_sudo() {
     local rc_file
     if [ -n "$BASH_VERSION" ]; then
         rc_file="$HOME/.bashrc"

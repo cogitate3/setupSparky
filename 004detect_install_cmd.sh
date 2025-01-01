@@ -155,3 +155,121 @@ identify_the_operating_system_and_architecture() {
     exit 1
   fi
 }
+
+
+
+
+# ——————————————————————————————以下是用chatgpt-4o优化的部分代码————————————————————————————
+
+#!/bin/bash
+
+# Check if the script is running as root or add sudo dynamically
+if [[ $(/usr/bin/id -u) -ne 0 ]]; then
+  sudoCmd="sudo" # Non-root user, enable sudo
+else
+  sudoCmd=""     # Root user, no sudo required
+fi
+
+# Function: Detect the operating system and package manager
+detect_os_and_package_manager() {
+  local os_release_file="/etc/os-release"
+  local issue_file="/etc/issue"
+  local proc_version_file="/proc/version"
+
+  if [[ -f /etc/redhat-release ]]; then
+    # CentOS or RHEL-based systems
+    release="centos"
+    systemPackage="yum"
+  elif [[ -f $os_release_file ]]; then
+    # Modern distributions use /etc/os-release
+    source $os_release_file
+    case "$ID" in
+      debian)
+        release="debian"
+        systemPackage="apt-get"
+        ;;
+      ubuntu)
+        release="ubuntu"
+        systemPackage="apt-get"
+        ;;
+      linuxmint)
+        release="linuxmint"
+        systemPackage="apt-get"
+        ;;
+      sparkylinux)
+        release="sparkylinux"
+        systemPackage="apt-get"
+        ;;
+      mx)
+        release="mxlinux"
+        systemPackage="apt-get"
+        ;;
+      centos | rhel)
+        release="centos"
+        systemPackage="yum"
+        ;;
+      arch)
+        release="arch"
+        systemPackage="pacman"
+        ;;
+      manjaro)
+        release="manjaro"
+        systemPackage="pacman"
+        ;;
+      opensuse* | suse)
+        release="suse"
+        systemPackage="zypper"
+        ;;
+      fedora)
+        release="fedora"
+        systemPackage="dnf"
+        ;;
+      *)
+        echo "Warning: Unsupported Linux distribution detected: $ID"
+        release="unknown"
+        systemPackage="unknown"
+        ;;
+    esac
+  elif grep -Eqi "debian" $issue_file || grep -Eqi "debian" $proc_version_file; then
+    # Fallback for Debian-based systems
+    release="debian"
+    systemPackage="apt-get"
+  elif grep -Eqi "ubuntu" $issue_file || grep -Eqi "ubuntu" $proc_version_file; then
+    # Fallback for Ubuntu systems
+    release="ubuntu"
+    systemPackage="apt-get"
+  elif grep -Eqi "centos|red hat|redhat" $issue_file || grep -Eqi "centos|red hat|redhat" $proc_version_file; then
+    # Fallback for CentOS or RHEL-based systems
+    release="centos"
+    systemPackage="yum"
+  else
+    echo "Error: Unable to determine the operating system."
+    release="unknown"
+    systemPackage="unknown"
+    return 1
+  fi
+}
+
+# Call the function to detect OS and package manager
+detect_os_and_package_manager
+
+# Output detected system information
+echo "========================================"
+echo "Detected Operating System: $release"
+echo "Using Package Manager: $systemPackage"
+echo "========================================"
+
+# Optional: Add further actions based on OS detection
+if [[ "$release" == "unknown" ]]; then
+  echo "Error: Unsupported or undetected operating system. Exiting."
+  exit 1
+fi
+
+# Example: Perform an update command
+echo "Running a sample package manager update command..."
+if [[ "$systemPackage" != "unknown" ]]; then
+  $sudoCmd $systemPackage update -y
+else
+  echo "Warning: Package manager not detected. Cannot update packages."
+fi
+

@@ -159,6 +159,13 @@ install_all_packages() {
         log 3 "Windsurf IDE安装失败"
     fi
 
+    log 1 "正在安装warp terminal..."
+    if install_warp_terminal; then
+        log 1 "warp terminal安装成功"
+    else
+        log 3 "warp terminal安装失败"
+    fi
+
     # Internet and Communication
     log 1 "开始安装网络和通讯工具..."
 
