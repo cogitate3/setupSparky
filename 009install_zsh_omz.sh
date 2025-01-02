@@ -52,7 +52,15 @@ install_MesloLGS_fonts() {
     )
 
     for font in "${fonts[@]}"; do
-        curl -Lso ~/.local/share/fonts/$font https://github.com/romkatv/powerlevel10k/raw/master/font/$font
+        curl -L \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-max-time 60 \
+            --connect-timeout 30 \
+            --max-time 120 \
+            --progress-bar \
+            -o ~/.local/share/fonts/$font \
+        https://github.com/romkatv/powerlevel10k/raw/master/font/$font
     done
 
     fc-cache -f -v
@@ -214,10 +222,14 @@ mainsetup() {
     esac
 }
 
+
 # 检查参数并执行
 if [ "$#" -ne 1 ]; then
     echo "用法: $0 {install|uninstall}"
     exit 1
 fi
 
-mainsetup "$1"
+# 如果脚本被直接运行（不是被source），则运行示例代码
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    mainsetup "$1"
+fi

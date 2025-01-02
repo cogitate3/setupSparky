@@ -9,9 +9,17 @@
 readonly VERSION="1.0.0"
 readonly CONFIG_FILE="$HOME/.fontinstall.conf"
 readonly LOG_FILE="$HOME/font_install.log"
-readonly TEMP_DIR=$(mktemp -d /tmp/font_install_XXXXXX)
-readonly MAX_PARALLEL=4
-readonly FONT_DIR="$HOME/.local/share/fonts"
+readonly TEMP_DIR=$(mktemp -d /tmp/font_install.XXXXXX)
+readonly DEFAULT_MAX_PARALLEL=4
+readonly DEFAULT_FONT_DIR="$HOME/.local/share/fonts"
+readonly BACKUP_DIR="$HOME/.fonts_backup"
+
+# 全局变量（可通过配置文件修改）
+INSTALL_DIR="$DEFAULT_FONT_DIR"
+VERBOSE=0
+QUIET=0
+FORCE=0
+MAX_PARALLEL=$DEFAULT_MAX_PARALLEL
 
 # 保存原始 IFS 并设置新的 IFS
 OLD_IFS="$IFS"
@@ -30,6 +38,46 @@ declare -A COLORS=(
     ["DEBUG"]="\033[36m"   # 青色
     ["RESET"]="\033[0m"    # 重置颜色
 )
+
+# 加载配置文件
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        source "$CONFIG_FILE"
+        [[ $VERBOSE -eq 1 ]] && log "INFO" "已加载配置文件: $CONFIG_FILE"
+    fi
+}
+
+# 创建默认配置文件
+create_default_config() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" << EOF
+# Font Installer 配置文件
+# 修改这些值以自定义安装行为
+
+# 字体安装目录
+INSTALL_DIR="$DEFAULT_FONT_DIR"
+
+# 日志级别
+# 0: 正常输出
+# 1: 详细输出
+VERBOSE=0
+
+# 静默模式
+# 0: 显示输出
+# 1: 最小输出
+QUIET=0
+
+# 强制模式
+# 0: 询问确认
+# 1: 不询问直接执行
+FORCE=0
+
+# 并行下载数
+MAX_PARALLEL=$DEFAULT_MAX_PARALLEL
+EOF
+        log "INFO" "已创建默认配置文件: $CONFIG_FILE"
+    fi
+}
 
 ###################
 # 字体分类定义
@@ -95,7 +143,7 @@ Font Installer v${VERSION}
     ${0##*/} [选项] <命令>
 
 命令:
-    install [category]   安装字体，可选类别:
+    install [category]   安装字体，可选类别：
                         - popular   (流行的编程字体)
                         - monospace (等宽编程字体)
                         - modern    (现代风格字体)
@@ -108,14 +156,14 @@ Font Installer v${VERSION}
     clean               清理临时文件
     version            显示版本信息
 
-选项:
+选项：
     -h, --help       显示此帮助信息
     -d, --dir DIR    指定安装目录 (默认: $HOME/.fonts)
     -v, --verbose    显示详细输出
     -q, --quiet      静默模式
     -f, --force      强制操作（安装时覆盖，卸载时不提示）
 
-示例:
+示例：
     ${0##*/} install popular          # 安装流行的编程字体
     ${0##*/} uninstall chinese        # 卸载中文字体
     ${0##*/} -f uninstall all        # 强制卸载所有字体
@@ -194,15 +242,26 @@ check_command() {
 
 # 检查依赖
 check_dependencies() {
-    local dependencies=("wget" "unzip" "tar" "fontconfig" "p7zip-full")
+    # 定义依赖关系：包名和对应的命令
+    declare -A pkg_commands=(
+        ["wget"]="wget"
+        ["unzip"]="unzip"
+        ["tar"]="tar"
+        ["fontconfig"]="fc-cache"
+        ["p7zip-full"]="7z"
+    )
+    
     local missing_deps=()
 
-    for dep in "${dependencies[@]}"; do
-        if ! check_command "$dep"; then
-            missing_deps+=("$dep")
+    # 检查每个依赖
+    for pkg in "${!pkg_commands[@]}"; do
+        local cmd="${pkg_commands[$pkg]}"
+        if ! check_command "$cmd"; then
+            missing_deps+=("$pkg")
         fi
     done
 
+    # 安装缺失的依赖
     if [[ ${#missing_deps[@]} -gt 0 ]]; then
         log "WARN" "安装缺失的依赖: ${missing_deps[*]}"
         if ! sudo apt-get update && sudo apt-get install -y "${missing_deps[@]}"; then
@@ -360,47 +419,6 @@ update_font_cache() {
     fi
 }
 
-# 安装指定类别的字体
-install_category() {
-    local type="$1"
-    log "INFO" "开始安装 $type 类型的字体"
-
-    local download_dir="$TEMP_DIR/downloads"
-    mkdir -p "$download_dir"
-
-    local font_list=($(get_font_list "$type"))
-    local total=${#font_list[@]}
-    local current=0
-    local success_count=0
-
-    for font_info in "${font_list[@]}"; do
-        local name=${font_info%%=*}
-        local url=${font_info#*=}
-        local download_file="$download_dir/${name}_$(basename "$url")"
-
-        if download_with_retry "$url" "$download_file"; then
-            if extract_archive "$download_file" "$TEMP_DIR/$name"; then
-                local font_files=("$TEMP_DIR/$name"/*.{ttf,otf,ttc})
-                if (( ${#font_files[@]} )); then
-                    for file in "${font_files[@]}"; do
-                        [[ -f "$file" ]] && install_font "$file" && ((success_count++))
-                    done
-                else
-                    log "WARN" "未找到字体文件: $name"
-                fi
-            else
-                log "ERROR" "解压失败: $name"
-            fi
-            rm -rf "$TEMP_DIR/$name"
-        fi
-        ((current++))
-        show_progress "$current" "$total"
-    done
-
-    log "INFO" "字体安装完成: $success_count 个成功"
-    return $((total - success_count))
-}
-
 # 卸载字体
 uninstall_fonts() {
     local type="$1"
@@ -466,12 +484,114 @@ uninstall_fonts() {
     return 0
 }
 
+# 验证字体文件
+validate_font_file() {
+    local file="$1"
+    local mime_type
+
+    # 检查文件是否存在
+    [[ ! -f "$file" ]] && return 1
+
+    # 检查文件类型
+    mime_type=$(file -b --mime-type "$file")
+    case "$mime_type" in
+        application/x-font-ttf|application/x-font-otf|application/x-font-type1)
+            ;;
+        *)
+            [[ $VERBOSE -eq 1 ]] && log "WARN" "可疑的字体文件类型: $file ($mime_type)"
+            ;;
+    esac
+
+    # 如果有 fc-validate，使用它验证字体
+    if command -v fc-validate >/dev/null 2>&1; then
+        if ! fc-validate "$file" >/dev/null 2>&1; then
+            log "WARN" "字体验证失败: $file"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+# 备份字体
+backup_fonts() {
+    local backup_name="fonts_$(date +%Y%m%d_%H%M%S)"
+    local backup_path="$BACKUP_DIR/$backup_name"
+    
+    mkdir -p "$backup_path"
+    
+    if cp -r "$INSTALL_DIR"/* "$backup_path"/ 2>/dev/null; then
+        log "INFO" "字体已备份到: $backup_path"
+        return 0
+    else
+        log "WARN" "字体备份失败或目录为空"
+        rm -rf "$backup_path"
+        return 1
+    fi
+}
+
+# 下载和安装单个字体
+download_and_install() {
+    local font_info="$1"
+    local name=${font_info%%=*}
+    local url=${font_info#*=}
+    local download_file="$TEMP_DIR/downloads/${name}_$(basename "$url")"
+    
+    mkdir -p "$TEMP_DIR/downloads"
+    
+    if [[ ! "$url" =~ ^https?:// ]]; then
+        log "ERROR" "无效的 URL: $url"
+        return 1
+    fi
+
+    if download_with_retry "$url" "$download_file"; then
+        if extract_archive "$download_file" "$TEMP_DIR/$name"; then
+            local font_files=("$TEMP_DIR/$name"/*.{ttf,otf,ttc})
+            local installed=0
+            if (( ${#font_files[@]} )); then
+                for file in "${font_files[@]}"; do
+                    if [[ -f "$file" ]] && validate_font_file "$file"; then
+                        install_font "$file" && ((installed++))
+                    fi
+                done
+            fi
+            [[ $installed -gt 0 ]] && log "INFO" "已安装 $installed 个字体文件: $name"
+        fi
+        rm -rf "$TEMP_DIR/$name"
+    fi
+}
+
+# 安装指定类别的字体
+install_category() {
+    local type="$1"
+    log "INFO" "开始安装 $type 类型的字体"
+
+    local download_dir="$TEMP_DIR/downloads"
+    mkdir -p "$download_dir"
+
+    local font_list=($(get_font_list "$type"))
+    local total=${#font_list[@]}
+    local current=0
+    local success_count=0
+
+    # 使用串行下载
+    log "INFO" "开始下载和安装字体..."
+    for font_info in "${font_list[@]}"; do
+        download_and_install "$font_info"
+        ((current++))
+        show_progress "$current" "$total"
+    done
+
+    log "INFO" "字体安装完成"
+    return 0
+}
+
 ###################
 # 参数解析
 ###################
 parse_args() {
     # 默认值设置
-    INSTALL_DIR="$HOME/.fonts"
+    INSTALL_DIR="$DEFAULT_FONT_DIR"
     VERBOSE=0
     QUIET=0
     FORCE=0
@@ -548,6 +668,11 @@ parse_args() {
 # 主程序
 ###################
 main() {
+    # 加载配置
+    create_default_config
+    load_config
+    
+    # 解析命令行参数
     parse_args "$@"
 
     case "$COMMAND" in
@@ -571,6 +696,11 @@ main() {
             if ! init_environment; then
                 exit 1
             fi
+            
+            # 在安装前进行备份
+            if [[ $FORCE -eq 0 ]]; then
+                backup_fonts
+            fi
 
             if [[ "$FONT_TYPE" == "all" ]]; then
                 for category in "${!font_categories[@]}"; do
@@ -585,6 +715,11 @@ main() {
         uninstall)
             if ! init_environment; then
                 exit 1
+            fi
+
+            # 在卸载前进行备份
+            if [[ $FORCE -eq 0 ]]; then
+                backup_fonts
             fi
 
             if [[ "$FONT_TYPE" == "all" ]]; then
@@ -613,27 +748,3 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         main "$@"
     fi
 fi
-
-# # 给脚本添加执行权限
-# chmod +x font_installer.sh
-
-# # 安装所有字体
-# ./font_installer.sh install all
-
-# # 安装特定类别的字体
-# ./font_installer.sh install popular
-
-# # 卸载中文字体
-# ./font_installer.sh uninstall chinese
-
-# # 查看可用字体列表
-# ./font_installer.sh list
-
-# # 查看详细的字体列表
-# ./font_installer.sh -v list
-
-# # 强制安装（覆盖已存在的字体）
-# ./font_installer.sh -f install modern
-
-# # 指定安装目录
-# ./font_installer.sh -d /usr/share/fonts install source
