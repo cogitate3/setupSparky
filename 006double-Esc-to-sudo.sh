@@ -109,11 +109,10 @@ uninstall_double_esc_sudo() {
 # 2. ${0} 是当前正在执行的脚本名称
 # 3. 如果这两个值不相等，说明脚本是被 source 命令或 . 命令引用执行的
 # 4. 如果相等，说明脚本是被直接执行的（比如 ./script.sh）
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # 如果脚本是被 source 引用的，就直接返回，不继续执行后面的代码
     # 这通常用于防止某些命令被重复执行
     install_double_esc_sudo
-    return 0
 fi
 
 # 调用 install_double_esc_sudo 函数，设置双击 ESC 键转换为 sudo 命令的配置

@@ -1,120 +1,9 @@
 #!/bin/bash
 
-# 保留第二段代码的基础设置
-set -euo pipefail
-
-# 全局常量定义（保留第二段的定义）
-readonly VERSION="1.0.0"
-readonly CONFIG_FILE="$HOME/.fontinstall.conf"
-readonly LOG_FILE="$HOME/font_install.log"
-readonly TEMP_DIR=$(mktemp -d /tmp/font_install_XXXXXX)
-readonly MAX_PARALLEL=4
-
-# 保留第二段代码的错误处理和颜色定义
-[...]
-
-# 修改 get_font_list 函数，整合第一段代码的字体分类
-get_font_list() {
-    local type="$1"
-    declare -A fonts
-    
-    case "$type" in
-        popular)
-            fonts=(
-                ["JetBrainsMono"]="https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
-                ["CascadiaCode"]="https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip"
-                # ... 其他 popular_code_fonts 的内容
-            )
-            ;;
-        monospace)
-            fonts=(
-                # ... monospace_code_fonts 的内容
-            )
-            ;;
-        modern)
-            fonts=(
-                # ... modern_style_fonts 的内容
-            )
-            ;;
-        chinese)
-            fonts=(
-                ["SourceHanSansCN"]="https://github.com/adobe-fonts/source-han-sans/releases/download/2.004R/SourceHanSansCN.zip"
-                ["SourceHanSerifCN"]="https://github.com/adobe-fonts/source-han-serif/releases/download/2.003R/14_SourceHanSerifCN.zip"
-                # ... 其他 chinese_fonts 的内容
-            )
-            ;;
-        source)
-            fonts=(
-                # ... source_fonts 的内容
-            )
-            ;;
-        special)
-            fonts=(
-                # ... special_fonts 的内容
-            )
-            ;;
-        all)
-            # 合并所有类别的字体
-            for category in popular monospace modern chinese source special; do
-                declare -A temp_fonts
-                temp_fonts=($(get_font_list "$category"))
-                fonts+=("${temp_fonts[@]}")
-            done
-            ;;
-        *)
-            log "ERROR" "未知的字体类别: $type"
-            return 1
-            ;;
-    esac
-
-    # 输出字体列表
-    for name in "${!fonts[@]}"; do
-        echo "$name=${fonts[$name]}"
-    done
-}
-
-# 修改帮助信息，增加新的字体类别
-show_help() {
-    cat << EOF
-Font Installer v${VERSION}
-
-使用方法:
-    ${0##*/} [选项] <命令>
-
-命令:
-    install [category]  安装字体，可选类别:
-                       - popular   (流行的编程字体)
-                       - monospace (等宽编程字体)
-                       - modern    (现代风格字体)
-                       - chinese   (中文字体)
-                       - source    (Source系列字体)
-                       - special   (特殊用途字体)
-                       - all       (所有字体)
-    uninstall [category] 卸载字体，类别同上
-    list               列出可用字体
-    clean              清理临时文件
-    version           显示版本信息
-
-选项:
-    -h, --help       显示此帮助信息
-    -d, --dir DIR    指定安装目录 (默认: $HOME/.fonts)
-    -v, --verbose    显示详细输出
-    -q, --quiet      静默模式
-    -f, --force      强制安装（覆盖已存在的字体）
-
-示例:
-    ${0##*/} install popular        # 安装流行的编程字体
-    ${0##*/} -d /usr/share/fonts install chinese  # 安装中文字体
-    ${0##*/} --verbose install all    # 安装所有字体
-
-EOF
-}
-#!/bin/bash
-
 ###################
 # 基础设置
 ###################
-set -euo pipefail
+#set -euo pipefail
 
 # 全局常量定义
 readonly VERSION="1.0.0"
@@ -196,6 +85,46 @@ declare -A font_categories=(
 )
 
 ###################
+# 帮助信息
+###################
+show_help() {
+    cat << EOF
+Font Installer v${VERSION}
+
+使用方法:
+    ${0##*/} [选项] <命令>
+
+命令:
+    install [category]   安装字体，可选类别:
+                        - popular   (流行的编程字体)
+                        - monospace (等宽编程字体)
+                        - modern    (现代风格字体)
+                        - chinese   (中文字体)
+                        - source    (Source系列字体)
+                        - special   (特殊用途字体)
+                        - all       (所有字体)
+    uninstall [category] 卸载字体，类别同上
+    list                列出可用字体
+    clean               清理临时文件
+    version            显示版本信息
+
+选项:
+    -h, --help       显示此帮助信息
+    -d, --dir DIR    指定安装目录 (默认: $HOME/.fonts)
+    -v, --verbose    显示详细输出
+    -q, --quiet      静默模式
+    -f, --force      强制操作（安装时覆盖，卸载时不提示）
+
+示例:
+    ${0##*/} install popular          # 安装流行的编程字体
+    ${0##*/} uninstall chinese        # 卸载中文字体
+    ${0##*/} -f uninstall all        # 强制卸载所有字体
+    ${0##*/} -d /usr/share/fonts install modern  # 指定目录安装现代字体
+
+EOF
+}
+
+###################
 # 工具函数
 ###################
 
@@ -227,6 +156,35 @@ cleanup() {
     log "DEBUG" "清理临时文件..."
     rm -rf "$TEMP_DIR"
     [[ $VERBOSE -eq 1 ]] && log "DEBUG" "临时目录已删除: $TEMP_DIR"
+}
+
+# 确认操作函数
+confirm_action() {
+    local prompt="$1"
+    local answer
+    
+    if [[ $FORCE -eq 1 ]]; then
+        return 0
+    fi
+
+    if [[ $QUIET -eq 1 ]]; then
+        return 1
+    fi
+
+    while true; do
+        read -r -p "$prompt [y/N] " answer
+        case "$answer" in
+            [yY]|[yY][eE][sS])
+                return 0
+                ;;
+            [nN]|[nN][oO]|"")
+                return 1
+                ;;
+            *)
+                echo "请输入 yes 或 no"
+                ;;
+        esac
+    done
 }
 
 # 检查命令是否存在
@@ -296,7 +254,7 @@ get_font_list() {
     if [[ -z "$array_name" && "$type" != "all" ]]; then
         log "ERROR" "未知的字体类别: $type"
         return 1
-    }
+    fi
 
     if [[ "$type" == "all" ]]; then
         for category in "${!font_categories[@]}"; do
@@ -311,65 +269,6 @@ get_font_list() {
     done
 }
 
-# 参数解析
-parse_args() {
-    INSTALL_DIR="$FONT_DIR"
-    VERBOSE=0
-    QUIET=0
-    FORCE=0
-    COMMAND=""
-    FONT_TYPE=""
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h|--help)
-                show_help
-                exit 0
-                ;;
-            -d|--dir)
-                INSTALL_DIR="$2"
-                shift 2
-                ;;
-            -v|--verbose)
-                VERBOSE=1
-                shift
-                ;;
-            -q|--quiet)
-                QUIET=1
-                shift
-                ;;
-            -f|--force)
-                FORCE=1
-                shift
-                ;;
-            install|uninstall|list|clean|version)
-                COMMAND="$1"
-                shift
-                if [[ "$COMMAND" == "install" || "$COMMAND" == "uninstall" ]] && [[ $# -gt 0 ]]; then
-                    FONT_TYPE="$1"
-                    shift
-                fi
-                ;;
-            *)
-                log "ERROR" "未知参数: '$1'"
-                show_help
-                exit 1
-                ;;
-        esac
-    done
-
-    if [[ -z "$COMMAND" ]]; then
-        log "ERROR" "需要指定命令"
-        show_help
-        exit 1
-    fi
-
-    if [[ "$COMMAND" == "install" || "$COMMAND" == "uninstall" ]] && [[ -z "$FONT_TYPE" ]]; then
-        FONT_TYPE="all"
-    fi
-
-    export INSTALL_DIR VERBOSE QUIET FORCE COMMAND FONT_TYPE
-}
 ###################
 # 下载和安装函数
 ###################
@@ -502,7 +401,7 @@ install_category() {
     return $((total - success_count))
 }
 
-# 添加卸载函数
+# 卸载字体
 uninstall_fonts() {
     local type="$1"
     local font_dir="$INSTALL_DIR"
@@ -532,7 +431,6 @@ uninstall_fonts() {
     for font_info in "${font_list[@]}"; do
         local name=${font_info%%=*}
         local url=${font_info#*=}
-        local base_name=$(basename "$url")
         ((count++))
 
         # 查找匹配的字体文件
@@ -568,33 +466,82 @@ uninstall_fonts() {
     return 0
 }
 
-# 添加确认操作函数
-confirm_action() {
-    local prompt="$1"
-    local answer
-    
-    if [[ $FORCE -eq 1 ]]; then
-        return 0
-    fi
+###################
+# 参数解析
+###################
+parse_args() {
+    # 默认值设置
+    INSTALL_DIR="$HOME/.fonts"
+    VERBOSE=0
+    QUIET=0
+    FORCE=0
+    COMMAND=""
+    FONT_TYPE=""
 
-    if [[ $QUIET -eq 1 ]]; then
-        return 1
-    fi
-
-    while true; do
-        read -r -p "$prompt [y/N] " answer
-        case "$answer" in
-            [yY]|[yY][eE][sS])
-                return 0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
                 ;;
-            [nN]|[nN][oO]|"")
-                return 1
+            -d|--dir)
+                shift
+                if [[ -n "$1" ]]; then
+                    INSTALL_DIR="$1"
+                    shift
+                else
+                    log "ERROR" "目录参数缺失"
+                    exit 1
+                fi
+                ;;
+            -v|--verbose)
+                VERBOSE=1
+                shift
+                ;;
+            -q|--quiet)
+                QUIET=1
+                VERBOSE=0
+                shift
+                ;;
+            -f|--force)
+                FORCE=1
+                shift
+                ;;
+            install|uninstall|list|clean|version)
+                COMMAND="$1"
+                shift
+                if [[ "$COMMAND" == "install" || "$COMMAND" == "uninstall" ]] && [[ $# -gt 0 ]]; then
+                    FONT_TYPE="$1"
+                    shift
+                fi
                 ;;
             *)
-                echo "请输入 yes 或 no"
+                log "ERROR" "未知选项: $1"
+                show_help
+                exit 1
                 ;;
         esac
     done
+
+    # 参数验证
+    if [[ -z "$COMMAND" ]]; then
+        log "ERROR" "未指定命令"
+        show_help
+        exit 1
+    fi
+
+    if [[ "$COMMAND" == "install" || "$COMMAND" == "uninstall" ]] && [[ -z "$FONT_TYPE" ]]; then
+        FONT_TYPE="all"
+    fi
+
+    if [[ "$COMMAND" == "install" || "$COMMAND" == "uninstall" ]] && \
+       [[ "$FONT_TYPE" != "all" ]] && [[ -z "${font_categories[$FONT_TYPE]:-}" ]]; then
+        log "ERROR" "无效的字体类别: $FONT_TYPE"
+        show_help
+        exit 1
+    fi
+
+    export INSTALL_DIR VERBOSE QUIET FORCE COMMAND FONT_TYPE
 }
 
 ###################
@@ -654,6 +601,9 @@ main() {
     esac
 }
 
+###################
+# 脚本入口
+###################
 # 如果脚本被直接执行而不是被源引用，则运行主程序
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if [[ $# -eq 0 ]]; then
@@ -663,3 +613,27 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         main "$@"
     fi
 fi
+
+# # 给脚本添加执行权限
+# chmod +x font_installer.sh
+
+# # 安装所有字体
+# ./font_installer.sh install all
+
+# # 安装特定类别的字体
+# ./font_installer.sh install popular
+
+# # 卸载中文字体
+# ./font_installer.sh uninstall chinese
+
+# # 查看可用字体列表
+# ./font_installer.sh list
+
+# # 查看详细的字体列表
+# ./font_installer.sh -v list
+
+# # 强制安装（覆盖已存在的字体）
+# ./font_installer.sh -f install modern
+
+# # 指定安装目录
+# ./font_installer.sh -d /usr/share/fonts install source
