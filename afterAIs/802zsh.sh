@@ -1,14 +1,27 @@
 #!/bin/bash
 
 # 强制使用bash执行
-if [ -n "$ZSH_VERSION" ]; then
-    echo "检测到当前在zsh环境中运行，切换到bash重新执行..."
-    exec bash "$0" "$@"
-    exit 0
-elif [ -z "$BASH_VERSION" ]; then
-    echo "请使用 bash 执行此脚本！例如：bash $0"
-    exit 1
-fi
+function force_bash() {
+    if [ -n "$ZSH_VERSION" ]; then
+        echo "==============================================="
+        echo "警告：此脚本必须在 bash 环境中运行"
+        echo "当前检测到 zsh 环境，正在切换到 bash 重新执行..."
+        echo "==============================================="
+        sleep 1
+        exec bash "$0" "$@"
+        exit 0
+    elif [ -z "$BASH_VERSION" ]; then
+        echo "==============================================="
+        echo "错误：此脚本必须在 bash 环境中运行"
+        echo "请使用以下命令重新执行："
+        echo "    bash $0"
+        echo "==============================================="
+        exit 1
+    fi
+}
+
+# 立即检查shell类型
+force_bash "$@"
 
 # 引入日志相关配置
 source 001log2File.sh
@@ -550,16 +563,6 @@ uninstall_zsh_and_ohmyzsh() {
 
 # 改进的主函数
 mainsetup() {
-    # 强制使用bash执行
-    if [ -n "$ZSH_VERSION" ]; then
-        echo "检测到当前在zsh环境中运行，切换到bash重新执行..."
-        exec bash "$0" "$@"
-        exit 0
-    elif [ -z "$BASH_VERSION" ]; then
-        echo "请使用 bash 执行此脚本！例如：bash $0"
-        exit 1
-    fi
-
     # 检查用户权限
     check_permissions
 
@@ -597,5 +600,8 @@ fi
 export REAL_USER
 export REAL_HOME
 
-# 执行主函数
-mainsetup "$@"
+# 如果脚本被直接运行（不是被source）
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # 执行主函数，传递所有参数
+    mainsetup "$@"
+fi
