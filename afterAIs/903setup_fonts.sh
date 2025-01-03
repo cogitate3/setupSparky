@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # 版本和配置
-SCRIPT_VERSION="1.0.0"
-CURRENT_VERSION="3.0.2"  # Nerd Fonts 当前版本
-# SOURCE_HAN_SERIF_VERSION="2.003R"  # 思源宋体版本
-SOURCE_HAN_SANS_VERSION="2.004R"   # 思源黑体版本
+SCRIPT_VERSION="1.0.1"
+# CURRENT_VERSION="3.0.2"  # 删除这行，不再硬编码
+# SOURCE_HAN_SANS_VERSION="2.004R"   # 删除这行，不再硬编码
 CONFIG_DIR="/etc/font-manager"
 CONFIG_FILE="${CONFIG_DIR}/config"
 LAST_UPDATE_CHECK=0
@@ -23,8 +22,6 @@ NERD_FONTS=(
     "Inconsolata"
 )
 
-NERD_FONTS_BASE_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v${CURRENT_VERSION}"
-
 # 思源字体配置
 SOURCE_HAN_TYPES=(
     # "serif"  # 思源宋体
@@ -38,17 +35,36 @@ SOURCE_HAN_REGIONS=(
     "KR"  # 韩文
 )
 
-# SOURCE_HAN_SERIF_BASE_URL="https://github.com/adobe-fonts/source-han-serif/releases/download/${SOURCE_HAN_SERIF_VERSION}"
-SOURCE_HAN_SANS_BASE_URL="https://github.com/adobe-fonts/source-han-sans/releases/download/${SOURCE_HAN_SANS_VERSION}"
-
 # 配置文件加载函数
 load_config() {
+    # 设置默认版本号
+    CURRENT_VERSION="3.3.0"  # Nerd Fonts 初始版本
+    SOURCE_HAN_SANS_VERSION="2.004R"  # 思源黑体初始版本
+    
     if [ -f "$CONFIG_FILE" ]; then
         # shellcheck source=/dev/null
         source "$CONFIG_FILE"
     else
-        LAST_UPDATE_CHECK=0
+        # 如果配置文件不存在，获取最新版本号作为初始版本
+        local latest_nerd_version
+        latest_nerd_version=$(curl -s "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest" | grep -oP '"tag_name": "\K(.+)(?=")')
+        if [ -n "$latest_nerd_version" ]; then
+            CURRENT_VERSION=${latest_nerd_version#v}
+        fi
+        
+        local latest_sans_version
+        latest_sans_version=$(curl -s "https://api.github.com/repos/adobe-fonts/source-han-sans/releases/latest" | grep -oP '"tag_name": "\K(.+)(?=")')
+        if [ -n "$latest_sans_version" ]; then
+            SOURCE_HAN_SANS_VERSION=$latest_sans_version
+        fi
+        
+        # 保存初始配置
+        save_config
     fi
+
+    # 设置下载 URL
+    SOURCE_HAN_SANS_BASE_URL="https://github.com/adobe-fonts/source-han-sans/releases/download/${SOURCE_HAN_SANS_VERSION}"
+    NERD_FONTS_BASE_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v${CURRENT_VERSION}"
 }
 
 # 配置文件保存函数
@@ -56,8 +72,8 @@ save_config() {
     mkdir -p "$CONFIG_DIR"
     {
         echo "LAST_UPDATE_CHECK=$(date +%s)"
-        echo "CURRENT_VERSION=$CURRENT_VERSION"
-        echo "SOURCE_HAN_SANS_VERSION=$SOURCE_HAN_SANS_VERSION"
+        echo "CURRENT_VERSION=\"$CURRENT_VERSION\""
+        echo "SOURCE_HAN_SANS_VERSION=\"$SOURCE_HAN_SANS_VERSION\""
     } > "$CONFIG_FILE"
 }
 
@@ -224,7 +240,7 @@ install_nerd_font() {
     
     # 解压字体
     log_message "INFO" "正在解压 $font_name..."
-    if ! unzip -q "$download_path" -d "$install_dir"; then
+    if ! unzip -qo "$download_path" -d "$install_dir"; then
         log_message "ERROR" "$font_name 解压失败"
         rm -rf "$temp_dir"
         return 1
@@ -270,7 +286,7 @@ install_source_han() {
     
     # 解压字体
     log_message "INFO" "正在解压思源黑体 ($region)..."
-    if ! unzip -q "$download_path" -d "$install_dir"; then
+    if ! unzip -qo "$download_path" -d "$install_dir"; then
         log_message "ERROR" "思源黑体 ($region) 解压失败"
         rm -rf "$temp_dir"
         return 1
@@ -290,7 +306,7 @@ install_source_han() {
         log_message "WARNING" "思源黑体 ($region) 安装验证未通过"
         return 1
     fi
-    
+
     log_message "INFO" "思源黑体 ($region) 安装完成"
     return 0
 }
@@ -957,8 +973,68 @@ handle_source_han_uninstallation() {
 # 检查更新
 check_updates() {
     log_message "INFO" "正在检查更新..."
-    # TODO: 实现在线更新检查逻辑
-    log_message "INFO" "当前版本已是最新"
+    
+    # 检查是否需要更新
+    if ! should_check_update; then
+        log_message "INFO" "距离上次检查更新未满24小时"
+        wait_for_input
+        return 0
+    fi
+
+    # 检查网络连接
+    if ! ping -c 1 api.github.com &>/dev/null; then
+        log_message "ERROR" "无法连接到 GitHub，请检查网络连接"
+        wait_for_input
+        return 1
+    fi
+    
+    local has_updates=false
+
+    # 检查 Nerd Fonts 更新
+    log_message "INFO" "检查 Nerd Fonts 更新..."
+    local latest_nerd_version
+    latest_nerd_version=$(curl -s "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest" | grep -oP '"tag_name": "\K(.+)(?=")')
+    
+    if [ -n "$latest_nerd_version" ]; then
+        latest_nerd_version=${latest_nerd_version#v}  # 移除版本号前的'v'
+        if [ "$latest_nerd_version" != "$CURRENT_VERSION" ]; then
+            has_updates=true
+            log_message "INFO" "发现 Nerd Fonts 新版本: $latest_nerd_version (当前版本: $CURRENT_VERSION)"
+        fi
+    fi
+
+    # 检查思源黑体更新
+    log_message "INFO" "检查思源黑体更新..."
+    local latest_sans_version
+    latest_sans_version=$(curl -s "https://api.github.com/repos/adobe-fonts/source-han-sans/releases/latest" | grep -oP '"tag_name": "\K(.+)(?=")')
+    
+    if [ -n "$latest_sans_version" ]; then
+        if [ "$latest_sans_version" != "$SOURCE_HAN_SANS_VERSION" ]; then
+            has_updates=true
+            log_message "INFO" "发现思源黑体新版本: $latest_sans_version (当前版本: $SOURCE_HAN_SANS_VERSION)"
+        fi
+    fi
+
+    if [ "$has_updates" = true ]; then
+        read -p "是否现在更新？[y/N] " choice
+        case $choice in
+            [Yy]*)
+                # 更新版本信息
+                [ -n "$latest_nerd_version" ] && CURRENT_VERSION="$latest_nerd_version"
+                [ -n "$latest_sans_version" ] && SOURCE_HAN_SANS_VERSION="$latest_sans_version"
+                save_config
+                log_message "INFO" "版本信息已更新，请重新运行脚本以安装新版本"
+                ;;
+            *)
+                log_message "INFO" "取消更新"
+                ;;
+        esac
+    else
+        log_message "INFO" "所有字体均为最新版本"
+    fi
+    
+    # 更新最后检查时间
+    save_config
     wait_for_input
 }
 
