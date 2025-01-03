@@ -16,7 +16,7 @@ double_esc_to_sudo() {
 }
 
 # 这是一个函数，用于设置双击 ESC 键转换为 sudo 命令的配置
-setup_double_esc_sudo() {
+install_double_esc_sudo() {
     # 定义 rc 文件路径和 shell 类型
     local rc_file
     local shell_type
@@ -85,7 +85,7 @@ EOF
 
 
 # 函数：取消上述设置，恢复.bashrc或.zshrc文件
-cancel_double_esc_sudo() {
+uninstall_double_esc_sudo() {
     local rc_file
     if [ -n "$BASH_VERSION" ]; then
         rc_file="$HOME/.bashrc"
@@ -109,11 +109,11 @@ cancel_double_esc_sudo() {
 # 2. ${0} 是当前正在执行的脚本名称
 # 3. 如果这两个值不相等，说明脚本是被 source 命令或 . 命令引用执行的
 # 4. 如果相等，说明脚本是被直接执行的（比如 ./script.sh）
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # 如果脚本是被 source 引用的，就直接返回，不继续执行后面的代码
     # 这通常用于防止某些命令被重复执行
-    return 0
+    install_double_esc_sudo
 fi
 
-# 调用 setup_double_esc_sudo 函数，设置双击 ESC 键转换为 sudo 命令的配置
-setup_double_esc_sudo
+# 调用 install_double_esc_sudo 函数，设置双击 ESC 键转换为 sudo 命令的配置
+# install_double_esc_sudo
