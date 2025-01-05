@@ -3,8 +3,9 @@
 # 日志相关配置
 # source 001log2File.sh 003get_download_link.sh里面引入了001log2File.sh和002get_assets_links.sh
 source 003get_download_link.sh
-source 005get_fonts.sh
-source 006double-Esc-to-sudo.sh
+source 005setup_fonts.sh
+source 006double-Esc-to-sudo.
+source 005install_fonts.sh
 # 先设置日志
 log "/tmp/logs/901.log" 1 "第一条消息，同时设置日志文件"
 log 2 "日志记录在${CURRENT_LOG_FILE}"
@@ -177,7 +178,10 @@ get_package_version() {
 function install_plank() {
     log 1 “检查是否已安装”
     if check_if_installed "plank"; then
-        log 2 "Plank 已安装"
+        # 获取本地版本
+        local local_version=$(dpkg -l | grep  "^ii\s*plank" | awk '{print $3}')
+        log 2 "plank已安装，本地版本: $local_version"
+
         return 0
     fi
 
@@ -244,7 +248,7 @@ function install_angrysearch() {
             log 2 "angrysearch 已经是最新版本，无需更新，返回主菜单"
             return 0
         fi
-        log 1 "发现新版本，开始更新..."
+        log 2 "发现新版本，开始更新..."
     else
         log 2 "angrysearch未安装，开始下载"
         # LATEST_VERSION="v1.0.4"
@@ -321,10 +325,10 @@ function install_pot_desktop() {
         
     # 比较版本号，检查本地版本是否包含远程版本
     if [[ "$local_version" == *"$remote_version"* ]]; then
-        log 1 "pot-desktop已经是最新版本，无需更新，返回主菜单"
+        log 2 "pot-desktop已经是最新版本，无需更新，返回主菜单"
         return 0
     else
-        log 1 "发现新版本，开始更新..."
+        log 2 "发现新版本，开始更新..."
     fi
     
     # 检查并安装依赖
@@ -517,7 +521,7 @@ function install_ab_download_manager() {
             log 2 "ab-download-manager 已经是最新版本，无需更新，返回主菜单"
             return 0
         else
-            log 1 "发现新版本，开始更新..."
+            log 2 "发现新版本，开始更新..."
             # 检查必要的依赖
             local deps=("wget")
             if ! check_and_install_dependencies "${deps[@]}"; then
@@ -693,6 +697,14 @@ function install_krusader() {
         return 0
     fi
     
+    # 检查并安装依赖,把中文字体放到此处，省事
+    local dependencies=("kdiff3" "lha" "kget")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 Krusader 失败"
+        return 1
+    fi
+
+
     # 更新软件包列表并安装 Krusader
     log 1 "更新软件包列表并安装 Krusader..."
     sudo apt update
@@ -1333,10 +1345,10 @@ function install_micro() {
     log 1 "远程最新版本: $remote_version"
 
     if [[ "$local_version" == *"$remote_version"* ]]; then
-        log 1 "micro 已经是最新版本，无需更新，返回主菜单"
+        log 2 "micro 已经是最新版本，无需更新，返回主菜单"
         return 0
     else
-        log 1 "发现新版本，开始更新..."
+        log 2 "发现新版本，开始更新..."
     fi
 
     local install_dir="/tmp/micro_install"
@@ -2136,6 +2148,7 @@ show_menu() {
         "08. SpaceFM 双面板文件管理器"
         "09. Krusader 双面板文件管理器"
         "10. Konsole KDE's Terminal Emulator"
+        "11. 安装字体和字体管理器 fnt"
     )
 
     command_enhance=(
@@ -2145,6 +2158,7 @@ show_menu() {
         "23. VLC 视频播放器 apt"
         "24. Windsurf IDE 最新编程工具"
         "25. PDF Arranger PDF页面编辑器"
+        "26. warp terminal 预装AI的终端"
     )
 
    cli_enhance=(
@@ -2154,6 +2168,7 @@ show_menu() {
         "33. eg 命令行命令示例"
         "34. eggs 命令行系统备份"
         "35. 按两次Esc键命令前加sudo"
+        "36. zsh和oh-my-zsh增强"
     ) 
 
     software_library=(
@@ -2179,7 +2194,7 @@ show_menu() {
 
     yellow "桌面系统进阶常用软件:"
     display_items 2 "${command_enhance[@]}"
-    yellow "29. 安装全部20-25软件            129. 卸载全部20-25软件"
+    yellow "29. 安装全部20-26软件            129. 卸载全部20-26软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "命令行增强工具:"
@@ -2213,76 +2228,77 @@ handle_menu() {
         8) install_spacefm ;;
         9) install_krusader ;;
         10) install_konsole ;;
+        11) sudo bash -c "source './005install_fonts.sh'; install_fonts" ;;
         19)
             # 创建数组存储安装结果
-            declare -A install_results_11
+            declare -A install_results_19
             local apps=("plank" "angrysearch" "Pot-desktop" "geany" "stretchly" "ab-download-manager" "localsend" "spacefm" "krusader" "konsole")
             
             # 执行安装并记录结果
             if install_plank; then
-                install_results_11["plank"]="成功"
+                install_results_19["plank"]="成功"
             else
-                install_results_11["plank"]="失败"
+                install_results_19["plank"]="失败"
             fi
             
             if install_angrysearch; then
-                install_results_11["angrysearch"]="成功"
+                install_results_19["angrysearch"]="成功"
             else
-                install_results_11["angrysearch"]="失败"
+                install_results_19["angrysearch"]="失败"
             fi
             
             if install_pot_desktop; then
-                install_results_11["Pot-desktop"]="成功"
+                install_results_19["Pot-desktop"]="成功"
             else
-                install_results_11["Pot-desktop"]="失败"
+                install_results_19["Pot-desktop"]="失败"
             fi
             
             if install_geany; then
-                install_results_11["geany"]="成功"
+                install_results_19["geany"]="成功"
             else
-                install_results_11["geany"]="失败"
+                install_results_19["geany"]="失败"
             fi
             
             if install_stretchly; then
-                install_results_11["stretchly"]="成功"
+                install_results_19["stretchly"]="成功"
             else
-                install_results_11["stretchly"]="失败"
+                install_results_19["stretchly"]="失败"
             fi
             
             if install_ab_download_manager; then
-                install_results_11["ab-download-manager"]="成功"
+                install_results_19["ab-download-manager"]="成功"
             else
-                install_results_11["ab-download-manager"]="失败"
+                install_results_19["ab-download-manager"]="失败"
             fi
             
             if install_localsend; then
-                install_results_11["localsend"]="成功"
+                install_results_19["localsend"]="成功"
             else
-                install_results_11["localsend"]="失败"
+                install_results_19["localsend"]="失败"
             fi
             
             if install_spacefm; then
-                install_results_11["spacefm"]="成功"
+                install_results_19["spacefm"]="成功"
             else
-                install_results_11["spacefm"]="失败"
+                install_results_19["spacefm"]="失败"
             fi
             
             if install_krusader; then
-                install_results_11["krusader"]="成功"
+                install_results_19["krusader"]="成功"
             else
-                install_results_11["krusader"]="失败"
+                install_results_19["krusader"]="失败"
             fi
             
             if install_konsole; then
-                install_results_11["konsole"]="成功"
+                install_results_19["konsole"]="成功"
             else
-                install_results_11["konsole"]="失败"
+                install_results_19["konsole"]="失败"
             fi
             
             # 打印安装结果汇总
             log 1 "\n=== 软件安装结果汇总 ==="
             for app in "${apps[@]}"; do
-                printf "%-20s: %s\n" "$app" "${install_results[$app]}"
+                printf "%-20s: %s\n" "$app" "${install_results_19[$app]}"
             done
             log 1 "\n======================"
             ;;
@@ -2291,13 +2307,14 @@ handle_menu() {
         20) install_tabby ;;
         21) install_telegram ;;
         22) install_brave ;;
-        23) install_vlc ;;
+        23) install_VLC ;;
         24) install_windsurf ;;
         25) install_pdfarranger ;;
+        26) install_warp_terminal ;;
         29) 
            # 创建数组存储安装结果
             declare -A install_results_29
-            local apps=("tabby" "telegram" "brave" "vlc" "windsurf" "pdfarranger")
+            local apps=("tabby" "telegram" "brave" "vlc" "windsurf" "pdfarranger" "warp-terminal")
             
             # 执行安装并记录结果
             if install_tabby; then
@@ -2318,7 +2335,7 @@ handle_menu() {
                 install_results_29["brave"]="失败"
             fi
             
-            if install_vlc; then
+            if install_VLC; then
                 install_results_29["vlc"]="成功"
             else
                 install_results_29["vlc"]="失败"
@@ -2336,6 +2353,12 @@ handle_menu() {
                 install_results_29["pdfarranger"]="失败"
             fi
             
+            if install_warp_terminal; then
+                install_results_29["warp-terminal"]="成功"
+            else
+                install_results_29["warp-terminal"]="失败"
+            fi
+
             # 打印安装结果汇总
             log 1 "\n=== 软件安装结果汇总 ==="
             for app in "${apps[@]}"; do
@@ -2351,6 +2374,7 @@ handle_menu() {
         33) install_eg ;;
         34) install_eggs ;;
         35) install_double_esc_sudo ;;
+        36) sudo ./009install_zsh_omz install;;
         39) 
            # 创建数组存储安装结果
            declare -A install_results_39
@@ -2438,7 +2462,7 @@ handle_menu() {
                 printf "%-20s: %s\n" "$app" "${install_results_49[$app]}"
             done
             ;;
-
+        
         # 卸载选项
         101) uninstall_plank ;;
         102) uninstall_angrysearch ;;
@@ -2468,13 +2492,15 @@ handle_menu() {
         123) uninstall_VLC ;;
         124) uninstall_windsurf ;;
         125) uninstall_pdfarranger ;;
+        126) uninstall_warp_terminal ;;
 
         129) uninstall_tabby
             uninstall_telegram
             uninstall_brave
             uninstall_VLC
             uninstall_windsurf
-            uninstall_pdfarranger ;;
+            uninstall_pdfarranger
+            uninstall_warp_terminal ;;
 
 
         130) uninstall_neofetch ;;
@@ -2537,10 +2563,16 @@ main() {
     done
 }
 
-check_and_install_dependencies "jq" "git" "curl" "wget" "sudo"
-main
+
+# main
 
 # 如果脚本被直接运行而不是被source，则执行main函数
-# if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-#     main
-# fi
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # 判断脚本的执行方式
+    # ${BASH_SOURCE[0]} 是当前脚本文件的路径
+    # ${0} 是当前执行的命令名称
+    # 当两者相等时，表示脚本是被直接执行（比如 ./script.sh）
+    # 当两者不相等时，表示脚本是被source/点源方式执行（比如 source script.sh 或 . script.sh）
+    check_and_install_dependencies "jq" "git" "curl" "wget" "sudo" "terminator" "btop"
+    main
+fi
