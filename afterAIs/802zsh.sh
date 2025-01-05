@@ -126,6 +126,36 @@ backup_file() {
     return 0
 }
 
+# 带有重试的git clone函数
+# 带有重试的git clone函数
+function git_clone_with_retry {
+    local repo_url=$1
+    local target_dir=$2
+    local max_attempts=3
+    local retry_delay=5
+
+    # 检查目标目录是否存在且非空
+    if [ -d "$target_dir" ] && [ "$(ls -A $target_dir)" ]; then
+        echo "目标目录 $target_dir 已存在且非空，正在删除..."
+        rm -rf "$target_dir"
+    fi
+
+    local counter=0
+    until [ "$counter" -ge $max_attempts ]
+    do
+        git clone "$repo_url" "$target_dir" && break
+        counter=$((counter+1))
+        if [ "$counter" -eq $max_attempts ]; then
+            echo "Failed to clone $repo_url after $max_attempts attempts. Aborting."
+            return 1
+        fi
+        echo "git clone failed, retrying in $retry_delay seconds..."
+        sleep $retry_delay
+    done
+    
+    return 0
+}
+
 # 改进的软件包安装函数
 __install_if_missing() {
     local package="$1"
@@ -202,21 +232,24 @@ install_zsh_and_ohmyzsh() {
     log 1 "开始安装 zsh..."
     
     # 安装 zsh
-    __install_if_missing "zsh" || return 1
-    
-    # 安装 oh-my-zsh
-    if [[ ! -d "$REAL_HOME/.oh-my-zsh" ]]; then
+    __install_if_missing "zsh" "retry"|| return 1
+
+    # # 安装 retry
+    # __install_if_missing "retry"|| return 1
+
+    # 手动安装 oh-my-zsh
+    if [[ ! -d "$REAL_HOME/.oh-my-zsh" ]] || [[ -z "$(ls -A $REAL_HOME/.oh-my-zsh)" ]]; then
         log 1 "安装 oh-my-zsh..."
-        if ! sudo -u "$REAL_USER" sh -c \
-            "$(curl -fsSL --retry 3 --retry-delay 5 --retry-max-time 60 --connect-timeout 30 --max-time 120 \
-            https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
+        if ! git_clone_with_retry "https://github.com/ohmyzsh/ohmyzsh.git" "$REAL_HOME/.oh-my-zsh"; then
             log 3 "安装 oh-my-zsh 失败"
-            return 1
+            log 3 "安装终止！oh-my-zsh 是必需组件，无法继续安装其他功能"
+            exit 1
         fi
     fi
 
+    cp "$REAL_HOME/.oh-my-zsh/templates/zshrc.zsh-template" "$REAL_HOME/.zshrc"
 
-    # 更改默认 shell
+    log 1 "更改默认 shell"
     if [[ "$SHELL" != "$(which zsh)" ]]; then
         log 1 "更改默认 shell 为 zsh..."
         sudo chsh -s "$(which zsh)" "$REAL_USER"
@@ -562,7 +595,7 @@ uninstall_zsh_and_ohmyzsh() {
 }
 
 # 改进的主函数
-mainsetup() {
+main_zsh_setup() {
     # 检查用户权限
     check_permissions
 
@@ -578,6 +611,8 @@ mainsetup() {
             install_zsh_and_ohmyzsh
             configure_ohmyzsh
             configure_powerlevel10k
+            log 2 "Zsh 和 oh-my-zsh 已安装和配置完成。并已配置 Powerlevel10k 主题。安装了MesloLGS字体"
+            log 2 "可以输入命令p10k configure手动配置其他主题。"
             ;;
         uninstall)
             uninstall_powerlevel10k
@@ -603,5 +638,5 @@ export REAL_HOME
 # 如果脚本被直接运行（不是被source）
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # 执行主函数，传递所有参数
-    mainsetup "$@"
+    main_zsh_setup "$@"
 fi

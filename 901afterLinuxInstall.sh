@@ -2166,6 +2166,7 @@ show_menu() {
         "33. eg 命令行命令示例"
         "34. eggs 命令行系统备份"
         "35. 按两次Esc键命令前加sudo"
+        "36. zsh和oh-my-zsh增强"
     ) 
 
     software_library=(
@@ -2370,6 +2371,7 @@ handle_menu() {
         33) install_eg ;;
         34) install_eggs ;;
         35) install_double_esc_sudo ;;
+        36) sudo ./009install_zsh_omz install;;
         39) 
            # 创建数组存储安装结果
            declare -A install_results_39
