@@ -4,7 +4,8 @@
 # source 001log2File.sh 003get_download_link.sh里面引入了001log2File.sh和002get_assets_links.sh
 source 003get_download_link.sh
 source 005setup_fonts.sh
-source 006double-Esc-to-sudo.sh
+source 006double-Esc-to-sudo.
+source 005install_fonts.sh
 # 先设置日志
 log "/tmp/logs/901.log" 1 "第一条消息，同时设置日志文件"
 log 2 "日志记录在${CURRENT_LOG_FILE}"
@@ -2147,6 +2148,7 @@ show_menu() {
         "08. SpaceFM 双面板文件管理器"
         "09. Krusader 双面板文件管理器"
         "10. Konsole KDE's Terminal Emulator"
+        "11. 安装字体和字体管理器 fnt"
     )
 
     command_enhance=(
@@ -2226,6 +2228,7 @@ handle_menu() {
         8) install_spacefm ;;
         9) install_krusader ;;
         10) install_konsole ;;
+        11) sudo bash -c "source './005install_fonts.sh'; install_fonts" ;;
         19)
             # 创建数组存储安装结果
             declare -A install_results_19
