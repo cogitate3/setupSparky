@@ -3,7 +3,7 @@
 # 日志相关配置
 # source 001log2File.sh 003get_download_link.sh里面引入了001log2File.sh和002get_assets_links.sh
 source 003get_download_link.sh
-source 005get_fonts.sh
+source 005setup_fonts.sh
 source 006double-Esc-to-sudo.sh
 # 先设置日志
 log "/tmp/logs/901.log" 1 "第一条消息，同时设置日志文件"
@@ -696,6 +696,14 @@ function install_krusader() {
         return 0
     fi
     
+    # 检查并安装依赖,把中文字体放到此处，省事
+    local dependencies=("kdiff3" "lha" "kget")
+    if ! check_and_install_dependencies "${dependencies[@]}"; then
+        log 3 "安装 Krusader 失败"
+        return 1
+    fi
+
+
     # 更新软件包列表并安装 Krusader
     log 1 "更新软件包列表并安装 Krusader..."
     sudo apt update
@@ -2148,6 +2156,7 @@ show_menu() {
         "23. VLC 视频播放器 apt"
         "24. Windsurf IDE 最新编程工具"
         "25. PDF Arranger PDF页面编辑器"
+        "26. warp terminal 预装AI的终端"
     )
 
    cli_enhance=(
@@ -2182,7 +2191,7 @@ show_menu() {
 
     yellow "桌面系统进阶常用软件:"
     display_items 2 "${command_enhance[@]}"
-    yellow "29. 安装全部20-25软件            129. 卸载全部20-25软件"
+    yellow "29. 安装全部20-26软件            129. 卸载全部20-26软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "命令行增强工具:"
@@ -2297,10 +2306,11 @@ handle_menu() {
         23) install_VLC ;;
         24) install_windsurf ;;
         25) install_pdfarranger ;;
+        26) install_warp_terminal ;;
         29) 
            # 创建数组存储安装结果
             declare -A install_results_29
-            local apps=("tabby" "telegram" "brave" "vlc" "windsurf" "pdfarranger")
+            local apps=("tabby" "telegram" "brave" "vlc" "windsurf" "pdfarranger" "warp-terminal")
             
             # 执行安装并记录结果
             if install_tabby; then
@@ -2339,6 +2349,12 @@ handle_menu() {
                 install_results_29["pdfarranger"]="失败"
             fi
             
+            if install_warp_terminal; then
+                install_results_29["warp-terminal"]="成功"
+            else
+                install_results_29["warp-terminal"]="失败"
+            fi
+
             # 打印安装结果汇总
             log 1 "\n=== 软件安装结果汇总 ==="
             for app in "${apps[@]}"; do
@@ -2441,7 +2457,7 @@ handle_menu() {
                 printf "%-20s: %s\n" "$app" "${install_results_49[$app]}"
             done
             ;;
-
+        
         # 卸载选项
         101) uninstall_plank ;;
         102) uninstall_angrysearch ;;
@@ -2471,13 +2487,15 @@ handle_menu() {
         123) uninstall_VLC ;;
         124) uninstall_windsurf ;;
         125) uninstall_pdfarranger ;;
+        126) uninstall_warp_terminal ;;
 
         129) uninstall_tabby
             uninstall_telegram
             uninstall_brave
             uninstall_VLC
             uninstall_windsurf
-            uninstall_pdfarranger ;;
+            uninstall_pdfarranger
+            uninstall_warp_terminal ;;
 
 
         130) uninstall_neofetch ;;
@@ -2540,10 +2558,16 @@ main() {
     done
 }
 
-check_and_install_dependencies "jq" "git" "curl" "wget" "sudo"
-main
+
+# main
 
 # 如果脚本被直接运行而不是被source，则执行main函数
-# if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-#     main
-# fi
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # 判断脚本的执行方式
+    # ${BASH_SOURCE[0]} 是当前脚本文件的路径
+    # ${0} 是当前执行的命令名称
+    # 当两者相等时，表示脚本是被直接执行（比如 ./script.sh）
+    # 当两者不相等时，表示脚本是被source/点源方式执行（比如 source script.sh 或 . script.sh）
+    check_and_install_dependencies "jq" "git" "curl" "wget" "sudo" "terminator"
+    main
+fi
