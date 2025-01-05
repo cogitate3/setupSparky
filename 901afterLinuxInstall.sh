@@ -2568,6 +2568,6 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # ${0} 是当前执行的命令名称
     # 当两者相等时，表示脚本是被直接执行（比如 ./script.sh）
     # 当两者不相等时，表示脚本是被source/点源方式执行（比如 source script.sh 或 . script.sh）
-    check_and_install_dependencies "jq" "git" "curl" "wget" "sudo" "terminator"
+    check_and_install_dependencies "jq" "git" "curl" "wget" "sudo" "terminator" "btop"
     main
 fi
