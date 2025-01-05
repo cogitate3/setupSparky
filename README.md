@@ -1,5 +1,7 @@
 # Setup Sparky Linux
 
+[中文版](README.zh-CN.md)
+
 A one-click installation script to set up and customize Sparky Linux 7.5 (or other Debian Bookworm-based distributions).
 
 ## Overview
