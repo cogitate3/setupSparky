@@ -126,7 +126,7 @@ backup_file() {
     return 0
 }
 
-# 带有重试的git clone函数
+
 # 带有重试的git clone函数
 function git_clone_with_retry {
     local repo_url=$1
