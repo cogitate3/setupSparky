@@ -535,5 +535,7 @@ main() {
     esac
 }
 
-# 执行主函数
-main "$@"
+# 仅在直接执行脚本时运行main函数，被source时不运行
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    main "$@"
+fi
