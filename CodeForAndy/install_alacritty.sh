@@ -122,8 +122,8 @@ else
     mkdir -p "$FONT_DIR" || handle_error "Failed to create fonts directory"
 
     # 下载并安装字体
-    FONT_ZIP="$tmp_dir/JetBrainsMono.zip"
-    FONT_URL="https://download.jetbrains.com/fonts/JetBrainsMono-2.304.zip"
+    FONT_ZIP="$tmp_dir/JetBrainsMono.tar.xz"
+    FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.3.0/JetBrainsMono.tar.xz"
 
     log_info "Downloading JetBrains Mono font..."
     if ! wget -q "$FONT_URL" -O "$FONT_ZIP"; then
@@ -131,12 +131,12 @@ else
     fi
 
     log_info "Extracting font files..."
-    if ! unzip -q "$FONT_ZIP" -d "$tmp_dir/JetBrainsMono"; then
+    if ! tar -xf "$FONT_ZIP" -C "$FONT_DIR"; then
         handle_error "Failed to extract font files"
     fi
 
     # 复制字体文件
-    cp "$tmp_dir/JetBrainsMono/fonts/ttf/"*.ttf "$FONT_DIR/" || \
+    cp "$tmp_dir/JetBrainsMono/"*.ttf "$FONT_DIR/" || \
         handle_error "Failed to copy font files"
 
     # 设置权限
