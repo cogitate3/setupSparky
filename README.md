@@ -1,4 +1,4 @@
-# Sparky Linux
+# Setup Sparky Linux 7.5
 
 [English](README.en.md)
 
