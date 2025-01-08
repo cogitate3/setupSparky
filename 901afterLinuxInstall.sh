@@ -6,7 +6,7 @@ source 003get_download_link.sh
 source 005setup_fonts.sh
 source 006double-Esc-to-sudo.sh
 source 005install_fonts.sh
-source 400add_autostart_app.sh
+source 010add_autostart_app.sh
 # 先设置日志
 log "/tmp/logs/901.log" 1 "第一条消息，同时设置日志文件"
 log 2 "日志记录在${CURRENT_LOG_FILE}"
@@ -371,14 +371,7 @@ function uninstall_pot_desktop() {
         return 0
     fi
 
-    # 获取实际的包名
-    pkg_name=$(dpkg -l | grep -i pot | awk '{print $2}')
-    if [ -z "$pkg_name" ]; then
-        log 3 "未找到已安装的pot-desktop"
-    fi
-
-    log 1 "找到pot-desktop包名: ${pkg_name}"
-    if sudo apt purge -y "$pkg_name"; then
+    if sudo apt purge -y pot; then
         log 2 "pot-desktop卸载成功"
         # 清理依赖
         sudo apt autoremove -y
