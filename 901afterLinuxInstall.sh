@@ -2374,7 +2374,7 @@ handle_menu() {
         33) install_eg ;;
         34) install_eggs ;;
         35) install_double_esc_sudo ;;
-        36) sudo ./009install_zsh_omz install;;
+        36) sudo ./009install_zsh_omz.sh install;;
         39) 
            # 创建数组存储安装结果
            declare -A install_results_39

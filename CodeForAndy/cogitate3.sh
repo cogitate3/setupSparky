@@ -172,6 +172,21 @@ install_packages() {
     return 0
 }
 
+# 检查必要的命令
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        log_error "Required command '$1' not found. Installing..."
+        if ! sudo apt install -y "$2"; then
+            handle_error "Failed to install $2"
+        fi
+    fi
+}
+
+# 检查必要的命令
+check_command "wget" "wget"
+check_command "unzip" "unzip"
+check_command "fc-cache" "fontconfig"
+
 # 提示重启
 prompt_restart() {
     echo -e "${RED}重要: 需要重启系统才能使更改生效${NC}"
@@ -358,3 +373,4 @@ check_if_installed() {
     
     return 1
 }
+
