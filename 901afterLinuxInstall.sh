@@ -4,8 +4,9 @@
 # source 001log2File.sh 003get_download_link.sh里面引入了001log2File.sh和002get_assets_links.sh
 source 003get_download_link.sh
 source 005setup_fonts.sh
-source 006double-Esc-to-sudo.
+source 006double-Esc-to-sudo.sh
 source 005install_fonts.sh
+source 400add_autostart_app.sh
 # 先设置日志
 log "/tmp/logs/901.log" 1 "第一条消息，同时设置日志文件"
 log 2 "日志记录在${CURRENT_LOG_FILE}"
@@ -205,6 +206,8 @@ function install_plank() {
     fi
 
     log 2 "Plank 快捷启动器安装完成"
+
+    add_autostart_app "Plank" "plank" "no"
 }
 
 # 函数：卸载 Plank 快捷启动器
@@ -288,6 +291,8 @@ function install_angrysearch() {
             return 1
         fi
     fi
+
+    add_autostart_app "angrysearch" "angrysearch" "yes"
     return 1
 }
 
@@ -2175,6 +2180,7 @@ show_menu() {
         "40. Docker  和 Docker Compose"
         "41. Snap 和 Snapstore 软件库"
         "42. Flatpak 软件库"
+        "43. Homebrew 软件库"
         # "43. 安装三种字体JetBrains Mono等宽、Cascadia Code等宽和Source Han Mono中日韩等宽字体"
     )
     green "==================================="
@@ -2218,14 +2224,14 @@ handle_menu() {
     read -p "请输入选项编号: " choice
     case $choice in
         # 桌面系统增强必备
-        1) install_plank ;;
-        2) install_angrysearch ;;
-        3) install_pot_desktop ;;
-        4) install_geany ;;
-        5) install_stretchly ;;
-        6) install_ab_download_manager ;;
-        7) install_localsend ;;
-        8) install_spacefm ;;
+        01) install_plank ;;
+        02) install_angrysearch ;;
+        03) install_pot_desktop ;;
+        04) install_geany ;;
+        05) install_stretchly ;;
+        06) install_ab_download_manager ;;
+        07) install_localsend ;;
+        08) install_spacefm ;;
         9) install_krusader ;;
         10) install_konsole ;;
         11) sudo bash -c "source './005install_fonts.sh'; install_fonts" ;;
@@ -2429,7 +2435,7 @@ handle_menu() {
         40) install_docker_and_docker_compose ;;
         41) install_snap ;;
         42) install_flatpak ;;
-        #   43) install_fonts ;;
+        43) install_homebrew;;
         49) 
             # 创建数组存储安装结果
             declare -A install_results_49
@@ -2521,12 +2527,12 @@ handle_menu() {
         140) uninstall_docker_and_docker_compose ;;
         141) uninstall_snap ;;
         142) uninstall_flatpak ;;
-        # 143) uninstall_homebrew ;;
+        143) uninstall_homebrew ;;
 
         149) uninstall_docker_and_docker_compose
             uninstall_snap
-            uninstall_flatpak ;;
-            # uninstall_homebrew ;;
+            uninstall_flatpak
+            uninstall_homebrew ;;
         
         0) 
             log 1 "退出脚本"

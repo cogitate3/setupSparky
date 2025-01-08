@@ -287,8 +287,8 @@ install_MesloLGS_fonts() {
     __install_if_missing "fontconfig" || return 1
     __install_if_missing "xfonts-utils" || return 1
     
-    local font_dir="$REAL_HOME/.local/share/fonts"
-    local font_cache_dir="$REAL_HOME/.cache/fontconfig"
+    local font_dir="/usr/local/share/fonts/"
+    local font_cache_dir="/var/cache/fontconfig"
     
     # 清理旧的字体文件和缓存
     log 1 "清理旧的字体文件..."
@@ -504,7 +504,7 @@ configure_powerlevel10k() {
         --max-time 120 \
         --progress-bar \
         -o "$REAL_HOME/.p10k.zsh" \
-        "https://github.com/gushmazuko/Powerlevel10k/raw/refs/heads/master/.p10k.zsh"; then
+        "https://github.com/cogitate3/setupSparkyLinux/blob/main/config/.p10k.zsh"; then
         log 3 "下载 .p10k.zsh 失败"
         return 1
     fi
