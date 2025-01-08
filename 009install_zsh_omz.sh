@@ -495,7 +495,7 @@ configure_powerlevel10k() {
     # 设置主题
     sudo -u "$REAL_USER" sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$zshrc"
 
-    # 下载 .p10k.zsh
+    log 1 "下载github.com/cogitate3/setupSparkyLinux 的.p10k.zsh"
     if ! sudo -u "$REAL_USER" curl -L \
         --retry 3 \
         --retry-delay 5 \
@@ -504,10 +504,12 @@ configure_powerlevel10k() {
         --max-time 120 \
         --progress-bar \
         -o "$REAL_HOME/.p10k.zsh" \
-        "https://github.com/cogitate3/setupSparkyLinux/blob/main/config/.p10k.zsh"; then
+        "https://github.com/cogitate3/setupSparkyLinux/blob/develop/config/.p10k.zsh"; then
         log 3 "下载 .p10k.zsh 失败"
         return 1
     fi
+
+ 
 
     # 修改.zshrc中的默认启动项
     local wizard_config='POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'
@@ -517,6 +519,9 @@ configure_powerlevel10k() {
 
     # 安装字体
     install_MesloLGS_fonts
+
+    # 更新 .zshrc
+    source "$REAL_HOME/.zshrc"
 }
 
 # 卸载 Powerlevel10k
