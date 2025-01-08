@@ -374,3 +374,164 @@ check_if_installed() {
     return 1
 }
 
+# 日志函数
+log() {
+    local level=$1
+    local message=$2
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local color="${COLORS[$level]:-${COLORS[INFO]}}"
+
+    if [[ $QUIET -eq 0 ]] || [[ "$level" == "ERROR" ]]; then
+        echo -e "${color}[$level] [$timestamp] $message${COLORS[RESET]}" | tee -a "$LOG_FILE"
+    fi
+
+    [[ "$level" == "ERROR" ]] && >&2 echo -e "${color}[$level] $message${COLORS[RESET]}"
+}
+
+# 错误处理函数
+error_handler() {
+    local line=$1
+    local command=$2
+    local code=$3
+    log "ERROR" "脚本执行失败 [行 $line]: 命令 '$command' 返回错误码 $code"
+    exit $code
+}
+
+# 清理函数
+cleanup() {
+    log "DEBUG" "清理临时文件..."
+    rm -rf "$TEMP_DIR"
+    [[ $VERBOSE -eq 1 ]] && log "DEBUG" "临时目录已删除: $TEMP_DIR"
+}
+
+# 确认操作函数
+confirm_action() {
+    local prompt="$1"
+    local answer
+    
+    if [[ $FORCE -eq 1 ]]; then
+        return 0
+    fi
+
+    if [[ $QUIET -eq 1 ]]; then
+        return 1
+    fi
+
+    while true; do
+        read -r -p "$prompt [y/N] " answer
+        case "$answer" in
+            [yY]|[yY][eE][sS])
+                return 0
+                ;;
+            [nN]|[nN][oO]|"")
+                return 1
+                ;;
+            *)
+                echo "请输入 yes 或 no"
+                ;;
+        esac
+    done
+}
+
+# 检查命令是否存在
+check_command() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# 检查依赖
+check_dependencies() {
+    # 定义依赖关系：包名和对应的命令
+    declare -A pkg_commands=(
+        ["wget"]="wget"
+        ["unzip"]="unzip"
+        ["tar"]="tar"
+        ["fontconfig"]="fc-cache"
+        ["p7zip-full"]="7z"
+    )
+    
+    local missing_deps=()
+
+    # 检查每个依赖
+    for pkg in "${!pkg_commands[@]}"; do
+        local cmd="${pkg_commands[$pkg]}"
+        if ! check_command "$cmd"; then
+            missing_deps+=("$pkg")
+        fi
+    done
+
+    # 安装缺失的依赖
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        log "WARN" "安装缺失的依赖: ${missing_deps[*]}"
+        if ! sudo apt-get update && sudo apt-get install -y "${missing_deps[@]}"; then
+            log "ERROR" "依赖安装失败"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+# 初始化环境
+init_environment() {
+    log "INFO" "初始化环境..."
+
+    mkdir -p "$FONT_DIR"
+    mkdir -p "$TEMP_DIR"
+    mkdir -p "$(dirname "$LOG_FILE")"
+
+    if ! check_dependencies; then
+        log "ERROR" "环境初始化失败"
+        return 1
+    fi
+
+    log "INFO" "环境初始化完成"
+    return 0
+}
+
+# 显示进度条
+show_progress() {
+    local current=$1
+    local total=$2
+    local width=50
+    local progress=$((current * width / total))
+    
+    if [[ $QUIET -eq 0 ]]; then
+        printf "\r[%-${width}s] %d%%" \
+               "$(printf '%*s' "$progress" '' | tr ' ' '#')" \
+               $((current * 100 / total))
+        [[ $current -eq $total ]] && echo
+    fi
+}
+
+# 解压文件
+extract_archive() {
+    local file="$1"
+    local target_dir="$2"
+
+    mkdir -p "$target_dir" || {
+        log "ERROR" "无法创建解压目标目录: $target_dir"
+        return 1
+    }
+
+    local file_type=$(file -b --mime-type "$file")
+    log "DEBUG" "文件类型: $file_type"
+
+    case "$file_type" in
+        application/zip)
+            unzip -q "$file" -d "$target_dir" ;;
+        application/x-tar|application/x-gtar)
+            tar -xf "$file" -C "$target_dir" ;;
+        application/x-xz)
+            tar -xJf "$file" -C "$target_dir" ;;
+        application/x-7z-compressed)
+            7z x "$file" -o"$target_dir" >/dev/null ;;
+        application/x-font-ttf|application/x-font-otf|application/octet-stream)
+            cp "$file" "$target_dir/" ;;
+        *)
+            log "ERROR" "不支持的文件类型: $file_type"
+            return 1 ;;
+    esac
+
+    log "INFO" "解压完成: $file -> $target_dir"
+    return 0
+}
