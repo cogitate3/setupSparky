@@ -54,6 +54,18 @@ The script contains extensive comments to aid my learning and serve as a resourc
 
 3. Follow the on-screen instructions to complete the installation.
 
+## Next Steps:
+
+- [x] One-click installation and configuration of zsh with its plugins and interface customization
+- One-click configuration for mounting webdav remote folders
+- One-click installation of Chinese input method
+- Add auto-start configuration for plank
+- Add auto-start configuration for angrysearch
+- Add cloud storage
+- Add webdav
+- Add useful desktop screenshot translation software
+- Test and optimize scripts for compatibility with MX Linux and Linux Mint distributions
+
 ## Future Plans
 
 - Test and optimize the script for other Debian-based distributions.
