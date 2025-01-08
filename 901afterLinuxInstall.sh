@@ -703,7 +703,7 @@ function install_krusader() {
     fi
     
     # 检查并安装依赖,把中文字体放到此处，省事
-    local dependencies=("kdiff3" "lha" "kget")
+    local dependencies=("kdiff3" "kget")
     if ! check_and_install_dependencies "${dependencies[@]}"; then
         log 3 "安装 Krusader 失败"
         return 1
@@ -2232,7 +2232,7 @@ handle_menu() {
         06) install_ab_download_manager ;;
         07) install_localsend ;;
         08) install_spacefm ;;
-        9) install_krusader ;;
+        09) install_krusader ;;
         10) install_konsole ;;
         11) sudo bash -c "source './005install_fonts.sh'; install_fonts" ;;
         19)
