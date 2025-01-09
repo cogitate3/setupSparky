@@ -262,7 +262,7 @@ configure_fcitx5_rime() {
     local fcitx5_data_dir="$REAL_HOME/.local/share/fcitx5"
     
     mkdir -p "$fcitx5_config_dir/conf"
-    mkdir -p "$fcitx5_config_dir/profile"
+    # mkdir -p "$fcitx5_config_dir/profile"
     mkdir -p "$fcitx5_data_dir/themes"
 
     # 配置输入法配置文件
@@ -294,24 +294,74 @@ EOF
     # 配置Fcitx5全局配置
     cat > "$fcitx5_config_dir/config" <<EOF
 [Hotkey]
-# 切换启用/禁用输入法
-TriggerKeys=Alt+space
-# 轮换输入法
-EnumerateForwardKeys=
-EnumerateBackwardKeys=
-# 切换至上一个输入法
+# Enumerate when press trigger key repeatedly
+EnumerateWithTriggerKeys=True
+# Temporally switch between first and current Input Method
 AltTriggerKeys=
+# Enumerate Input Method Forward
+EnumerateForwardKeys=
+# Enumerate Input Method Backward
+EnumerateBackwardKeys=
+# Skip first input method while enumerating
+EnumerateSkipFirst=False
 
-[Hotkey/EnumerateGroups]
+[Hotkey/TriggerKeys]
 0=Control+space
 
+[Hotkey/EnumerateGroupForwardKeys]
+0=Super+space
+
+[Hotkey/EnumerateGroupBackwardKeys]
+0=Shift+Super+space
+
+[Hotkey/ActivateKeys]
+0=Hangul_Hanja
+
+[Hotkey/DeactivateKeys]
+0=Hangul_Romaja
+
+[Hotkey/PrevPage]
+0=Up
+
+[Hotkey/NextPage]
+0=Down
+
+[Hotkey/PrevCandidate]
+0=Shift+Tab
+
+[Hotkey/NextCandidate]
+0=Tab
+
+[Hotkey/TogglePreedit]
+0=Control+Alt+P
+
 [Behavior]
-# 默认启用输入法
-ShareInputState=All
-# 显示输入法信息
+# Active By Default
+ActiveByDefault=True
+# Share Input State
+ShareInputState=No
+# Show preedit in application
+PreeditEnabledByDefault=True
+# Show Input Method Information when switch input method
 ShowInputMethodInformation=True
-# 默认英文模式
-ActiveByDefault=False
+# Show Input Method Information when changing focus
+showInputMethodInformationWhenFocusIn=False
+# Show compact input method information
+CompactInputMethodInformation=True
+# Show first input method information
+ShowFirstInputMethodInformation=True
+# Default page size
+DefaultPageSize=7
+# Override Xkb Option
+OverrideXkbOption=False
+# Custom Xkb Option
+CustomXkbOption=
+# Force Enabled Addons
+EnabledAddons=
+# Force Disabled Addons
+DisabledAddons=
+# Preload input method to be used by default
+PreloadInputMethod=True
 EOF
 
 # 配置经典界面
@@ -504,7 +554,7 @@ uninstall_rime() {
     rm -rf "$REAL_HOME/.local/share/fcitx5"
     rm -rf "$REAL_HOME/.config/fcitx5"
     rm -f "$REAL_HOME/.config/autostart/fcitx5.desktop"
-    rm -f "$REAL_HOME/.config/environment.d/99-fcitx5.conf"
+    rm -f "$REAL_HOME/.config/environment.d/fcitx5.conf"
     
     # 清理环境变量配置
     echo -e "${BLUE}清理环境变量配置...${NC}"

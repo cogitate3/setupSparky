@@ -99,5 +99,3 @@
 - 添加实用的桌面截图翻译软件
 - 测试和优化脚本在 MX Linux 和 Linux Mint 发行版上的兼容性
 - 筛选软件，优化菜单布置，使其更易于导航，
-
-zsh-theme-powerlevel9k、zsh-theme-powerlevel10k，可以直接 apt 安装
