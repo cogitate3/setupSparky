@@ -4,6 +4,28 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# 定义颜色输出
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# 错误处理函数
+handle_error() {
+    echo -e "${RED}错误: $1${NC}"
+    exit 1
+}
+
+# 警告函数
+show_warning() {
+    echo -e "${YELLOW}警告: $1${NC}"
+}
+
+# 成功信息函数
+show_success() {
+    echo -e "${GREEN}成功: $1${NC}"
+}
+
 # 检查是否以root权限运行
 check_root() {
     if [ "$(id -u)" != "0" ]; then
@@ -534,4 +556,88 @@ extract_archive() {
 
     log "INFO" "解压完成: $file -> $target_dir"
     return 0
+}
+
+# Error handling function
+error_exit() {
+    echo "ERROR: $1" >&2
+    exit "${2:-1}"
+}
+
+# Check sudo privileges
+check_sudo() {
+    if ! sudo -v &>/dev/null; then
+        error_exit "This script requires sudo privileges. Please run with sudo or grant sudo access."
+    fi
+    
+    # Keep sudo alive
+    while true; do
+        sudo -n true
+        sleep 60
+        kill -0 "$$" || exit
+    done 2>/dev/null &
+}
+
+# Check dependencies function
+check_dependencies() {
+    local missing_deps=()
+    for cmd in curl grep sed chmod sudo; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_deps+=("$cmd")
+        fi
+    done
+    
+    if [ ${#missing_deps[@]} -ne 0 ]; then
+        error_exit "Missing required dependencies: ${missing_deps[*]}"
+    fi
+}
+
+# Get real user when script is run with sudo
+get_real_user() {
+    if [ -n "$SUDO_USER" ]; then
+        echo "$SUDO_USER"
+    elif [ -n "$USER" ]; then
+        echo "$USER"
+    else
+        error_exit "Could not determine the real user"
+    fi
+}
+
+# Get real user's home directory
+get_real_home() {
+    local real_user
+    real_user=$(get_real_user)
+    local home_dir
+    
+    if [ "$real_user" = "root" ]; then
+        error_exit "This script should not be run as the root user directly. Please use 'sudo' instead."
+    fi
+    
+    home_dir=$(getent passwd "$real_user" | cut -d: -f6)
+    if [ -z "$home_dir" ]; then
+        error_exit "Could not determine home directory for user $real_user"
+    fi
+    
+    echo "$home_dir"
+}
+
+
+# Function to update shell config files
+update_shell_configs() {
+    # ...
+    # List of supported shell config files
+    local shell_configs=("$real_home/.bashrc" "$real_home/.zshrc")
+
+    for config in "${shell_configs[@]}"; do
+        if [[ -f "$config" ]]; then
+            if [[ "$action" == "add" ]]; then
+                if ! grep -q "source $env_file" "$config"; then
+                    # Use real user to modify their own config files
+                    sudo -u "$real_user" tee -a "$config" >/dev/null <<< "source $env_file"
+                    updated=true
+                fi
+            fi
+            # ...
+        fi
+    done
 }
