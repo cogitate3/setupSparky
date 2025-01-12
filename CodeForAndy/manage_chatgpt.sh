@@ -1,5 +1,7 @@
 #!/bin/bash
 
+## https://github.com/0xacx/chatGPT-shell-cli
+
 # Error handling function
 error_exit() {
     echo "ERROR: $1" >&2
@@ -290,7 +292,18 @@ manage_chatgpt_sh() {
     fi
 }
 
-# Print usage information
+
+
+# 检查是否使用sudo运行脚本
+check_root_privileges() {
+    if [ "$(id -u)" != "0" ]; then
+        echo "ERROR: This script must be run with sudo privileges." >&2
+        echo "Usage: sudo bash $0 <install|uninstall>" >&2
+        exit 1
+    fi
+}
+
+# 打印使用说明
 print_usage() {
     echo "Usage: sudo bash $0 <action>"
     echo
@@ -302,18 +315,30 @@ print_usage() {
     echo "  sudo bash $0 install"
 }
 
-# Main script execution
-if [ "$#" -ne 1 ]; then
-    print_usage
-    exit 1
-fi
+# 主函数
+main() {
+    # 验证sudo权限
+    check_root_privileges
 
-case "$1" in
-    install|uninstall)
-        manage_chatgpt_sh "$1"
-        ;;
-    *)
+    # 验证参数数量
+    if [ "$#" -ne 1 ]; then
         print_usage
         exit 1
-        ;;
-esac
+    fi
+
+    # 验证参数有效性
+    case "$1" in
+        install|uninstall)
+            manage_chatgpt_sh "$1"
+            ;;
+        *)
+            print_usage
+            exit 1
+            ;;
+    esac
+}
+
+# 执行主函数，传入所有参数
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

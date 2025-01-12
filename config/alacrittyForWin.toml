@@ -1,5 +1,26 @@
+
+#import = [
+#"~/.config/alacritty/catpuccin-mocha.toml",
+#"~/.config/alacritty/keybindings.toml",
+#]
+
 [window]
-  dimensions = { columns = 80, lines = 24 }
+dimensions = { columns = 120, lines = 40 }
+
+#position              = { x = 0, y = 0 }
+padding               = { x = 2, y = 2 }
+#dynamic_padding       = true
+#decorations           = "None"
+opacity = 0.85
+blur                  = true
+#startup_mode          = "Windowed"
+#title                 = "Alacritty"
+#dynamic_title         = true
+#class                 = { instance = "Alacritty", general = "Alacritty" }
+#decorations_theme_variant = "None"
+#resize_increments     = false
+#option_as_alt         = "None"
+title = "Alacritty"
 
 [terminal]
   shell = { program = "C:\\WINDOWS\\system32\\wsl.exe", args = ["-d", "Debian"] }
@@ -80,3 +101,63 @@ color = "#ef9f76"
 [[colors.indexed_colors]]
 index = 17
 color = "#f2d5cf"
+
+[cursor.style]
+shape                 = "Beam"
+blinking              = "Always"
+
+[cursor.vi_mode_style]
+shape                 = "Block"
+blinking              = "Off"
+
+[cursor]
+blink_interval        = 500
+blink_timeout         = 0
+#unfocused_hollow      = true
+#thickness             = 0.15
+
+[scrolling]
+history = 100000
+multiplier = 4
+
+[mouse]
+bindings = [
+    { mouse = "Right", action = "Paste" },
+]
+
+[selection]
+save_to_clipboard = true
+semantic_escape_chars = ",│`|:\"' ()[]{}<>\t@="
+
+[keyboard]
+bindings = [
+	{ key = "V", mods = "Control", action = "Paste" },
+  { key = "+", mods = "Control | Shift", action = "IncreaseFontSize" },
+  { key = "_", mods = "Control | Shift", action = "DecreaseFontSize" },
+	{ key = "T", mods = "Control", action = "CreateNewWindow" },
+  { key = "F11", action = "ToggleFullscreen"},
+  { key = "Insert",   mods = "Shift",         action = "PasteSelection" },
+  { key = "F",        mods = "Control|Shift", action = "SearchForward",     mode = "~Search" },
+  { key = "B",        mods = "Control|Shift", action = "SearchBackward",    mode = "~Search" },
+  { key = "Key0",     mods = "Control",       action = "ResetFontSize" },
+  { key = "Equals",   mods = "Control",       action = "IncreaseFontSize" },
+  { key = "Minus",    mods = "Control",       action = "DecreaseFontSize" },
+  { key = "L",        mods = "Control",       action = "ClearLogNotice" },
+  { key = "L",        mods = "Control",       chars  = "\f" },
+  { key = "PageUp",   mods = "Shift",         action = "ScrollPageUp",      mode = "~Alt" },
+  { key = "PageDown", mods = "Shift",         action = "ScrollPageDown",    mode = "~Alt" },
+  { key = "Up",       mods = "Shift",         action = "ScrollLineUp",      mode = "~Alt" },
+  { key = "Down",     mods = "Shift",         action = "ScrollLineDown",    mode = "~Alt" },
+  { key = "Home",     mods = "Shift",         action = "ScrollToTop",       mode = "~Alt" },
+  { key = "End",      mods = "Shift",         action = "ScrollToBottom",    mode = "~Alt" },
+]
+
+[debug]
+#render_timer          = false
+#persistent_logging    = false
+#log_level             = "Warn"
+#renderer              = "None"
+#print_events          = false
+#highlight_damage      = false
+#prefer_egl            = false
+
