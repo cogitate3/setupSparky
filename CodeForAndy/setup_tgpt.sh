@@ -188,13 +188,39 @@ install() {
         exit 1
     fi
 
+    # 检查安装目录
+    if [ ! -d "$INSTALL_PATH" ]; then
+        sudo mkdir -p "$INSTALL_PATH"
+    fi
+
     # 安装
-    if [ ! -w "$INSTALL_PATH" ]; then
-        sudo mv /tmp/tgpt "$INSTALL_PATH/tgpt"
-        sudo chmod +x "$INSTALL_PATH/tgpt"
+    if [[ "$INSTALL_PATH" == "/usr/local/bin" ]] || [[ "$INSTALL_PATH" == "/usr/bin" ]]; then
+        # 系统目录安装 - 需要 root 权限
+        if ! sudo mv /tmp/tgpt "$INSTALL_PATH/tgpt"; then
+            log_error "Failed to move tgpt to $INSTALL_PATH"
+            exit 1
+        fi
+        # 设置标准权限 (755 = rwxr-xr-x)
+        if ! sudo chmod 755 "$INSTALL_PATH/tgpt"; then
+            log_error "Failed to set permissions for tgpt"
+            exit 1
+        fi
+        # 确保所有权正确
+        if ! sudo chown root:root "$INSTALL_PATH/tgpt"; then
+            log_error "Failed to set ownership for tgpt"
+            exit 1
+        fi
     else
-        mv /tmp/tgpt "$INSTALL_PATH/tgpt"
-        chmod +x "$INSTALL_PATH/tgpt"
+        # 用户目录安装
+        if ! mv /tmp/tgpt "$INSTALL_PATH/tgpt"; then
+            log_error "Failed to move tgpt to $INSTALL_PATH"
+            exit 1
+        fi
+        # 设置用户执行权限 (700 = rwx------)
+        if ! chmod 700 "$INSTALL_PATH/tgpt"; then
+            log_error "Failed to set permissions for tgpt"
+            exit 1
+        fi
     fi
 
     # 验证安装

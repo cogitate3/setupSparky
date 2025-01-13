@@ -130,6 +130,10 @@ update_shell_configs() {
     # List of supported shell config files
     local shell_configs=("$real_home/.bashrc" "$real_home/.zshrc")
 
+    # 转义环境文件路径中的特殊字符
+    local escaped_env_file
+    escaped_env_file=$(echo "$env_file" | sed 's/[\/&]/\\&/g')
+
     for config in "${shell_configs[@]}"; do
         if [[ -f "$config" ]]; then
             if [[ "$action" == "add" ]]; then
@@ -141,8 +145,9 @@ update_shell_configs() {
                 fi
             elif [[ "$action" == "remove" ]]; then
                 # Use real user to modify their own config files
-                sudo -u "$real_user" sed -i "/source $env_file/d" "$config" || \
+                if ! sudo -u "$real_user" sed -i "/source ${escaped_env_file}/d" "$config"; then
                     error_exit "Failed to update $config"
+                fi
                 updated=true
             fi
         fi
@@ -224,8 +229,15 @@ manage_chatgpt_sh() {
             error_exit "Failed to install chatgpt.sh to $install_path"
         fi
 
-        # Make executable
-        chmod +x "$install_path" || error_exit "Failed to make chatgpt.sh executable"
+        # Set permissions (755 = rwxr-xr-x)
+        if ! chmod 755 "$install_path"; then
+            error_exit "Failed to set executable permissions for chatgpt.sh"
+        fi
+
+        # Ensure the script is owned by root but readable/executable by all
+        if ! chown root:root "$install_path"; then
+            error_exit "Failed to set ownership for chatgpt.sh"
+        fi
 
         # Handle API key
         while true; do
@@ -273,18 +285,32 @@ manage_chatgpt_sh() {
 
         # Backup existing files
         if [[ -f "$install_path" ]]; then
-            sudo -u "$real_user" cp "$install_path" "$backup_dir/chatgpt.sh.backup" || \
+            # 使用sudo进行复制，然后修改所有权
+            if ! sudo cp "$install_path" "$backup_dir/chatgpt.sh.backup"; then
                 error_exit "Failed to backup chatgpt.sh"
+            fi
+            # 修改备份文件的所有权
+            if ! sudo chown "$real_user:$(id -gn "$real_user")" "$backup_dir/chatgpt.sh.backup"; then
+                error_exit "Failed to change ownership of backup file"
+            fi
         fi
         
         if [[ -f "$env_file" ]]; then
-            sudo -u "$real_user" cp "$env_file" "$backup_dir/chatgpt_env.backup" || \
+            if ! sudo cp "$env_file" "$backup_dir/chatgpt_env.backup"; then
                 error_exit "Failed to backup env file"
+            fi
+            if ! sudo chown "$real_user:$(id -gn "$real_user")" "$backup_dir/chatgpt_env.backup"; then
+                error_exit "Failed to change ownership of env backup file"
+            fi
         fi
 
-        # Remove files
-        rm -f "$install_path" || error_exit "Failed to remove $install_path"
-        sudo -u "$real_user" rm -f "$env_file" || error_exit "Failed to remove $env_file"
+        # Remove files (使用sudo)
+        if ! sudo rm -f "$install_path"; then
+            error_exit "Failed to remove $install_path"
+        fi
+        if ! sudo -u "$real_user" rm -f "$env_file"; then
+            error_exit "Failed to remove $env_file"
+        fi
 
         # Ask if user wants to remove glow
         read -p "Do you want to remove glow Markdown renderer as well? (y/n) " remove_glow

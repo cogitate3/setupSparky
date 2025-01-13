@@ -2,14 +2,13 @@
 ###############################################################################
 # 脚本名称：setup_terminalgpt.sh
 # 作用：安装/卸载 TerminalGPT 终端
-# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 作者：CodeParetoImpove cogitate3 Claude.ai opanai4o
 # 源代码：https://github.com/adamyodinsky/TerminalGPT
 # 版本：1.3
 # 用法:
 #   安装: ./setup_terminalgpt.sh install
 #   卸载: ./setup_terminalgpt.sh uninstall
 ###############################################################################
-
 
 # 定义颜色输出
 RED='\033[0;31m'
@@ -41,6 +40,22 @@ show_info() {
 handle_error() {
     show_error "$1"
     exit 1
+}
+
+# 定义日志文件
+LOG_FILE="$HOME/.terminalgpt/install.log"
+DEBUG=true
+
+# 创建日志目录
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+log_message() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "[${timestamp}] [${level}] ${message}" >> "$LOG_FILE"
+    if [[ "$DEBUG" == "true" || "$level" != "DEBUG" ]]; then
+        echo -e "[${level}] ${message}" >&2
+    fi
 }
 
 # 显示使用说明
@@ -91,131 +106,46 @@ cleanup_old_backups() {
 
 # 配置shell别名
 setup_aliases() {
-    local zshrc="$HOME/.zshrc"
-    local bashrc="$HOME/.bashrc"
-    local backup_dir="$HOME/.shell_backups"
-    local timestamp=$(date +"%Y%m%d_%H%M%S")
-    local exit_code=0
-    local gpto_alias='alias gpto="terminalgpt one-shot"'
-    local gptn_alias='alias gptn="terminalgpt new"'
+    local shell_rc="$1"
+    local backup_dir="$HOME/.terminalgpt/backups"
     
+    log_message "INFO" "配置Shell别名: $shell_rc"
+
     # 创建备份目录
-    if ! create_backup_dir "$backup_dir"; then
-        show_error "无法创建备份目录"
-        return 1
-    fi
-
-    # 为zsh配置别名
-    if command -v zsh &> /dev/null; then
-        if [ -f "$zshrc" ]; then
-            if [ ! -w "$zshrc" ]; then
-                show_error "没有 $zshrc 的写入权限"
-                exit_code=1
-            else
-                if ! backup_shell_config "$zshrc" "$backup_dir" "$timestamp"; then
-                    show_warning "无法备份 $zshrc"
-                else
-                    show_success "已备份 $zshrc"
-                fi
-                
-                # 创建临时文件
-                local tmp_file=$(mktemp)
-                if [ $? -ne 0 ]; then
-                    show_error "无法创建临时文件"
-                    return 1
-                fi
-                
-                # 删除已存在的别名配置
-                sed '/alias[[:space:]]*gpto[[:space:]]*=.*terminalgpt[[:space:]]*one-shot.*/d' "$zshrc" > "$tmp_file" \
-                    && sed -i '/alias[[:space:]]*gptn[[:space:]]*=.*terminalgpt[[:space:]]*new.*/d' "$tmp_file"
-                
-                if [ $? -eq 0 ]; then
-                    # 添加新的别名配置
-                    echo "$gpto_alias" >> "$tmp_file"
-                    echo "$gptn_alias" >> "$tmp_file"
-                    
-                    # 验证并更新文件
-                    if ! grep -q "^$gpto_alias\$" "$tmp_file" || ! grep -q "^$gptn_alias\$" "$tmp_file"; then
-                        show_error "别名格式验证失败"
-                        rm -f "$tmp_file"
-                        exit_code=1
-                    else
-                        mv "$tmp_file" "$zshrc"
-                        show_success "已配置zsh别名"
-                    fi
-                else
-                    show_error "更新 $zshrc 失败"
-                    rm -f "$tmp_file"
-                    exit_code=1
-                fi
-            fi
-        fi
-    fi
+    mkdir -p "$backup_dir"
     
-    # 为bash配置别名
-    if command -v bash &> /dev/null; then
-        if [ -f "$bashrc" ]; then
-            if [ ! -w "$bashrc" ]; then
-                show_error "没有 $bashrc 的写入权限"
-                exit_code=1
-            else
-                if ! backup_shell_config "$bashrc" "$backup_dir" "$timestamp"; then
-                    show_warning "无法备份 $bashrc"
-                else
-                    show_success "已备份 $bashrc"
-                fi
-                
-                local tmp_file=$(mktemp)
-                if [ $? -ne 0 ]; then
-                    show_error "无法创建临时文件"
-                    return 1
-                fi
-                
-                sed '/alias[[:space:]]*gpto[[:space:]]*=.*terminalgpt[[:space:]]*one-shot.*/d' "$bashrc" > "$tmp_file" \
-                    && sed -i '/alias[[:space:]]*gptn[[:space:]]*=.*terminalgpt[[:space:]]*new.*/d' "$tmp_file"
-                
-                if [ $? -eq 0 ]; then
-                    echo "$gpto_alias" >> "$tmp_file"
-                    echo "$gptn_alias" >> "$tmp_file"
-                    
-                    if ! grep -q "^$gpto_alias\$" "$tmp_file" || ! grep -q "^$gptn_alias\$" "$tmp_file"; then
-                        show_error "别名格式验证失败"
-                        rm -f "$tmp_file"
-                        exit_code=1
-                    else
-                        mv "$tmp_file" "$bashrc"
-                        show_success "已配置bash别名"
-                    fi
-                else
-                    show_error "更新 $bashrc 失败"
-                    rm -f "$tmp_file"
-                    exit_code=1
-                fi
-            fi
-        fi
+    # 备份原始配置
+    if [ -f "$shell_rc" ]; then
+        cp "$shell_rc" "${backup_dir}/$(basename ${shell_rc}).$(date +%Y%m%d_%H%M%S).bak"
+        log_message "DEBUG" "已备份 $shell_rc"
     fi
 
-    # 清理旧备份
-    cleanup_old_backups "$backup_dir"
+    # 添加别名
+    {
+        echo -e "\n# TerminalGPT aliases"
+        echo 'alias gpto="terminalgpt one-shot"'
+        echo 'alias gptn="terminalgpt new"'
+    } >> "$shell_rc"
 
-    return $exit_code
+    log_message "INFO" "Shell别名配置完成: $shell_rc"
 }
 
 # 配置环境变量
 setup_env_path() {
-    local bashrc="$HOME/.bashrc"
-    local pipx_bin_path="$HOME/.local/bin"
+    local path_line='export PATH="$HOME/.local/bin:$PATH"'
+    local shell_configs=("$HOME/.bashrc" "$HOME/.zshrc")
     
-    if [ -f "$bashrc" ] && [ -w "$bashrc" ]; then
-        # 删除已存在的PATH配置
-        sed -i '/export PATH=$PATH:$HOME\/.local\/bin/d' "$bashrc"
-        # 添加新的PATH配置
-        echo 'export PATH=$PATH:$HOME/.local/bin' >> "$bashrc"
-        show_success "已将 TerminalGPT 路径添加到环境变量"
-    else
-        show_error "无法更新环境变量配置"
-        return 1
-    fi
+    for config in "${shell_configs[@]}"; do
+        if [ -f "$config" ]; then
+            if ! grep -q "^$path_line" "$config"; then
+                echo "$path_line" >> "$config"
+                show_success "已添加PATH配置到 $config"
+            fi
+        fi
+    done
+    
+    # Immediately update current session's PATH
+    export PATH="$HOME/.local/bin:$PATH"
 }
 
 # 安装函数
@@ -227,14 +157,21 @@ install_terminalgpt() {
         handle_error "Python版本必须是3.6或更高版本。当前版本为 $python_version"
     fi
 
+    # 确保PATH中包含~/.local/bin
+    setup_env_path
+
     # 安装pipx
     if ! command -v pipx &> /dev/null; then
         show_warning "pipx未安装，正在安装pipx..."
         python3 -m pip install --user pipx || handle_error "pipx安装失败"
         python3 -m pipx ensurepath || handle_error "pipx路径配置失败"
-        export PATH=$PATH:~/.local/bin
+        
+        # 重新加载PATH
+        export PATH="$HOME/.local/bin:$PATH"
+        
+        # 验证pipx安装
         if ! command -v pipx &> /dev/null; then
-            handle_error "pipx安装后仍无法使用，请尝试重新启动终端"
+            handle_error "pipx安装后仍无法使用。请运行: source ~/.bashrc 或 source ~/.zshrc"
         fi
     fi
 
@@ -242,20 +179,31 @@ install_terminalgpt() {
     echo "正在使用pipx安装TerminalGPT..."
     pipx install terminalgpt --force || handle_error "TerminalGPT安装失败"
 
-    # 检查安装
-    if ! command -v terminalgpt &> /dev/null; then
-        handle_error "TerminalGPT安装失败，无法找到可执行文件"
+    # 等待几秒确保安装完成
+    sleep 2
+
+    # 检查安装路径
+    local terminalgpt_path="$HOME/.local/bin/terminalgpt"
+    if [ ! -f "$terminalgpt_path" ]; then
+        handle_error "找不到TerminalGPT可执行文件: $terminalgpt_path"
     fi
 
-    # 配置别名和环境变量
-    setup_aliases
-    setup_env_path
+    # 确保文件有执行权限
+    chmod +x "$terminalgpt_path" || handle_error "无法设置执行权限"
+
+    # 配置Shell环境
+    setup_aliases "$HOME/.bashrc"
+    [ -f "$HOME/.zshrc" ] && setup_aliases "$HOME/.zshrc"
 
     show_success "TerminalGPT安装完成！"
 
     # 显示使用说明
     echo -e "
 ${GREEN}=== TerminalGPT安装成功 ===${NC}
+
+${YELLOW}重要: 请运行以下命令使环境变量生效:${NC}
+${GREEN}source ~/.bashrc${NC}  # 如果使用bash
+${GREEN}source ~/.zshrc${NC}   # 如果使用zsh
 
 ${YELLOW}使用方法:${NC}
 1. 第一次运行时，在终端中输入 ${GREEN}'terminalgpt install'${NC} 按提示输入openai api key，开始使用
@@ -277,6 +225,7 @@ ${YELLOW}如果遇到问题，请检查:${NC}
 - API Key是否正确
 - 网络连接是否正常
 - Python环境是否正确
+- PATH环境变量是否包含 ~/.local/bin
 "
 }
 
@@ -312,25 +261,25 @@ uninstall_terminalgpt() {
         fi
     done
 
-    # 清理别名配置
-    local zshrc="$HOME/.zshrc"
-    local bashrc="$HOME/.bashrc"
-    local gpto_pattern='alias[[:space:]]*gpto[[:space:]]*=.*terminalgpt[[:space:]]*one-shot.*'
-    local gptn_pattern='alias[[:space:]]*gptn[[:space:]]*=.*terminalgpt[[:space:]]*new.*'
+    # 清理配置文件中的别名
+    local config_files=("$HOME/.bashrc" "$HOME/.zshrc")
+    for config in "${config_files[@]}"; do
+        if [ -f "$config" ]; then
+            sed -i '/# TerminalGPT aliases/d' "$config"
+            sed -i '/alias gpto/d' "$config"
+            sed -i '/alias gptn/d' "$config"
+            log_message "DEBUG" "已清理配置: $config"
+        fi
+    done
     
-    if [ -f "$zshrc" ] && [ -w "$zshrc" ]; then
-        sed -i "/${gpto_pattern}/d" "$zshrc"
-        sed -i "/${gptn_pattern}/d" "$zshrc"
-    fi
-    
-    if [ -f "$bashrc" ] && [ -w "$bashrc" ]; then
-        sed -i "/${gpto_pattern}/d" "$bashrc"
-        sed -i '/export PATH=$PATH:$HOME\/.local\/bin/d' "$bashrc"
+    # 确保删除本地bin目录中的符号链接
+    if [ -L "$HOME/.local/bin/terminalgpt" ]; then
+        rm -f "$HOME/.local/bin/terminalgpt"
     fi
 
     show_success "TerminalGPT已完全卸载！"
     echo "请运行 'source ~/.bashrc' (和 'source ~/.zshrc' 如果使用zsh) 使配置生效"
-}
+}                       
 
 # 主程序
 setup_terminalgpt() {
