@@ -9,7 +9,7 @@
 
 [shell]
 program               = "/usr/bin/zsh"
-args                  = [ "--login", ]
+# args                  = [ "--login", ]
 
 #working_directory     = "None"
 #live_config_reload    = true
