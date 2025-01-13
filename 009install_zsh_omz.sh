@@ -1,4 +1,13 @@
 #!/bin/bash
+###############################################################################
+# 脚本名称：install_zsh_omz.sh
+# 作用：安装 zsh omz
+# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 版本：1.0.1
+# 用法：
+#   安装: ./install_zsh_omz.sh install
+#   卸载: ./install_zsh_omz.sh uninstall
+###############################################################################
 
 # 强制使用bash执行
 function force_bash() {

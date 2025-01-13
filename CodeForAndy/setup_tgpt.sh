@@ -1,4 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/bash
+###############################################################################
+# 脚本名称：setup_tgpt.sh
+# 作用：安装/卸载 chatGPT 终端
+# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 源代码：https://github.com/0xacx/chatGPT-shell-cli
+# 版本：1.3
+# 用法：
+#   安装: ./setup_tgpt.sh install
+#   卸载: ./setup_tgpt.sh uninstall
+###############################################################################
 
 # 全局常量
 INSTALL_PATH="/usr/local/bin"
