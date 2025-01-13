@@ -1,6 +1,14 @@
 #!/bin/bash
-
-## https://github.com/0xacx/chatGPT-shell-cli
+###############################################################################
+# 脚本名称：setup_chatgpt.sh
+# 作用：安装/卸载 chatGPT 终端
+# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 源代码：https://github.com/0xacx/chatGPT-shell-cli
+# 版本：1.3
+# 用法：
+#   安装: ./setup_chatgpt.sh install
+#   卸载: ./setup_chatgpt.sh uninstall
+###############################################################################
 
 # Error handling function
 error_exit() {
@@ -316,7 +324,7 @@ print_usage() {
 }
 
 # 主函数
-main() {
+setup_chatgpt() {
     # 验证sudo权限
     check_root_privileges
 
@@ -340,5 +348,5 @@ main() {
 
 # 执行主函数，传入所有参数
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+    setup_chatgpt "$@"
 fi

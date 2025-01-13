@@ -1,4 +1,14 @@
 #!/bin/bash
+###############################################################################
+# 脚本名称：setup_fonts.sh
+# 作用：安装/卸载nerd fonts编程字体和思源黑体
+# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 源代码：https://github.com/cogitate3/setupSparkyLinux
+# 版本：1.0.1
+# 用法:
+#   安装: ./setup_fonts.sh install
+#   卸载: ./setup_fonts.sh uninstall
+###############################################################################
 
 # 版本和配置
 SCRIPT_VERSION="1.0.1"
@@ -704,7 +714,7 @@ wait_for_input() {
 }
 
 # 主程序入口
-main() {
+setup_fonts() {
     # 检查权限
     if [ "$(id -u)" != "0" ]; then
         log_message "ERROR" "请使用 root 权限运行此脚本"
@@ -1038,5 +1048,7 @@ check_updates() {
     wait_for_input
 }
 
-# 启动主程序
-main "$@"
+# 只有当脚本直接运行时才执行主程序
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    setup_fonts "$@"
+fi

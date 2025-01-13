@@ -1,6 +1,15 @@
 #!/bin/bash
+###############################################################################
+# 脚本名称：setup_terminalgpt.sh
+# 作用：安装/卸载 TerminalGPT 终端
+# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 源代码：https://github.com/adamyodinsky/TerminalGPT
+# 版本：1.3
+# 用法:
+#   安装: ./setup_terminalgpt.sh install
+#   卸载: ./setup_terminalgpt.sh uninstall
+###############################################################################
 
-## https://github.com/adamyodinsky/TerminalGPT
 
 # 定义颜色输出
 RED='\033[0;31m'
@@ -324,7 +333,7 @@ uninstall_terminalgpt() {
 }
 
 # 主程序
-main() {
+setup_terminalgpt() {
     # 检查参数个数
     if [ $# -ne 1 ]; then
         show_error "参数错误"
@@ -354,5 +363,7 @@ main() {
     esac
 }
 
-# 执行主程序
-main "$@"
+# 只有当脚本直接运行时才执行主程序
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    setup_terminalgpt "$@"
+fi
