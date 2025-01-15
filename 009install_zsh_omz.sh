@@ -301,6 +301,11 @@ __uninstall_package() {
     fi
 }
 
+url_encode() {
+    echo "$1" | sed 's/ /%20/g'
+}
+
+
 install_MesloLGS_fonts() {
     log 1 "正在安装 MesloLGS NF 字体..."
     
@@ -326,10 +331,10 @@ install_MesloLGS_fonts() {
     
     # 字体文件数组
     local fonts=(
-        "MesloLGS-NF-Regular.ttf"
-        "MesloLGS-NF-Bold.ttf"
-        "MesloLGS-NF-Italic.ttf"
-        "MesloLGS-NF-BoldItalic.ttf"
+        "MesloLGS NF Regular.ttf"
+        "MesloLGS NF Bold.ttf"
+        "MesloLGS NF Italic.ttf"
+        "MesloLGS NF Bold Italic.ttf"
     )
 
     # 下载和安装字体
@@ -337,6 +342,8 @@ install_MesloLGS_fonts() {
     local retry_count=3
     local current_try=1
     
+
+
     for font in "${fonts[@]}"; do
         while [[ $current_try -le $retry_count ]]; do
             log 1 "下载字体: $font (尝试 $current_try/$retry_count)"
@@ -352,8 +359,8 @@ install_MesloLGS_fonts() {
                 --max-time 120 \
                 --progress-bar \
                 -w "\n%{http_code}" \
-                -o "$font_dir/$font" \
-                "https://github.com/romkatv/powerlevel10k/raw/master/font/$font" 2>&1)
+                -o "$font_dir/$font" "$(url_encode "https://github.com/romkatv/powerlevel10k-media/raw/master/${font}")" 2>&1)
+                
             local http_code=${curl_output##*$'\n'}
             
             if [[ $? -eq 0 ]] && [[ "$http_code" == "200" ]]; then
