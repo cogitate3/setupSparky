@@ -34,6 +34,8 @@ force_bash "$@"
 
 # 引入日志相关配置
 source 001log2File.sh
+log "/tmp/logs/install_zsh_omz.log" 1 "第一条消息，同时设置日志文件"
+log 2 "日志记录在${CURRENT_LOG_FILE}"
 
 # 全局变量
 OH_MY_ZSH_CUSTOM=""
