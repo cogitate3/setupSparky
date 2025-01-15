@@ -298,7 +298,7 @@ install_MesloLGS_fonts() {
     __install_if_missing "fontconfig" || return 1
     __install_if_missing "xfonts-utils" || return 1
     
-    local font_dir="/usr/local/share/fonts/"
+    local font_dir="/usr/share/fonts/meslo"
     local font_cache_dir="/var/cache/fontconfig"
     
     # 清理旧的字体文件和缓存
@@ -531,8 +531,8 @@ configure_powerlevel10k() {
     # 安装字体
     install_MesloLGS_fonts
 
-    # 更新 .zshrc
-    source "$REAL_HOME/.zshrc"
+    log 2 ".zshrc 已更新，将在下次启动 zsh 时生效，重新打开终端就会切换到zsh环境了"
+
 }
 
 # 卸载 Powerlevel10k
