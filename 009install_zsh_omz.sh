@@ -261,9 +261,21 @@ install_zsh_and_ohmyzsh() {
     cp "$REAL_HOME/.oh-my-zsh/templates/zshrc.zsh-template" "$REAL_HOME/.zshrc"
 
     log 1 "更改默认 shell"
-    if [[ "$SHELL" != "$(which zsh)" ]]; then
+    zsh_path="$(which zsh)"
+    if ! grep -q "$zsh_path" /etc/shells; then
+        log 1 "添加 zsh 到 /etc/shells..."
+        echo "$zsh_path" | sudo tee -a /etc/shells
+    fi
+    
+    if [[ "$SHELL" != "$zsh_path" ]]; then
         log 1 "更改默认 shell 为 zsh..."
-        sudo chsh -s "$(which zsh)" "$REAL_USER"
+        sudo chsh -s "$zsh_path" "$REAL_USER"
+        # 直接修改 /etc/passwd 以确保更改生效
+        if [ -f /etc/passwd ]; then
+            sudo sed -i "s|^\($REAL_USER:.*:\)/bin/bash$|\1$zsh_path|" /etc/passwd
+            sudo sed -i "s|^\($REAL_USER:.*:\)/bin/sh$|\1$zsh_path|" /etc/passwd
+        fi
+        log 2 "shell 更改完成，需要重新登录才能生效"
     fi
 
     # 确保权限正确
@@ -629,13 +641,14 @@ main_zsh_setup() {
             configure_powerlevel10k
             log 2 "Zsh 和 oh-my-zsh 已安装和配置完成。并已配置 Powerlevel10k 主题。安装了MesloLGS字体"
             log 2 "可以输入命令p10k configure手动配置其他主题。"
+            log 2 "可以输入命令tail -f ${CURRENT_LOG_FILE}，查看详细安装记录"
             ;;
         uninstall)
             uninstall_powerlevel10k
             uninstall_zsh_and_ohmyzsh
             ;;
         *)
-            echo "用法: sudo $0 {install|uninstall}"
+            echo "用法: sudo bash $0 {install|uninstall}"
             exit 1
             ;;
     esac
