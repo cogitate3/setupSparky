@@ -334,22 +334,67 @@ install_MesloLGS_fonts() {
 
     # 下载和安装字体
     local success=true
+    local retry_count=3
+    local current_try=1
+    
     for font in "${fonts[@]}"; do
-        log 1 "下载字体: $font"
-        if ! sudo curl -L \
-            --retry 3 \
-            --retry-delay 5 \
-            --retry-max-time 60 \
-            --connect-timeout 30 \
-            --max-time 120 \
-            --progress-bar \
-            -o "$font_dir/$font" \
-            "https://github.com/romkatv/powerlevel10k/raw/master/font/$font"; then
-            log 3 "下载 $font 失败"
-            success=false
-            break
-        fi
-        sudo chmod 644 "$font_dir/$font"
+        while [[ $current_try -le $retry_count ]]; do
+            log 1 "下载字体: $font (尝试 $current_try/$retry_count)"
+            
+            # 保存 curl 的完整输出和错误信息
+            local curl_output
+            local curl_error
+            curl_output=$(sudo curl -L \
+                --retry 3 \
+                --retry-delay 5 \
+                --retry-max-time 60 \
+                --connect-timeout 30 \
+                --max-time 120 \
+                --progress-bar \
+                -w "\n%{http_code}" \
+                -o "$font_dir/$font" \
+                "https://github.com/romkatv/powerlevel10k/raw/master/$font" 2>&1)
+            local http_code=${curl_output##*$'\n'}
+            
+            if [[ $? -eq 0 ]] && [[ "$http_code" == "200" ]]; then
+                log 2 "成功下载: $font"
+                sudo chmod 644 "$font_dir/$font"
+                break
+            else
+                # 详细的错误信息
+                log 3 "下载 $font 失败 (尝试 $current_try/$retry_count)"
+                if [[ "$http_code" != "200" ]]; then
+                    log 3 "HTTP 状态码: $http_code"
+                    case $http_code in
+                        404) log 3 "错误：文件不存在" ;;
+                        403) log 3 "错误：访问被拒绝" ;;
+                        500) log 3 "错误：服务器内部错误" ;;
+                        502|503|504) log 3 "错误：服务器暂时不可用" ;;
+                        *) log 3 "错误：未知的 HTTP 错误" ;;
+                    esac
+                fi
+                
+                # 网络连接错误检查
+                if echo "$curl_output" | grep -qi "could not resolve"; then
+                    log 3 "错误：无法解析域名，请检查网络连接"
+                elif echo "$curl_output" | grep -qi "connection timed out"; then
+                    log 3 "错误：连接超时，请检查网络状态"
+                elif echo "$curl_output" | grep -qi "certificate"; then
+                    log 3 "错误：SSL 证书验证失败"
+                fi
+                
+                ((current_try++))
+                if [[ $current_try -le $retry_count ]]; then
+                    log 1 "5秒后重试..."
+                    sleep 5
+                else
+                    log 3 "达到最大重试次数，下载失败"
+                    success=false
+                    break 2  # 跳出外层循环
+                fi
+            fi
+        done
+        current_try=1  # 重置重试计数器，准备下载下一个文件
     done
 
     if $success; then
