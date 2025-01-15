@@ -640,7 +640,7 @@ configure_powerlevel10k() {
         --max-time 120 \
         --progress-bar \
         -o "$REAL_HOME/.p10k.zsh" \
-        "https://github.com/cogitate3/setupSparkyLinux/raw/refs/heads/main/config/.p10k.zsh"; then
+        "https://raw.githubusercontent.com/cogitate3/setupSparkyLinux/refs/heads/main/config/.p10k.zsh"; then
         log 3 "下载 .p10k.zsh 失败"
         return 1
     fi
