@@ -735,50 +735,50 @@ uninstall_zsh_and_ohmyzsh() {
     done
 }
 
-# # 改进的主函数
-# main_zsh_setup() {
-#     # 检查用户权限
-#     # check_permissions
+# 改进的主函数
+main_zsh_setup() {
+    # 检查用户权限
+    check_permissions
 
-#     # 检查环境
-#     check_environment
+    # 检查环境
+    check_environment
 
-#     # 检查网络连接
-#     check_network
+    # 检查网络连接
+    check_network
 
-#     # 解析参数
-#     case "$1" in
-#         install)
-#             install_zsh_and_ohmyzsh
-#             configure_ohmyzsh
-#             configure_powerlevel10k
-#             log 2 "Zsh 和 oh-my-zsh 已安装和配置完成。并已配置 Powerlevel10k 主题。安装了MesloLGS字体"
-#             log 2 "可以输入命令p10k configure手动配置其他主题。"
-#             log 2 "可以输入命令tail -f ${CURRENT_LOG_FILE}，查看详细安装记录"
-#             ;;
-#         uninstall)
-#             uninstall_powerlevel10k
-#             uninstall_zsh_and_ohmyzsh
-#             ;;
-#         *)
-#             echo "用法: sudo bash $0 {install|uninstall}"
-#             exit 1
-#             ;;
-#     esac
-# }
+    # 解析参数
+    case "$1" in
+        install)
+            install_zsh_and_ohmyzsh
+            configure_ohmyzsh
+            configure_powerlevel10k
+            log 2 "Zsh 和 oh-my-zsh 已安装和配置完成。并已配置 Powerlevel10k 主题。安装了MesloLGS字体"
+            log 2 "可以输入命令p10k configure手动配置其他主题。"
+            log 2 "可以输入命令tail -f ${CURRENT_LOG_FILE}，查看详细安装记录"
+            ;;
+        uninstall)
+            uninstall_powerlevel10k
+            uninstall_zsh_and_ohmyzsh
+            ;;
+        *)
+            echo "用法: sudo bash $0 {install|uninstall}"
+            exit 1
+            ;;
+    esac
+}
 
-# # 检查参数并执行
-# if [[ "$#" -ne 1 ]]; then
-#     echo "用法: sudo bash $0 {install|uninstall}"
-#     exit 1
-# fi
+# 检查参数并执行
+if [[ "$#" -ne 1 ]]; then
+    echo "用法: sudo bash $0 {install|uninstall}"
+    exit 1
+fi
 
-# # 导出全局变量
-# export REAL_USER
-# export REAL_HOME
+# 导出全局变量
+export REAL_USER
+export REAL_HOME
 
-# # 如果脚本被直接运行（不是被source）
-# if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-#     # 执行主函数，传递所有参数
-#     main_zsh_setup "$@"
-# fi
+# 如果脚本被直接运行（不是被source）
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # 执行主函数，传递所有参数
+    main_zsh_setup "$@"
+fi
