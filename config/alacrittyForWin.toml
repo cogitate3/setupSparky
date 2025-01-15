@@ -150,6 +150,8 @@ bindings = [
   { key = "Down",     mods = "Shift",         action = "ScrollLineDown",    mode = "~Alt" },
   { key = "Home",     mods = "Shift",         action = "ScrollToTop",       mode = "~Alt" },
   { key = "End",      mods = "Shift",         action = "ScrollToBottom",    mode = "~Alt" },
+  { key = "Return",   mods = "Control|Shift", action = "SpawnNewInstance" },
+
 ]
 
 [debug]

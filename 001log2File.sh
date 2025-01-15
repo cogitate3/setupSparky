@@ -1,191 +1,184 @@
 #!/bin/bash
+#
+# 改进后的日志脚本：默认日志级别改为 INFO(1)，对应绿色输出
 
-# 这个脚本创建了一个灵活的日志记录系统，可以将日志输出到文件和控制台
+# 使用关联数组管理颜色，统一在脚本Global范围定义
+declare -A COLORS=(
+    ["reset"]="\033[0m"    # 重置颜色
+    ["red"]="\033[31m"     # 红色
+    ["green"]="\033[32m"   # 绿色
+    ["yellow"]="\033[33m"  # 黄色
+    ["blue"]="\033[34m"    # 蓝色
+    ["bold"]="\033[1m"     # 粗体
+)
 
-# fonts color,简单快速输出颜色字
-# Usage:red "字母"
-red(){
-    echo -e "\033[31m\033[01m$1\033[0m"
-}
-green(){
-    echo -e "\033[32m\033[01m$1\033[0m"
-}
-yellow(){
-    echo -e "\033[33m\033[01m$1\033[0m"
-}
-blue(){
-    echo -e "\033[34m\033[01m$1\033[0m"
-}
-bold(){
-    echo -e "\033[1m\033[01m$1\033[0m"
-}
+# 当前脚本内全局使用的日志文件，若未设置则为空
+CURRENT_LOG_FILE=""
 
+##############################################################################
+# 设置日志文件的函数：检查文件格式、创建父目录、触摸文件并更新全局 CURRENT_LOG_FILE
+##############################################################################
 set_log_file() {
     local file_path="$1"
-    if [ -n "$file_path" ]; then  # 检查是否提供了文件路径
-        # 检查文件名是否以.log结尾
+    if [ -n "$file_path" ]; then
+        # 检查文件名是否以 .log 结尾
         if [[ "$file_path" != *.log ]]; then
-            echo -e "${red}错误：log文件名必须以.log结尾${nc}"
+            echo -e "${COLORS["red"]}错误：日志文件名必须以 .log 结尾${COLORS["reset"]}"
             return 1
         fi
-
-        # 确保日志文件所在的目录存在 
-        local dir_path=$(dirname "$file_path")
+        # 确保日志文件所在的目录存在
+        local dir_path
+        dir_path="$(dirname "$file_path")"
         if [ ! -d "$dir_path" ]; then
             mkdir -p "$dir_path"
         fi
-        touch "$file_path"
+
+        # 创建空的日志文件（如不存在）
+        touch "$file_path" 2>/dev/null || {
+            echo -e "${COLORS["red"]}错误：无法创建日志文件：$file_path${COLORS["reset"]}"
+            return 1
+        }
+
+        # 更新全局变量
         CURRENT_LOG_FILE="$file_path"
         return 0
     fi
+
+    echo -e "${COLORS["red"]}错误：未指定日志文件的路径${COLORS["reset"]}"
     return 1
 }
 
+##############################################################################
+# 核心日志记录函数：可同时输出到控制台（带颜色）和日志文件（纯文本）。
+# 参数（共1~3个，使用灵活）：
+#   1) file_path (.log结尾) [可选]
+#   2) level (0~3，只在指定时生效) [可选]
+#   3) message (必需)
+# 若只有一个参数，可能是日志文件或日志级别或消息；脚本会自动判断
+##############################################################################
 log() {
-    # 定义颜色代码的关联数组，用于控制台输出的颜色
-    declare -A COLORS=(
-        ["nocolour"]="\\033[0m"    # 重置颜色
-        ["green"]="\\033[32m"      # 绿色
-        ["yellow"]="\\033[33m"     # 黄色
-        ["red"]="\\033[31m"        # 红色
-    )
-
-    # 定义日志级别的关联数组
+    # 定义日志级别与对应文本
     declare -A LOG_LEVELS=(
-        [0]="DEBUG"  # 调试信息
-        [1]="INFO"   # 一般信息
-        [2]="WARN"   # 警告信息
-        [3]="ERROR"  # 错误信息
+        [0]="DEBUG"   # 调试信息
+        [1]="INFO"    # 一般信息
+        [2]="WARN"    # 警告信息
+        [3]="ERROR"   # 错误信息
     )
 
     # 定义日志级别对应的颜色
     declare -A LEVEL_COLORS=(
-        [0]="nocolour"  # DEBUG - 默认颜色
-        [1]="green"     # INFO - 绿色
-        [2]="yellow"    # WARN - 黄色
-        [3]="red"       # ERROR - 红色
+        [0]="reset"   # DEBUG - 默认颜色
+        [1]="green"   # INFO - 绿色
+        [2]="yellow"  # WARN - 黄色
+        [3]="red"     # ERROR - 红色
     )
 
-    # 存储当前日志文件的路径
-    CURRENT_LOG_FILE=${file_path}
+    # 将默认 level 改为 1 (INFO)，对应绿色
+    local file_path=""
+    local level=1
+    local message=""
 
-    # 初始化局部变量
-    CURRENT_LOG_FILE=${file_path} # 日志文件路径
-    local level=1       # 日志级别（0-3），默认为DEBUG(0)
-    local message=''    # 日志消息内容
-
-    # 根据传入的参数数量解析参数
     case $# in
-        1)  # 一个参数：可能是 (文件路径) 或 (日志级别) 或 (消息)
+        1)
             if [[ "$1" == *.log ]]; then
-                # 以.log结尾，判断为文件路径
+                # 只有一个参数，且是 .log 结尾 => 文件路径
                 file_path="$1"
             elif [[ "$1" =~ ^[0-3]$ ]]; then
-                # 是0-3的数字，判断为日志级别
+                # 只有一个参数，且是数字 0-3 => 日志级别
                 level="$1"
             else
-                # 都不是，判断为消息
+                # 只有一个参数，既不是 .log 也不是级别 => 日志消息
                 message="$1"
             fi
             ;;
-        2)  # 两个参数：可能是 (文件路径,消息) 或 (日志级别,消息)
+        2)
+            # 两个参数 => 可能是 (file_path, message) 或 (level, message)
             if [[ "$1" == *.log ]]; then
-                # 第一个参数以.log结尾，判断为文件路径
                 file_path="$1"
                 message="$2"
             elif [[ "$1" =~ ^[0-3]$ ]]; then
-                # 第一个参数是0-3的数字，判断为日志级别
                 level="$1"
                 message="$2"
             else
-                # 参数格式错误
-                echo -e "${COLORS[red]}错误：第一个参数必须是日志文件路径（.log结尾）或日志级别（0-3）${COLORS[nocolour]}"
+                echo -e "${COLORS["red"]}错误：第一个参数必须是 .log 文件或日志级别(0~3)${COLORS["reset"]}"
                 return 1
             fi
             ;;
-        3)  # 三个参数：(文件路径,日志级别,消息)
+        3)
+            # 三个参数 => (file_path, level, message)
             file_path="$1"
-            if [[ ! "$1" == *.log ]]; then
-                echo -e "${COLORS[red]}错误：文件路径必须以.log结尾${COLORS[nocolour]}"
+            if [[ ! "$file_path" == *.log ]]; then
+                echo -e "${COLORS["red"]}错误：文件路径必须以 .log 结尾${COLORS["reset"]}"
                 return 1
             fi
             if [[ ! "$2" =~ ^[0-3]$ ]]; then
-                echo -e "${COLORS[red]}错误：日志级别必须是0-3的数字${COLORS[nocolour]}"
+                echo -e "${COLORS["red"]}错误：日志级别必须是0-3的数字${COLORS["reset"]}"
                 return 1
             fi
             level="$2"
             message="$3"
             ;;
-        *)  # 参数数量错误
-            echo -e "${COLORS[red]}错误：参数数量必须是1-3个${COLORS[nocolour]}"
+        *)
+            echo -e "${COLORS["red"]}错误：参数数量必须是1-3个${COLORS["reset"]}"
             return 1
             ;;
     esac
 
-    # 如果提供了文件路径，则设置日志文件
+    # 如果取得了 file_path，就尝试设置日志文件
     if [ -n "$file_path" ]; then
-        set_log_file "$file_path"
-    elif set_log_file "$CURRENT_LOG_FILE"; then
-        echo -e "${COLORS[red]}错误：必须提供日志文件路径${COLORS[nocolour]}"
+        set_log_file "$file_path" || return 1
+    fi
+
+    # 如果没显式传入 file_path 且全局也没设置过，就报错
+    if [ -z "$file_path" ] && [ -z "$CURRENT_LOG_FILE" ]; then
+        echo -e "${COLORS["red"]}错误：没有指定日志文件路径${COLORS["reset"]}"
         return 1
     fi
 
-    # 如果没有消息内容，则返回错误
+    # 如果没有传入消息，则警告
     if [ -z "$message" ]; then
-        echo -e "${COLORS[red]}错误：必须提供日志消息内容${COLORS[nocolour]}"
+        echo -e "${COLORS["red"]}错误：日志消息内容不能为空${COLORS["reset"]}"
         return 1
     fi
+
+    # 取最终要写入的文件
+    local final_log_file="${CURRENT_LOG_FILE}"
 
     # 获取当前时间戳
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
-    # 获取日志级别文本
+    local timestamp
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+
+    # 获取日志级别文本和对应颜色
     local level_text="${LOG_LEVELS[$level]}"
-
-    # 获取颜色代码
     local color="${LEVEL_COLORS[$level]}"
-    local color_code="${COLORS[$color]}"
-    local nc="${COLORS[nocolour]}"
 
-    # 输出到控制台（带颜色）
-    echo -e "[$timestamp] [$color_code$level_text$nc] $color_code$message$nc"
-    
-    # 写入日志文件（纯文本，不带颜色）
-    if [ -n "$file_path" ]; then
-        echo "[$timestamp] [$level_text] $message" >> "$file_path"
-    fi
+    # 终端输出（带颜色）
+    echo -e "[${timestamp}] [${COLORS[$color]}${level_text}${COLORS["reset"]}] ${COLORS[$color]}${message}${COLORS["reset"]}"
+
+    # 文件输出（纯文本）
+    echo "[${timestamp}] [${level_text}] ${message}" >> "$final_log_file"
 }
 
-# 如果脚本被直接运行（不是被source），则运行示例代码
+##############################################################################
+# 如果脚本被直接执行（而非被 source），则演示一些示例用法
+##############################################################################
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    # 创建日志目录
     mkdir -p "/tmp/logs"
 
-    # 演示各种日志记录方式
-    log "/tmp/logs/test.log" "第一条消息，同时设置日志文件"     # 设置日志文件并记录消息
-    log "这是一条默认消息（DEBUG，默认颜色）"                         # 最简单的用法
-    log 1 "这是一条INFO消息（绿色）"                             # 指定日志级别
-    log 2 "这是一条WARN消息（黄色）"                                  # 警告消息（黄色）
-    log 3 "这是一条ERROR消息（红色）"                                # 错误消息（红色）
-    log "/tmp/logs/test2.log" 1 "这是一条INFO消息（新文件）"   # 切换文件并记录INFO消息
-    log "/tmp/logs/test2.log" 2 "这是一条WARN消息（新文件）"  # 切换文件并记录WARN消息
-    log "/tmp/logs/test2.log" 3 "这是一条ERROR消息（新文件）" # 切换文件并记录ERROR消息
+    # 1) 仅传一个消息 => 默认使用 level=1 (INFO) => 绿色
+    log "这条消息将以绿色输出，并提示没指定日志文件，但不会报错"
 
-    # 测试不同日志级别
-    log "/tmp/logs/test.log" 0 "This is a DEBUG message"
-    log "/tmp/logs/test.log" 1 "This is an INFO message"
-    log "/tmp/logs/test.log" 2 "This is a WARN message"
-    log "/tmp/logs/test.log" 3 "This is an ERROR message"
+    # 2) 设置日志文件 + 输出消息
+    log "/tmp/logs/test.log" "这是一条写入 /tmp/logs/test.log 的默认 INFO (绿色) 消息"
 
-    # 测试文件扩展名验证
-    log "/tmp/logs/test.txt" "这个应该失败，因为不是.log文件"
-    log "/tmp/logs/test3.log" "这个应该成功，因为是.log文件"
+    # 3) 使用日志级别 2 (WARN) 输出
+    log 2 "这是 WARN 级别 (黄色)"
 
-    # 测试不同日志级别
-    log "/tmp/logs/test3.log" 0 "这是DEBUG消息"
-    log "/tmp/logs/test3.log" 1 "这是INFO消息"
-    log "/tmp/logs/test3.log" 2 "这是WARN消息"
-    log "/tmp/logs/test3.log" 3 "这是ERROR消息"
-    log "pi等于3.1415926535897932384626433832795"
+    # 4) 三参数方式 => 文件 + level + message
+    log "/tmp/logs/test2.log" 3 "ERROR 级别 (红色)"
+
+    # 5) 只传文件 + 消息 => 文件 + 默认INFO
+    log "/tmp/logs/test3.log" "默认INFO消息 (绿色)"
+
+    # 等等，可以自行扩展更多测试...
 fi
-

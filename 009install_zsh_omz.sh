@@ -641,7 +641,7 @@ main_zsh_setup() {
 
 # 检查参数并执行
 if [[ "$#" -ne 1 ]]; then
-    echo "用法: sudo $0 {install|uninstall}"
+    echo "用法: sudo bash $0 {install|uninstall}"
     exit 1
 fi
 
