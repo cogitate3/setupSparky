@@ -353,7 +353,7 @@ install_MesloLGS_fonts() {
                 --progress-bar \
                 -w "\n%{http_code}" \
                 -o "$font_dir/$font" \
-                "https://github.com/romkatv/powerlevel10k/raw/master/$font" 2>&1)
+                "https://github.com/romkatv/powerlevel10k/raw/master/font$font" 2>&1)
             local http_code=${curl_output##*$'\n'}
             
             if [[ $? -eq 0 ]] && [[ "$http_code" == "200" ]]; then
