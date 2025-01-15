@@ -301,7 +301,6 @@ __uninstall_package() {
     fi
 }
 
-# 安装字体
 install_MesloLGS_fonts() {
     log 1 "正在安装 MesloLGS NF 字体..."
     
@@ -313,20 +312,17 @@ install_MesloLGS_fonts() {
     local font_dir="/usr/share/fonts/meslo"
     local font_cache_dir="/var/cache/fontconfig"
     
-    # 清理旧的字体文件和缓存
+    # 清理旧的字体文件
     log 1 "清理旧的字体文件..."
-    sudo rm -rf "$font_dir"/MesloLGS*
-    sudo rm -rf "$font_cache_dir"
+    sudo rm -rf "$font_dir"
     
-    # 确保字体目录存在且属于正确的用户
-    sudo -u "$REAL_USER" mkdir -p "$font_dir"
-    sudo -u "$REAL_USER" mkdir -p "$font_cache_dir"
+    # 不再删除整个字体缓存目录，仅在后续使用 fc-cache 刷新缓存
+    # sudo rm -rf "$font_cache_dir"
     
-    # 设置正确的权限
-    sudo chown -R "$REAL_USER:$(id -gn "$REAL_USER")" "$font_dir"
-    sudo chown -R "$REAL_USER:$(id -gn "$REAL_USER")" "$font_cache_dir"
+    # 建立字体目录并设置权限（系统惯例：root:root, 755）
+    sudo mkdir -p "$font_dir"
+    sudo chown root:root "$font_dir"
     sudo chmod 755 "$font_dir"
-    sudo chmod 755 "$font_cache_dir"
     
     # 字体文件数组
     local fonts=(
@@ -340,7 +336,7 @@ install_MesloLGS_fonts() {
     local success=true
     for font in "${fonts[@]}"; do
         log 1 "下载字体: $font"
-        if ! sudo -u "$REAL_USER" curl -L \
+        if ! sudo curl -L \
             --retry 3 \
             --retry-delay 5 \
             --retry-max-time 60 \
@@ -353,7 +349,6 @@ install_MesloLGS_fonts() {
             success=false
             break
         fi
-        # 设置字体文件权限
         sudo chmod 644 "$font_dir/$font"
     done
 
@@ -361,10 +356,10 @@ install_MesloLGS_fonts() {
         # 更新字体缓存
         log 1 "更新字体缓存..."
         
-        # 先尝试用用户权限更新
-        if ! sudo -u "$REAL_USER" fc-cache -f "$font_dir" 2>/dev/null; then
-            log 2 "用户权限更新缓存失败，尝试使用root权限..."
-            # 如果失败，使用root权限更新
+        # 首先尝试使用 root 权限更新字体缓存
+        if ! sudo fc-cache -f "$font_dir" 2>/dev/null; then
+            log 2 "root 权限更新缓存失败，尝试使用当前用户权限..."
+            # 如果失败，使用当前用户权限更新
             if ! fc-cache -f "$font_dir" 2>/dev/null; then
                 log 3 "字体缓存更新失败"
                 return 1
@@ -374,26 +369,24 @@ install_MesloLGS_fonts() {
         # 等待字体缓存更新完成
         sleep 2
         
-        # 检查字体文件是否存在
-        local font_found=false
+        # 检查字体文件是否「全部」存在
+        local all_fonts_found=true
         for font in "${fonts[@]}"; do
-            if [[ -f "$font_dir/$font" ]]; then
-                font_found=true
+            if [[ ! -f "$font_dir/$font" ]]; then
+                all_fonts_found=false
                 break
             fi
         done
 
-        if $font_found; then
+        if $all_fonts_found; then
             log 2 "MesloLGS NF 字体安装成功"
-            # 检查是否在WSL环境中
+            # 检查是否在 WSL 环境中
             if grep -qi microsoft /proc/version; then
-                log 1 "检测到WSL环境，请在Windows终端中手动安装字体文件"
+                log 1 "检测到 WSL 环境，请在 Windows 终端中手动安装字体文件"
                 log 1 "字体文件位置: $(wslpath -w "$font_dir")"
-                log 1 "请在Windows中双击字体文件进行安装"
-                printf "WSL 中无法像传统 Linux 系统一样直接安装字体。WSL 运行在 Windows 之上，字体渲染由 Windows 系统完成，而非 WSL 本身。\n因此，要在 WSL 终端使用新字体，必须在 Windows 系统中安装字体。安装后，在运行 WSL 发行版的终端模拟器（如 Windows Terminal 或 ConEmu）中选择该字体即可。\n步骤：\n1. 在 Windows 中安装字体：下载字体文件（通常为 .ttf 或 .otf 文件），双击安装。\n2. 在终端中选择字体：打开终端模拟器的设置，更改为新安装的字体。具体步骤取决于使用的终端模拟器。\n简而言之，字体安装在 Windows 宿主机操作系统中，WSL 环境使用宿主系统提供的字体。\n"
-                
+                printf "WSL 中无法像传统 Linux 系统一样直接安装字体。WSL 运行在 Windows 之上，字体渲染由 Windows 系统完成。\n请在 Windows 中双击字体文件进行安装。\n"
             fi
-            # 确保所有用户都能访问字体
+            # 确保所有用户可读字体
             sudo chmod -R +r "$font_dir"
             return 0
         else
@@ -409,7 +402,7 @@ install_MesloLGS_fonts() {
 # 卸载字体
 uninstall_MesloLGS_fonts() {
     log 1 "正在卸载 MesloLGS NF 字体..."
-    local font_dir="$REAL_HOME/.local/share/fonts"
+    local font_dir="/usr/share/fonts/meslo"
     
     if [[ -d "$font_dir" ]]; then
         sudo -u "$REAL_USER" rm -f "$font_dir"/MesloLGS*
