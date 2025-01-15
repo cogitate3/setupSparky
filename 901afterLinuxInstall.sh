@@ -8,7 +8,7 @@ source 006double-Esc-to-sudo.sh
 source 005install_fonts.sh
 source 010add_autostart_app.sh
 # 先设置日志
-log "/tmp/logs/901.log" 1 "第一条消息，同时设置日志文件"
+log "/tmp/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件"
 log 2 "日志记录在${CURRENT_LOG_FILE}"
 
 
