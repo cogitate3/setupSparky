@@ -357,10 +357,10 @@ install_MesloLGS_fonts() {
         log 1 "更新字体缓存..."
         
         # 首先尝试使用 root 权限更新字体缓存
-        if ! sudo fc-cache -f "$font_dir" 2>/dev/null; then
+        if ! sudo fc-cache -f -v "$font_dir" 2>/dev/null; then
             log 2 "root 权限更新缓存失败，尝试使用当前用户权限..."
             # 如果失败，使用当前用户权限更新
-            if ! fc-cache -f "$font_dir" 2>/dev/null; then
+            if ! fc-cache -f -v "$font_dir" 2>/dev/null; then
                 log 3 "字体缓存更新失败"
                 return 1
             fi
@@ -369,28 +369,62 @@ install_MesloLGS_fonts() {
         # 等待字体缓存更新完成
         sleep 2
         
-        # 检查字体文件是否「全部」存在
+        # 使用多种方式验证字体安装
+        log 1 "验证字体安装..."
+        
+        # 1. 检查字体文件是否存在
         local all_fonts_found=true
         for font in "${fonts[@]}"; do
             if [[ ! -f "$font_dir/$font" ]]; then
                 all_fonts_found=false
+                log 3 "字体文件缺失: $font"
                 break
             fi
         done
-
-        if $all_fonts_found; then
+        
+        # 2. 使用 fc-list 检查字体是否被系统识别
+        local font_recognized=false
+        if fc-list | grep -i "MesloLGS NF" > /dev/null; then
+            font_recognized=true
+            log 2 "系统已识别 MesloLGS NF 字体"
+        else
+            log 3 "系统未能识别 MesloLGS NF 字体"
+        fi
+        
+        # 3. 显示详细的字体信息
+        log 1 "字体详细信息:"
+        fc-list | grep -i "MesloLGS NF"
+        
+        # 4. 检查字体缓存
+        log 1 "检查字体缓存:"
+        fc-cache -v 2>&1 | grep -i "meslo"
+        
+        if $all_fonts_found && $font_recognized; then
             log 2 "MesloLGS NF 字体安装成功"
             # 检查是否在 WSL 环境中
             if grep -qi microsoft /proc/version; then
                 log 1 "检测到 WSL 环境，请在 Windows 终端中手动安装字体文件"
                 log 1 "字体文件位置: $(wslpath -w "$font_dir")"
                 printf "WSL 中无法像传统 Linux 系统一样直接安装字体。WSL 运行在 Windows 之上，字体渲染由 Windows 系统完成。\n请在 Windows 中双击字体文件进行安装。\n"
+                
+                # 在 WSL 环境中提供额外的验证步骤说明
+                log 1 "要在 Windows 中验证字体安装："
+                log 1 "1. 打开 Windows 设置 -> 个性化 -> 字体"
+                log 1 "2. 在搜索框中输入 'MesloLGS'"
+                log 1 "3. 或使用 Windows 终端，在配置文件中将字体设置为 'MesloLGS NF'"
+            else
+                # 在原生 Linux 中提供额外的验证步骤
+                log 1 "要在应用程序中验证字体："
+                log 1 "1. 运行 'fc-list | grep -i meslo' 查看完整字体信息"
+                log 1 "2. 某些应用程序可能需要重启才能识别新字体"
+                log 1 "3. 在终端模拟器中，字体名称应该显示为 'MesloLGS NF'"
             fi
+            
             # 确保所有用户可读字体
             sudo chmod -R +r "$font_dir"
             return 0
         else
-            log 3 "字体文件未能成功保存"
+            log 3 "字体安装失败"
             return 1
         fi
     else
@@ -403,19 +437,53 @@ install_MesloLGS_fonts() {
 uninstall_MesloLGS_fonts() {
     log 1 "正在卸载 MesloLGS NF 字体..."
     local font_dir="/usr/share/fonts/meslo"
+    local font_cache_dir="/var/cache/fontconfig"
+    
+    # 检查是否在 WSL 环境中
+    if grep -qi microsoft /proc/version; then
+        log 1 "检测到 WSL 环境"
+        log 1 "请在 Windows 中手动卸载字体："
+        log 1 "1. 打开 Windows 设置 -> 个性化 -> 字体"
+        log 1 "2. 搜索 'MesloLGS'"
+        log 1 "3. 选择字体并点击卸载"
+        # 仍然删除 WSL 中的字体文件
+        if [[ -d "$font_dir" ]]; then
+            log 1 "删除 WSL 中的字体文件..."
+            sudo rm -rf "$font_dir"
+        fi
+        return 0
+    fi
     
     if [[ -d "$font_dir" ]]; then
-        sudo -u "$REAL_USER" rm -f "$font_dir"/MesloLGS*
-        sudo -u "$REAL_USER" fc-cache -f -v
+        # 使用 root 权限删除整个字体目录
+        log 1 "删除字体目录..."
+        sudo rm -rf "$font_dir"
         
-        if ! fc-list | grep -q "MesloLGS"; then
-            log 2 "MesloLGS NF 字体卸载成功"
-        else
-            log 3 "字体未完全卸载"
+        # 强制更新字体缓存
+        log 1 "更新字体缓存..."
+        if ! sudo fc-cache -f -v 2>/dev/null; then
+            log 2 "root 权限更新缓存失败，尝试使用当前用户权限..."
+            fc-cache -f -v 2>/dev/null
+        fi
+        
+        # 等待缓存更新完成
+        sleep 2
+        
+        # 验证卸载结果
+        if fc-list | grep -qi "MesloLGS"; then
+            log 3 "字体未完全卸载，仍然在系统中发现 MesloLGS 字体"
+            # 显示剩余字体的位置
+            log 1 "剩余字体位置："
+            fc-list | grep -i "MesloLGS"
             return 1
+        else
+            log 2 "MesloLGS NF 字体卸载成功"
+            log 1 "提示：某些应用程序可能需要重启才能反映字体变化"
+            return 0
         fi
     else
         log 2 "字体目录不存在，无需卸载"
+        return 0
     fi
 }
 
