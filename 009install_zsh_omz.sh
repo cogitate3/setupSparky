@@ -30,7 +30,7 @@ function force_bash() {
 }
 
 # 立即检查shell类型
-# force_bash "$@"
+force_bash "$@"
 
 # 引入日志相关配置
 source 001log2File.sh
@@ -630,6 +630,31 @@ configure_powerlevel10k() {
     
     # 设置主题
     sudo -u "$REAL_USER" sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$zshrc"
+    # 设置提示词的格式
+    log 1 "在 $zshrc 的开头添加 Powerlevel10k instant prompt"
+    local instant_prompt='### Powerlevel10k instant prompt
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+### Powerlevel10k instant prompt'
+    if ! grep -q '^### Powerlevel10k instant prompt' "$zshrc"; then
+        echo "$instant_prompt" | sudo -u "$REAL_USER" tee -a "$zshrc" > /dev/null
+    fi
+    
+    log 1 "在 $zshrc 的末尾添加 Powerlevel10k 配置提示"
+    local p10k_config_hint='# To customize prompt, run p10k configure or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh'
+    if ! grep -q "^$p10k_config_hint" "$zshrc"; then
+        sudo -u "$REAL_USER" sed -i '$a\\
+'"$p10k_config_hint" "$zshrc"
+    fi
+    
+
+
+
 
     log 1 "下载github.com/cogitate3/setupSparkyLinux 的.p10k.zsh"
     if ! sudo -u "$REAL_USER" curl -L \
@@ -682,6 +707,18 @@ uninstall_powerlevel10k() {
     if [[ -f "$zshrc" ]]; then
         sudo -u "$REAL_USER" sed -i '/source.*powerlevel10k.*powerlevel10k.zsh-theme/d' "$zshrc"
         sudo -u "$REAL_USER" sed -i 's/^ZSH_THEME="powerlevel10k\/powerlevel10k"/ZSH_THEME="robbyrussell"/' "$zshrc"
+    fi
+
+    # 删除 Powerlevel10k instant prompt
+    if [[ -f "$zshrc" ]]; then
+        sudo -u "$REAL_USER" sed -i '/^### Powerlevel10k instant prompt/,/^### Powerlevel10k instant prompt$/d' "$zshrc"
+    fi
+
+
+    # 删除 p10k 配置提示
+    if [[ -f "$zshrc" ]]; then
+        sudo -u "$REAL_USER" sed -i '/^# To customize prompt, run p10k configure or edit \/\.p10k\.zsh\./d' "$zshrc"
+        sudo -u "$REAL_USER" sed -i '/^\[\[ ! -f \/\.p10k\.zsh \]\] \|\| source \/\.p10k\.zsh$/d' "$zshrc"
     fi
 
     # 卸载字体
