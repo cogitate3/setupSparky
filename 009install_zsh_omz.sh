@@ -539,6 +539,41 @@ uninstall_MesloLGS_fonts() {
     fi
 }
 
+# 在文件开头插入内容的辅助函数
+insert_content_at_beginning() {
+    local target_file="$1"
+    local content="$2"
+    local temp_dir="${REAL_HOME:-/tmp}"
+    local temp_file="${temp_dir}/.zshrc.tmp.$$"
+    
+    # 确保临时文件不存在
+    rm -f "$temp_file"
+    
+    # 写入新内容到临时文件
+    echo "$content" > "$temp_file" || {
+        log 3 "无法写入临时文件 $temp_file"
+        return 1
+    }
+    
+    # 追加原始内容
+    cat "$target_file" >> "$temp_file" || {
+        log 3 "无法追加原始内容到临时文件"
+        rm -f "$temp_file"
+        return 1
+    }
+    
+    # 替换原始文件
+    sudo -u "$REAL_USER" cp "$temp_file" "$target_file" || {
+        log 3 "无法更新 $target_file"
+        rm -f "$temp_file"
+        return 1
+    }
+    
+    # 清理临时文件
+    rm -f "$temp_file"
+    return 0
+}
+
 # 配置 oh-my-zsh
 configure_ohmyzsh() {
     log 1 "配置 oh-my-zsh 插件..."
@@ -611,6 +646,7 @@ configure_powerlevel10k() {
     log 1 "配置 powerlevel10k 主题..."
     
     local theme_dir="$OH_MY_ZSH_CUSTOM/themes/powerlevel10k"
+    local zshrc="$REAL_HOME/.zshrc"
     
     # 克隆主题
     if [[ ! -d "$theme_dir" ]]; then
@@ -620,47 +656,20 @@ configure_powerlevel10k() {
         fi
     fi
 
-    # 配置主题
-    local zshrc="$REAL_HOME/.zshrc"
+    # 配置主题源
     local theme_source="source $theme_dir/powerlevel10k.zsh-theme"
-    
     if ! grep -q "$theme_source" "$zshrc"; then
-        # 在用户主目录创建临时文件
-        local temp_dir="${REAL_HOME:-/tmp}"
-        local temp_file="${temp_dir}/.zshrc.tmp.$$"
-        
-        # 确保临时文件不存在
-        rm -f "$temp_file"
-        
-        # 写入新内容到临时文件
-        echo "$theme_source" > "$temp_file" || {
-            log 3 "无法写入临时文件 $temp_file"
+        if ! insert_content_at_beginning "$zshrc" "$theme_source"; then
+            log 3 "添加主题源到 .zshrc 失败"
             return 1
-        }
-        
-        # 追加原始内容
-        cat "$zshrc" >> "$temp_file" || {
-            log 3 "无法追加原始内容到临时文件"
-            rm -f "$temp_file"
-            return 1
-        }
-        
-        # 替换原始文件
-        sudo -u "$REAL_USER" cp "$temp_file" "$zshrc" || {
-            log 3 "无法更新 $zshrc"
-            rm -f "$temp_file"
-            return 1
-        }
-        
-        # 清理临时文件
-        rm -f "$temp_file"
-        
+        fi
         log 2 "powerlevel10k 主题已添加到 $zshrc 的开头"
     fi
     
     # 设置主题
     sudo -u "$REAL_USER" sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$zshrc"
-    # 设置提示词的格式
+
+    # 设置 instant prompt
     log 1 "在 $zshrc 的开头添加 Powerlevel10k instant prompt"
     local instant_prompt='### Powerlevel10k instant prompt
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
@@ -670,41 +679,25 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 ### Powerlevel10k instant prompt'
+
     if ! grep -q '^### Powerlevel10k instant prompt' "$zshrc"; then
-        # 在用户主目录创建临时文件
-        local temp_dir="${REAL_HOME:-/tmp}"
-        local temp_file="${temp_dir}/.zshrc.tmp.$$"
-        
-        # 确保临时文件不存在
-        rm -f "$temp_file"
-        
-        # 写入新内容到临时文件
-        echo "$instant_prompt" > "$temp_file" || {
-            log 3 "无法写入临时文件 $temp_file"
+        if ! insert_content_at_beginning "$zshrc" "$instant_prompt"; then
+            log 3 "添加 instant prompt 到 .zshrc 失败"
             return 1
-        }
-        
-        # 追加原始内容
-        cat "$zshrc" >> "$temp_file" || {
-            log 3 "无法追加原始内容到临时文件"
-            rm -f "$temp_file"
-            return 1
-        }
-        
-        # 替换原始文件
-        sudo -u "$REAL_USER" cp "$temp_file" "$zshrc" || {
-            log 3 "无法更新 $zshrc"
-            rm -f "$temp_file"
-            return 1
-        }
-        
-        # 清理临时文件
-        rm -f "$temp_file"
-        
+        fi
         log 2 "Powerlevel10k instant prompt 已添加到 $zshrc 的开头"
     fi
-    
-    # 下载github.com/cogitate3/setupSparkyLinux 的.p10k.zsh
+
+    # 添加p10k配置提示
+    local p10k_hint='# To customize prompt, run p10k configure or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh'
+    if ! grep -q "source ~/.p10k.zsh" "$zshrc"; then
+        echo "$p10k_hint" | sudo -u "$REAL_USER" tee -a "$zshrc" > /dev/null
+        log 2 "p10k配置提示已添加到 $zshrc 的末尾"
+    fi
+
+    # 下载 p10k 配置文件
+    log 1 "下载 .p10k.zsh 配置文件"
     if ! sudo -u "$REAL_USER" curl -L \
         --retry 3 \
         --retry-delay 5 \
