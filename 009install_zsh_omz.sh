@@ -625,7 +625,17 @@ configure_powerlevel10k() {
     local theme_source="source $theme_dir/powerlevel10k.zsh-theme"
     
     if ! grep -q "$theme_source" "$zshrc"; then
-        echo "$theme_source" | sudo -u "$REAL_USER" tee -a "$zshrc" > /dev/null
+        # Create a temporary file
+        local temp_file=$(mktemp)
+        # Write instant prompt to temp file
+        echo "$theme_source" > "$temp_file"
+        # Append original content
+        cat "$zshrc" >> "$temp_file"
+        # Replace original file with temp file
+        sudo -u "$REAL_USER" cp "$temp_file" "$zshrc"
+        # Clean up temp file
+        rm -f "$temp_file"
+        log 2 "powerlevel10k 主题已添加到 $zshrc 的开头"
     fi
     
     # 设置主题
@@ -641,7 +651,17 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 ### Powerlevel10k instant prompt'
     if ! grep -q '^### Powerlevel10k instant prompt' "$zshrc"; then
-        echo "$instant_prompt" | sudo -u "$REAL_USER" tee -a "$zshrc" > /dev/null
+        # Create a temporary file
+        local temp_file=$(mktemp)
+        # Write instant prompt to temp file
+        echo "$instant_prompt" > "$temp_file"
+        # Append original content
+        cat "$zshrc" >> "$temp_file"
+        # Replace original file with temp file
+        sudo -u "$REAL_USER" cp "$temp_file" "$zshrc"
+        # Clean up temp file
+        rm -f "$temp_file"
+        log 2 "Powerlevel10k instant prompt 已添加到 $zshrc 的开头"
     fi
     
     log 1 "在 $zshrc 的末尾添加 Powerlevel10k 配置提示"
@@ -651,11 +671,7 @@ fi
         sudo -u "$REAL_USER" sed -i '$a\\
 '"$p10k_config_hint" "$zshrc"
     fi
-    
-
-
-
-
+     
     log 1 "下载github.com/cogitate3/setupSparkyLinux 的.p10k.zsh"
     if ! sudo -u "$REAL_USER" curl -L \
         --retry 3 \
