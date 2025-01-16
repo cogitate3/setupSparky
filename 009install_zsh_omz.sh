@@ -625,16 +625,36 @@ configure_powerlevel10k() {
     local theme_source="source $theme_dir/powerlevel10k.zsh-theme"
     
     if ! grep -q "$theme_source" "$zshrc"; then
-        # Create a temporary file
-        local temp_file=$(mktemp)
-        # Write instant prompt to temp file
-        echo "$theme_source" > "$temp_file"
-        # Append original content
-        cat "$zshrc" >> "$temp_file"
-        # Replace original file with temp file
-        sudo -u "$REAL_USER" cp "$temp_file" "$zshrc"
-        # Clean up temp file
+        # 在用户主目录创建临时文件
+        local temp_dir="${REAL_HOME:-/tmp}"
+        local temp_file="${temp_dir}/.zshrc.tmp.$$"
+        
+        # 确保临时文件不存在
         rm -f "$temp_file"
+        
+        # 写入新内容到临时文件
+        echo "$theme_source" > "$temp_file" || {
+            log 3 "无法写入临时文件 $temp_file"
+            return 1
+        }
+        
+        # 追加原始内容
+        cat "$zshrc" >> "$temp_file" || {
+            log 3 "无法追加原始内容到临时文件"
+            rm -f "$temp_file"
+            return 1
+        }
+        
+        # 替换原始文件
+        sudo -u "$REAL_USER" cp "$temp_file" "$zshrc" || {
+            log 3 "无法更新 $zshrc"
+            rm -f "$temp_file"
+            return 1
+        }
+        
+        # 清理临时文件
+        rm -f "$temp_file"
+        
         log 2 "powerlevel10k 主题已添加到 $zshrc 的开头"
     fi
     
@@ -651,28 +671,40 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 ### Powerlevel10k instant prompt'
     if ! grep -q '^### Powerlevel10k instant prompt' "$zshrc"; then
-        # Create a temporary file
-        local temp_file=$(mktemp)
-        # Write instant prompt to temp file
-        echo "$instant_prompt" > "$temp_file"
-        # Append original content
-        cat "$zshrc" >> "$temp_file"
-        # Replace original file with temp file
-        sudo -u "$REAL_USER" cp "$temp_file" "$zshrc"
-        # Clean up temp file
+        # 在用户主目录创建临时文件
+        local temp_dir="${REAL_HOME:-/tmp}"
+        local temp_file="${temp_dir}/.zshrc.tmp.$$"
+        
+        # 确保临时文件不存在
         rm -f "$temp_file"
+        
+        # 写入新内容到临时文件
+        echo "$instant_prompt" > "$temp_file" || {
+            log 3 "无法写入临时文件 $temp_file"
+            return 1
+        }
+        
+        # 追加原始内容
+        cat "$zshrc" >> "$temp_file" || {
+            log 3 "无法追加原始内容到临时文件"
+            rm -f "$temp_file"
+            return 1
+        }
+        
+        # 替换原始文件
+        sudo -u "$REAL_USER" cp "$temp_file" "$zshrc" || {
+            log 3 "无法更新 $zshrc"
+            rm -f "$temp_file"
+            return 1
+        }
+        
+        # 清理临时文件
+        rm -f "$temp_file"
+        
         log 2 "Powerlevel10k instant prompt 已添加到 $zshrc 的开头"
     fi
     
-    log 1 "在 $zshrc 的末尾添加 Powerlevel10k 配置提示"
-    local p10k_config_hint='# To customize prompt, run p10k configure or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh'
-    if ! grep -q "^$p10k_config_hint" "$zshrc"; then
-        sudo -u "$REAL_USER" sed -i '$a\\
-'"$p10k_config_hint" "$zshrc"
-    fi
-     
-    log 1 "下载github.com/cogitate3/setupSparkyLinux 的.p10k.zsh"
+    # 下载github.com/cogitate3/setupSparkyLinux 的.p10k.zsh
     if ! sudo -u "$REAL_USER" curl -L \
         --retry 3 \
         --retry-delay 5 \
