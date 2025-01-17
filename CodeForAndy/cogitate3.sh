@@ -26,6 +26,28 @@ show_success() {
     echo -e "${GREEN}成功: $1${NC}"
 }
 
+# 通用帮助信息，让exit 生效的话，就会跳出脚本
+show_usage_generic() {
+    local help_text="$1"
+    echo -e "$help_text"  # -e 参数允许使用特殊字符
+    # exit 1
+}
+
+# 这是定义一个带颜色和格式的帮助信息变量，比如：
+terminalGPT_usage_text="${GREEN}=== TerminalGPT 安装脚本 ===${NC}
+
+${YELLOW}使用方法:${NC}
+    ${GREEN}$0 install${NC}   - 安装 TerminalGPT
+    ${GREEN}$0 uninstall${NC} - 卸载 TerminalGPT
+
+${YELLOW}示例:${NC}
+    ${GREEN}bash $0 install${NC}     # 安装 TerminalGPT
+    ${GREEN}bash $0 uninstall${NC}   # 卸载 TerminalGPT
+
+${YELLOW}注意:${NC}
+- 安装后需要重新加载终端配置
+"
+
 # 检查是否以root权限运行
 check_root() {
     if [ "$(id -u)" != "0" ]; then

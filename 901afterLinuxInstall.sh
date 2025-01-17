@@ -3,7 +3,6 @@
 # 日志相关配置
 # source 001log2File.sh 003get_download_link.sh里面引入了001log2File.sh和002get_assets_links.sh
 source 003get_download_link.sh
-source 005setup_fonts.sh
 source 006double-Esc-to-sudo.sh
 source 005install_fonts.sh
 source 010add_autostart_app.sh

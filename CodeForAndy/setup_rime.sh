@@ -572,7 +572,7 @@ uninstall_rime() {
 }
 
 # 主函数
-main() {
+setup_rime() {
     case "$1" in
         "install")
             install_rime
@@ -589,5 +589,5 @@ main() {
 
 # 仅在直接执行脚本时运行main函数，被source时不运行
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
-    main "$@"
+    setup_rime "$@"
 fi
