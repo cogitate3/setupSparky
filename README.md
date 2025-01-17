@@ -4,6 +4,8 @@
 
 一键安装脚本，用于设置和自定义 Sparky Linux 7.5（或其他基于 Debian Bookworm 的发行版）。
 
+![安装菜单](https://raw.githubusercontent.com/alt369/picgo/main/202501161907286.png)
+
 ## 概述
 
 本项目旨在通过自动化安装常用软件和配置，简化全新 Linux 安装的过程。脚本使用 Bash 编写，专为 Sparky Linux 定制，但也足够灵活，可用于其他基于 Debian Bookworm 的发行版，如 MX Linux 和 Linux Mint。
@@ -51,7 +53,7 @@
 2. 运行安装脚本：
 
    ```bash
-   bash 901afterLinuxInstall.sh
+   sudo bash ./901afterLinuxInstall.sh
    ```
 
 3. 按照屏幕上的说明完成安装。

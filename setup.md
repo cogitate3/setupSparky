@@ -14,8 +14,6 @@ sudo bash./901afterLinuxInstall.sh
 
 2. 脚本会显示一个交互式菜单，包含以下几个主要类别：
 
-![安装菜单](https://raw.githubusercontent.com/alt369/picgo/main/202501161907286.png)
-
 ### 桌面系统增强必备
 
 - Plank：美观的快捷启动器
