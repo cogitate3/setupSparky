@@ -1,6 +1,6 @@
 # Setup Sparky Linux 7.5
 
-[English](README.en.md)
+[English](README.en.md) [使用说明](setup.md) [User Manual](setup.en.md)
 
 一键安装脚本，用于设置和自定义 Sparky Linux 7.5（或其他基于 Debian Bookworm 的发行版）。
 

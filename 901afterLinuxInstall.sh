@@ -2548,7 +2548,6 @@ main() {
         return 1
     fi
 
-    log 1 "请先升级系统软件包..."
     if ! sudo apt upgrade -y; then
         log 3 "升级软件包失败"
         return 1
