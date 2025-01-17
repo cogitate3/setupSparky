@@ -1,6 +1,9 @@
 #!/bin/bash
 # 改进后的日志脚本：默认日志级别改为 INFO(1)，对应绿色输出
 
+# 当前脚本内全局使用的日志文件，若未设置则为空
+CURRENT_LOG_FILE=""
+
 # 使用关联数组管理颜色，统一在脚本Global范围定义
 declare -A COLORS=(
     ["reset"]="\033[0m"    # 重置颜色
@@ -11,8 +14,6 @@ declare -A COLORS=(
     ["bold"]="\033[1m"     # 粗体
 )
 
-# 当前脚本内全局使用的日志文件，若未设置则为空
-CURRENT_LOG_FILE=""
 
 ##############################################################################
 # 设置日志文件的函数：检查文件格式、创建父目录、触摸文件并更新全局 CURRENT_LOG_FILE
@@ -55,7 +56,7 @@ set_log_file() {
 #   3) message (必需)
 # 若只有一个参数，可能是日志文件或日志级别或消息；脚本会自动判断
 ##############################################################################
-log() {
+function log() {
     # 定义日志级别与对应文本
     declare -A LOG_LEVELS=(
         [0]="DEBUG"   # 调试信息
@@ -432,7 +433,7 @@ function install_package() {
     fi
 }
 
-detect_desktop_environment() {
+function detect_desktop_environment() {
     # 首先检查当前会话类型
     if [[ -n "$XDG_CURRENT_DESKTOP" ]]; then
         echo "${XDG_CURRENT_DESKTOP^^}" # 转换为大写
@@ -464,7 +465,7 @@ detect_desktop_environment() {
 #   $3 : 是否最小化 (yes|no)
 #   $@ : 其余参数将追加到 Exec 行
 ###############################################################################
-add_autostart_app() {
+function add_autostart_app() {
     local display_name="$1"
     local exec_cmd="$2"
     local minimize_flag="$3"
@@ -599,7 +600,7 @@ add_autostart_app() {
 # 函数作用：
 #   启用或禁用指定的自启动条目（freedesktop.org 标准实现）
 ###############################################################################
-toggle_autostart_app() {
+function toggle_autostart_app() {
     local name="$1"
     local action="$2"
     local autostart_dir="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
@@ -673,7 +674,7 @@ toggle_autostart_app() {
 # 函数作用：
 #   列出所有自启动条目（freedesktop.org 标准实现）
 ###############################################################################
-list_autostart_apps() {
+function list_autostart_apps() {
     local autostart_dir="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
     local current_de=$(detect_desktop_environment)
 
@@ -738,7 +739,7 @@ list_autostart_apps() {
 # 通用的GitHub软件安装/卸载函数
 # 用法1（安装）: setup_from_github <github_url> <download_regex> [install] <package_name>
 # 用法2（卸载）: setup_from_github uninstall <package_name>
-setup_from_github() {
+function setup_from_github() {
     local github_url=""
     local download_regex=""
     local operation="install"
@@ -844,6 +845,8 @@ setup_from_github() {
     fi
 }
 
-
+log "$HOME/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件到$HOME/logs/$(basename "$0").log"
 log "~/.log.log" 1 "开始安装"
-setup_from_github "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$" "install" "pot"
+# setup_from_github "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$" "install" "pot"
+# log "~/.log.log" 1 "开始安装"
+setup_from_github "uninstall" "pot"
