@@ -1,4 +1,14 @@
 #!/bin/bash
+###############################################################################
+# 脚本名称：setup_fonts.sh
+# 作用：安装/卸载nerd fonts编程字体和思源黑体
+# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 源代码：https://github.com/cogitate3/setupSparkyLinux
+# 版本：1.0.1
+# 用法:
+#   安装: ./setup_fonts.sh install
+#   卸载: ./setup_fonts.sh uninstall
+###############################################################################
 
 # 版本和配置
 SCRIPT_VERSION="1.0.1"
@@ -704,7 +714,7 @@ wait_for_input() {
 }
 
 # 主程序入口
-main() {
+setup_fonts() {
     # 检查权限
     if [ "$(id -u)" != "0" ]; then
         log_message "ERROR" "请使用 root 权限运行此脚本"
@@ -1038,5 +1048,18 @@ check_updates() {
     wait_for_input
 }
 
-# 启动主程序
-main "$@"
+###############################################################################
+# 这是一个重要的 Bash 脚本模式，用于区分脚本是被直接执行还是被源引用（source）
+# - BASH_SOURCE[0] 是当前脚本文件的路径
+# - $0 是当前正在执行的脚本的路径
+#
+# 当直接执行脚本时（./script.sh）：两者相等
+# 当被source引用时（source script.sh）：BASH_SOURCE[0]指向本文件，$0指向父脚本
+#
+# 这样可以实现：
+# 1. 直接运行时：执行主程序
+# 2. 被source时：只导入函数，不执行主程序
+###############################################################################
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    setup_fonts "$@"
+fi

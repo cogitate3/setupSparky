@@ -1,12 +1,19 @@
 #!/bin/bash
+###############################################################################
+# 脚本名称：font_installer.sh
+# 作用：安装/卸载 字体
+# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 源代码：https://github.com/cogitate3/setupSparkyLinux
+# 版本：1.0.1
+# 用法：
+#   安装: ./font_installer.sh install
+#   卸载: ./font_installer.sh uninstall
+###############################################################################
 
-###################
-# 基础设置
-###################
 #set -euo pipefail
 
 # 全局常量定义
-readonly VERSION="1.0.0"
+readonly VERSION="1.0.1"
 readonly CONFIG_FILE="$HOME/.fontinstall.conf"
 readonly LOG_FILE="$HOME/font_install.log"
 readonly TEMP_DIR=$(mktemp -d /tmp/font_install.XXXXXX)

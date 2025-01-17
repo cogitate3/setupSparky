@@ -1,4 +1,13 @@
 #!/bin/bash
+###############################################################################
+# 脚本名称：install_zsh_omz.sh
+# 作用：安装 zsh omz
+# 作者：CodeParetoImpove cogitate3 Claude.ai
+# 版本：1.0.1
+# 用法：
+#   安装: ./install_zsh_omz.sh install
+#   卸载: ./install_zsh_omz.sh uninstall
+###############################################################################
 
 # 强制使用bash执行
 function force_bash() {
@@ -25,6 +34,8 @@ force_bash "$@"
 
 # 引入日志相关配置
 source 001log2File.sh
+log "/tmp/logs/install_zsh_omz.log" 1 "第一条消息，同时设置日志文件"
+log 2 "日志记录在${CURRENT_LOG_FILE}"
 
 # 全局变量
 OH_MY_ZSH_CUSTOM=""
@@ -250,9 +261,21 @@ install_zsh_and_ohmyzsh() {
     cp "$REAL_HOME/.oh-my-zsh/templates/zshrc.zsh-template" "$REAL_HOME/.zshrc"
 
     log 1 "更改默认 shell"
-    if [[ "$SHELL" != "$(which zsh)" ]]; then
+    zsh_path="$(which zsh)"
+    if ! grep -q "$zsh_path" /etc/shells; then
+        log 1 "添加 zsh 到 /etc/shells..."
+        echo "$zsh_path" | sudo tee -a /etc/shells
+    fi
+    
+    if [[ "$SHELL" != "$zsh_path" ]]; then
         log 1 "更改默认 shell 为 zsh..."
-        sudo chsh -s "$(which zsh)" "$REAL_USER"
+        sudo chsh -s "$zsh_path" "$REAL_USER"
+        # 直接修改 /etc/passwd 以确保更改生效
+        if [ -f /etc/passwd ]; then
+            sudo sed -i "s|^\($REAL_USER:.*:\)/bin/bash$|\1$zsh_path|" /etc/passwd
+            sudo sed -i "s|^\($REAL_USER:.*:\)/bin/sh$|\1$zsh_path|" /etc/passwd
+        fi
+        log 2 "shell 更改完成，需要重新登录才能生效"
     fi
 
     # 确保权限正确
@@ -278,7 +301,11 @@ __uninstall_package() {
     fi
 }
 
-# 安装字体
+url_encode() {
+    echo "$1" | sed 's/ /%20/g'
+}
+
+
 install_MesloLGS_fonts() {
     log 1 "正在安装 MesloLGS NF 字体..."
     
@@ -287,62 +314,105 @@ install_MesloLGS_fonts() {
     __install_if_missing "fontconfig" || return 1
     __install_if_missing "xfonts-utils" || return 1
     
-    local font_dir="$REAL_HOME/.local/share/fonts"
-    local font_cache_dir="$REAL_HOME/.cache/fontconfig"
+    local font_dir="/usr/share/fonts/meslo"
+    local font_cache_dir="/var/cache/fontconfig"
     
-    # 清理旧的字体文件和缓存
+    # 清理旧的字体文件
     log 1 "清理旧的字体文件..."
-    sudo rm -rf "$font_dir"/MesloLGS*
-    sudo rm -rf "$font_cache_dir"
+    sudo rm -rf "$font_dir"
     
-    # 确保字体目录存在且属于正确的用户
-    sudo -u "$REAL_USER" mkdir -p "$font_dir"
-    sudo -u "$REAL_USER" mkdir -p "$font_cache_dir"
+    # 不再删除整个字体缓存目录，仅在后续使用 fc-cache 刷新缓存
+    # sudo rm -rf "$font_cache_dir"
     
-    # 设置正确的权限
-    sudo chown -R "$REAL_USER:$(id -gn "$REAL_USER")" "$font_dir"
-    sudo chown -R "$REAL_USER:$(id -gn "$REAL_USER")" "$font_cache_dir"
+    # 建立字体目录并设置权限（系统惯例：root:root, 755）
+    sudo mkdir -p "$font_dir"
+    sudo chown root:root "$font_dir"
     sudo chmod 755 "$font_dir"
-    sudo chmod 755 "$font_cache_dir"
     
     # 字体文件数组
     local fonts=(
-        "MesloLGS-NF-Regular.ttf"
-        "MesloLGS-NF-Bold.ttf"
-        "MesloLGS-NF-Italic.ttf"
-        "MesloLGS-NF-BoldItalic.ttf"
+        "MesloLGS NF Regular.ttf"
+        "MesloLGS NF Bold.ttf"
+        "MesloLGS NF Italic.ttf"
+        "MesloLGS NF Bold Italic.ttf"
     )
 
     # 下载和安装字体
     local success=true
+    local retry_count=3
+    local current_try=1
+    
+
+
     for font in "${fonts[@]}"; do
-        log 1 "下载字体: $font"
-        if ! sudo -u "$REAL_USER" curl -L \
-            --retry 3 \
-            --retry-delay 5 \
-            --retry-max-time 60 \
-            --connect-timeout 30 \
-            --max-time 120 \
-            --progress-bar \
-            -o "$font_dir/$font" \
-            "https://github.com/romkatv/powerlevel10k/raw/master/font/$font"; then
-            log 3 "下载 $font 失败"
-            success=false
-            break
-        fi
-        # 设置字体文件权限
-        sudo chmod 644 "$font_dir/$font"
+        while [[ $current_try -le $retry_count ]]; do
+            log 1 "下载字体: $font (尝试 $current_try/$retry_count)"
+            
+            # 保存 curl 的完整输出和错误信息
+            local curl_output
+            local curl_error
+            curl_output=$(sudo curl -L \
+                --retry 3 \
+                --retry-delay 5 \
+                --retry-max-time 60 \
+                --connect-timeout 30 \
+                --max-time 120 \
+                --progress-bar \
+                -w "\n%{http_code}" \
+                -o "$font_dir/$font" "$(url_encode "https://github.com/romkatv/powerlevel10k-media/raw/master/${font}")" 2>&1)
+                
+            local http_code=${curl_output##*$'\n'}
+            
+            if [[ $? -eq 0 ]] && [[ "$http_code" == "200" ]]; then
+                log 2 "成功下载: $font"
+                sudo chmod 644 "$font_dir/$font"
+                break
+            else
+                # 详细的错误信息
+                log 3 "下载 $font 失败 (尝试 $current_try/$retry_count)"
+                if [[ "$http_code" != "200" ]]; then
+                    log 3 "HTTP 状态码: $http_code"
+                    case $http_code in
+                        404) log 3 "错误：文件不存在" ;;
+                        403) log 3 "错误：访问被拒绝" ;;
+                        500) log 3 "错误：服务器内部错误" ;;
+                        502|503|504) log 3 "错误：服务器暂时不可用" ;;
+                        *) log 3 "错误：未知的 HTTP 错误" ;;
+                    esac
+                fi
+                
+                # 网络连接错误检查
+                if echo "$curl_output" | grep -qi "could not resolve"; then
+                    log 3 "错误：无法解析域名，请检查网络连接"
+                elif echo "$curl_output" | grep -qi "connection timed out"; then
+                    log 3 "错误：连接超时，请检查网络状态"
+                elif echo "$curl_output" | grep -qi "certificate"; then
+                    log 3 "错误：SSL 证书验证失败"
+                fi
+                
+                ((current_try++))
+                if [[ $current_try -le $retry_count ]]; then
+                    log 1 "5秒后重试..."
+                    sleep 5
+                else
+                    log 3 "达到最大重试次数，下载失败"
+                    success=false
+                    break 2  # 跳出外层循环
+                fi
+            fi
+        done
+        current_try=1  # 重置重试计数器，准备下载下一个文件
     done
 
     if $success; then
         # 更新字体缓存
         log 1 "更新字体缓存..."
         
-        # 先尝试用用户权限更新
-        if ! sudo -u "$REAL_USER" fc-cache -f "$font_dir" 2>/dev/null; then
-            log 2 "用户权限更新缓存失败，尝试使用root权限..."
-            # 如果失败，使用root权限更新
-            if ! fc-cache -f "$font_dir" 2>/dev/null; then
+        # 首先尝试使用 root 权限更新字体缓存
+        if ! sudo fc-cache -f -v "$font_dir" 2>/dev/null; then
+            log 2 "root 权限更新缓存失败，尝试使用当前用户权限..."
+            # 如果失败，使用当前用户权限更新
+            if ! fc-cache -f -v "$font_dir" 2>/dev/null; then
                 log 3 "字体缓存更新失败"
                 return 1
             fi
@@ -351,30 +421,62 @@ install_MesloLGS_fonts() {
         # 等待字体缓存更新完成
         sleep 2
         
-        # 检查字体文件是否存在
-        local font_found=false
+        # 使用多种方式验证字体安装
+        log 1 "验证字体安装..."
+        
+        # 1. 检查字体文件是否存在
+        local all_fonts_found=true
         for font in "${fonts[@]}"; do
-            if [[ -f "$font_dir/$font" ]]; then
-                font_found=true
+            if [[ ! -f "$font_dir/$font" ]]; then
+                all_fonts_found=false
+                log 3 "字体文件缺失: $font"
                 break
             fi
         done
-
-        if $font_found; then
+        
+        # 2. 使用 fc-list 检查字体是否被系统识别
+        local font_recognized=false
+        if fc-list | grep -i "MesloLGS NF" > /dev/null; then
+            font_recognized=true
+            log 2 "系统已识别 MesloLGS NF 字体"
+        else
+            log 3 "系统未能识别 MesloLGS NF 字体"
+        fi
+        
+        # 3. 显示详细的字体信息
+        log 1 "字体详细信息:"
+        fc-list | grep -i "MesloLGS NF"
+        
+        # 4. 检查字体缓存
+        log 1 "检查字体缓存:"
+        fc-cache -v 2>&1 | grep -i "meslo"
+        
+        if $all_fonts_found && $font_recognized; then
             log 2 "MesloLGS NF 字体安装成功"
-            # 检查是否在WSL环境中
+            # 检查是否在 WSL 环境中
             if grep -qi microsoft /proc/version; then
-                log 1 "检测到WSL环境，请在Windows终端中手动安装字体文件"
+                log 1 "检测到 WSL 环境，请在 Windows 终端中手动安装字体文件"
                 log 1 "字体文件位置: $(wslpath -w "$font_dir")"
-                log 1 "请在Windows中双击字体文件进行安装"
-                printf "WSL 中无法像传统 Linux 系统一样直接安装字体。WSL 运行在 Windows 之上，字体渲染由 Windows 系统完成，而非 WSL 本身。\n因此，要在 WSL 终端使用新字体，必须在 Windows 系统中安装字体。安装后，在运行 WSL 发行版的终端模拟器（如 Windows Terminal 或 ConEmu）中选择该字体即可。\n步骤：\n1. 在 Windows 中安装字体：下载字体文件（通常为 .ttf 或 .otf 文件），双击安装。\n2. 在终端中选择字体：打开终端模拟器的设置，更改为新安装的字体。具体步骤取决于使用的终端模拟器。\n简而言之，字体安装在 Windows 宿主机操作系统中，WSL 环境使用宿主系统提供的字体。\n"
+                printf "WSL 中无法像传统 Linux 系统一样直接安装字体。WSL 运行在 Windows 之上，字体渲染由 Windows 系统完成。\n请在 Windows 中双击字体文件进行安装。\n"
                 
+                # 在 WSL 环境中提供额外的验证步骤说明
+                log 1 "要在 Windows 中验证字体安装："
+                log 1 "1. 打开 Windows 设置 -> 个性化 -> 字体"
+                log 1 "2. 在搜索框中输入 'MesloLGS'"
+                log 1 "3. 或使用 Windows 终端，在配置文件中将字体设置为 'MesloLGS NF'"
+            else
+                # 在原生 Linux 中提供额外的验证步骤
+                log 1 "要在应用程序中验证字体："
+                log 1 "1. 运行 'fc-list | grep -i meslo' 查看完整字体信息"
+                log 1 "2. 某些应用程序可能需要重启才能识别新字体"
+                log 1 "3. 在终端模拟器中，字体名称应该显示为 'MesloLGS NF'"
             fi
-            # 确保所有用户都能访问字体
+            
+            # 确保所有用户可读字体
             sudo chmod -R +r "$font_dir"
             return 0
         else
-            log 3 "字体文件未能成功保存"
+            log 3 "字体安装失败"
             return 1
         fi
     else
@@ -386,21 +488,90 @@ install_MesloLGS_fonts() {
 # 卸载字体
 uninstall_MesloLGS_fonts() {
     log 1 "正在卸载 MesloLGS NF 字体..."
-    local font_dir="$REAL_HOME/.local/share/fonts"
+    local font_dir="/usr/share/fonts/meslo"
+    local font_cache_dir="/var/cache/fontconfig"
+    
+    # 检查是否在 WSL 环境中
+    if grep -qi microsoft /proc/version; then
+        log 1 "检测到 WSL 环境"
+        log 1 "请在 Windows 中手动卸载字体："
+        log 1 "1. 打开 Windows 设置 -> 个性化 -> 字体"
+        log 1 "2. 搜索 'MesloLGS'"
+        log 1 "3. 选择字体并点击卸载"
+        # 仍然删除 WSL 中的字体文件
+        if [[ -d "$font_dir" ]]; then
+            log 1 "删除 WSL 中的字体文件..."
+            sudo rm -rf "$font_dir"
+        fi
+        return 0
+    fi
     
     if [[ -d "$font_dir" ]]; then
-        sudo -u "$REAL_USER" rm -f "$font_dir"/MesloLGS*
-        sudo -u "$REAL_USER" fc-cache -f -v
+        # 使用 root 权限删除整个字体目录
+        log 1 "删除字体目录..."
+        sudo rm -rf "$font_dir"
         
-        if ! fc-list | grep -q "MesloLGS"; then
-            log 2 "MesloLGS NF 字体卸载成功"
-        else
-            log 3 "字体未完全卸载"
+        # 强制更新字体缓存
+        log 1 "更新字体缓存..."
+        if ! sudo fc-cache -f -v 2>/dev/null; then
+            log 2 "root 权限更新缓存失败，尝试使用当前用户权限..."
+            fc-cache -f -v 2>/dev/null
+        fi
+        
+        # 等待缓存更新完成
+        sleep 2
+        
+        # 验证卸载结果
+        if fc-list | grep -qi "MesloLGS"; then
+            log 3 "字体未完全卸载，仍然在系统中发现 MesloLGS 字体"
+            # 显示剩余字体的位置
+            log 1 "剩余字体位置："
+            fc-list | grep -i "MesloLGS"
             return 1
+        else
+            log 2 "MesloLGS NF 字体卸载成功"
+            log 1 "提示：某些应用程序可能需要重启才能反映字体变化"
+            return 0
         fi
     else
         log 2 "字体目录不存在，无需卸载"
+        return 0
     fi
+}
+
+# 在文件开头插入内容的辅助函数
+insert_content_at_beginning() {
+    local target_file="$1"
+    local content="$2"
+    local temp_dir="${REAL_HOME:-/tmp}"
+    local temp_file="${temp_dir}/.zshrc.tmp.$$"
+    
+    # 确保临时文件不存在
+    rm -f "$temp_file"
+    
+    # 写入新内容到临时文件
+    echo "$content" > "$temp_file" || {
+        log 3 "无法写入临时文件 $temp_file"
+        return 1
+    }
+    
+    # 追加原始内容
+    cat "$target_file" >> "$temp_file" || {
+        log 3 "无法追加原始内容到临时文件"
+        rm -f "$temp_file"
+        return 1
+    }
+    
+    # 替换原始文件
+    sudo -u "$REAL_USER" cp "$temp_file" "$target_file" || {
+        log 3 "无法更新 $target_file"
+        rm -f "$temp_file"
+        return 1
+    }
+    
+    # 清理临时文件
+    rm -f "$temp_file"
+    return 0
 }
 
 # 配置 oh-my-zsh
@@ -475,6 +646,7 @@ configure_powerlevel10k() {
     log 1 "配置 powerlevel10k 主题..."
     
     local theme_dir="$OH_MY_ZSH_CUSTOM/themes/powerlevel10k"
+    local zshrc="$REAL_HOME/.zshrc"
     
     # 克隆主题
     if [[ ! -d "$theme_dir" ]]; then
@@ -484,18 +656,48 @@ configure_powerlevel10k() {
         fi
     fi
 
-    # 配置主题
-    local zshrc="$REAL_HOME/.zshrc"
+    # 配置主题源
     local theme_source="source $theme_dir/powerlevel10k.zsh-theme"
-    
     if ! grep -q "$theme_source" "$zshrc"; then
-        echo "$theme_source" | sudo -u "$REAL_USER" tee -a "$zshrc" > /dev/null
+        if ! insert_content_at_beginning "$zshrc" "$theme_source"; then
+            log 3 "添加主题源到 .zshrc 失败"
+            return 1
+        fi
+        log 2 "powerlevel10k 主题已添加到 $zshrc 的开头"
     fi
     
     # 设置主题
     sudo -u "$REAL_USER" sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$zshrc"
 
-    # 下载 .p10k.zsh
+    # 设置 instant prompt
+    log 1 "在 $zshrc 的开头添加 Powerlevel10k instant prompt"
+    local instant_prompt='### Powerlevel10k instant prompt
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+### Powerlevel10k instant prompt'
+
+    if ! grep -q '^### Powerlevel10k instant prompt' "$zshrc"; then
+        if ! insert_content_at_beginning "$zshrc" "$instant_prompt"; then
+            log 3 "添加 instant prompt 到 .zshrc 失败"
+            return 1
+        fi
+        log 2 "Powerlevel10k instant prompt 已添加到 $zshrc 的开头"
+    fi
+
+    # 添加p10k配置提示
+    local p10k_hint='# To customize prompt, run p10k configure or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh'
+    if ! grep -q "source ~/.p10k.zsh" "$zshrc"; then
+        echo "$p10k_hint" | sudo -u "$REAL_USER" tee -a "$zshrc" > /dev/null
+        log 2 "p10k配置提示已添加到 $zshrc 的末尾"
+    fi
+
+    # 下载 p10k 配置文件
+    log 1 "下载 .p10k.zsh 配置文件"
     if ! sudo -u "$REAL_USER" curl -L \
         --retry 3 \
         --retry-delay 5 \
@@ -504,10 +706,12 @@ configure_powerlevel10k() {
         --max-time 120 \
         --progress-bar \
         -o "$REAL_HOME/.p10k.zsh" \
-        "https://github.com/gushmazuko/Powerlevel10k/raw/refs/heads/master/.p10k.zsh"; then
+        "https://raw.githubusercontent.com/cogitate3/setupSparkyLinux/refs/heads/main/config/.p10k.zsh"; then
         log 3 "下载 .p10k.zsh 失败"
         return 1
     fi
+
+ 
 
     # 修改.zshrc中的默认启动项
     local wizard_config='POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'
@@ -517,6 +721,9 @@ configure_powerlevel10k() {
 
     # 安装字体
     install_MesloLGS_fonts
+
+    log 2 ".zshrc 已更新，将在下次启动 zsh 时生效，重新打开终端就会切换到zsh环境了"
+
 }
 
 # 卸载 Powerlevel10k
@@ -541,6 +748,18 @@ uninstall_powerlevel10k() {
     if [[ -f "$zshrc" ]]; then
         sudo -u "$REAL_USER" sed -i '/source.*powerlevel10k.*powerlevel10k.zsh-theme/d' "$zshrc"
         sudo -u "$REAL_USER" sed -i 's/^ZSH_THEME="powerlevel10k\/powerlevel10k"/ZSH_THEME="robbyrussell"/' "$zshrc"
+    fi
+
+    # 删除 Powerlevel10k instant prompt
+    if [[ -f "$zshrc" ]]; then
+        sudo -u "$REAL_USER" sed -i '/^### Powerlevel10k instant prompt/,/^### Powerlevel10k instant prompt$/d' "$zshrc"
+    fi
+
+
+    # 删除 p10k 配置提示
+    if [[ -f "$zshrc" ]]; then
+        sudo -u "$REAL_USER" sed -i '/^# To customize prompt, run p10k configure or edit \/\.p10k\.zsh\./d' "$zshrc"
+        sudo -u "$REAL_USER" sed -i '/^\[\[ ! -f \/\.p10k\.zsh \]\] \|\| source \/\.p10k\.zsh$/d' "$zshrc"
     fi
 
     # 卸载字体
@@ -613,13 +832,14 @@ main_zsh_setup() {
             configure_powerlevel10k
             log 2 "Zsh 和 oh-my-zsh 已安装和配置完成。并已配置 Powerlevel10k 主题。安装了MesloLGS字体"
             log 2 "可以输入命令p10k configure手动配置其他主题。"
+            log 2 "可以输入命令tail -f ${CURRENT_LOG_FILE}，查看详细安装记录"
             ;;
         uninstall)
             uninstall_powerlevel10k
             uninstall_zsh_and_ohmyzsh
             ;;
         *)
-            echo "用法: sudo $0 {install|uninstall}"
+            echo "用法: sudo bash $0 {install|uninstall}"
             exit 1
             ;;
     esac
@@ -627,7 +847,7 @@ main_zsh_setup() {
 
 # 检查参数并执行
 if [[ "$#" -ne 1 ]]; then
-    echo "用法: sudo $0 {install|uninstall}"
+    echo "用法: sudo bash $0 {install|uninstall}"
     exit 1
 fi
 

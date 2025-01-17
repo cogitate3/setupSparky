@@ -1,10 +1,10 @@
 #!/bin/bash
 ###############################################################################
-# 文件名: 902rime_setup.sh
+# 文件名: setup_rime.sh
 # 描述: 雾凇拼音输入法一键安装/卸载脚本 (Freedesktop标准版本)
 # 作者: CodeParetoImpove Cogitate3 Claude.ai
 # 版本: 2.1
-# 使用方法: sudo bash rime_setup.sh install|uninstall
+# 使用方法: sudo bash setup_rime.sh install|uninstall
 # 系统要求: 任何遵循freedesktop.org标准的Linux发行版
 ###############################################################################
 

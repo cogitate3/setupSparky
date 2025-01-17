@@ -1,8 +1,10 @@
-# Sparky Linux
+# Setup Sparky Linux 7.5
 
-[English](README.en.md)
+[English](README.en.md) [使用说明](setup.md) [User Manual](setup.en.md)
 
 一键安装脚本，用于设置和自定义 Sparky Linux 7.5（或其他基于 Debian Bookworm 的发行版）。
+
+![安装菜单](https://raw.githubusercontent.com/alt369/picgo/main/202501161907286.png)
 
 ## 概述
 
@@ -51,22 +53,10 @@
 2. 运行安装脚本：
 
    ```bash
-   bash 901afterLinuxInstall.sh
+   sudo bash ./901afterLinuxInstall.sh
    ```
 
 3. 按照屏幕上的说明完成安装。
-
-## 下一步计划：
-
-- [x] 一键安装和配置 zsh 及其插件和界面定制
-- 一键配置挂载 webdav 远程文件夹
-- 一键安装中文输入法
-- 添加 plank 的自启动配置
-- 添加 angrysearch 的自启动配置
-- 添加云存储
-- 添加 webdav
-- 添加实用的桌面截图翻译软件
-- 测试和优化脚本在 MX Linux 和 Linux Mint 发行版上的兼容性
 
 ## 未来计划
 
@@ -98,3 +88,16 @@
 - **Grok-beta**：有了这个工具，不用再担心处理糟糕的英语了。
 
 这些工具和平台共同让技术挑战变得轻而易举，前所未有地提升了我们的效率。感谢它们的存在，让我们的工作和学习体验更加顺畅和高效！
+
+## 下一步计划：
+
+- [x] 一键安装和配置 zsh 及其插件和界面定制
+- 一键配置挂载 webdav 远程文件夹
+- [x] 一键安装中文输入法
+- 添加 plank 的自启动配置
+- 添加 angrysearch 的自启动配置
+- 添加云存储
+- 添加 webdav
+- 添加实用的桌面截图翻译软件
+- 测试和优化脚本在 MX Linux 和 Linux Mint 发行版上的兼容性
+- 筛选软件，优化菜单布置，使其更易于导航，
