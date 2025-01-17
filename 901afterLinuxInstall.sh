@@ -6,9 +6,14 @@ source 003get_download_link.sh
 source 006double-Esc-to-sudo.sh
 source 005install_fonts.sh
 source 010add_autostart_app.sh
-# 先设置日志
-log "/tmp/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件"
-log 2 "日志记录在${CURRENT_LOG_FILE}"
+
+# # 先确保日志目录存在
+# LOG_DIR="$HOME/logs"
+# mkdir -p "$LOG_DIR"
+
+# # 先设置日志
+# log "/tmp/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件"
+# log 2 "日志记录在${CURRENT_LOG_FILE}"
 
 
 # check_root函数
@@ -2541,7 +2546,16 @@ handle_menu() {
 main() {
     clear
     # 系统更新，分开执行并检查错误
+    # 先确保日志目录存在
+    # LOG_DIR="$HOME/logs"
+    mkdir -p "$HOME/logs"
+
+    # 先设置日志
+    log "$HOME/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件"
+    log 2 "日志记录在${CURRENT_LOG_FILE}"
     log 1 "更新系统软件包列表..."
+    check_and_install_dependencies "jq" "git" "curl" "wget" "sudo" "terminator" "btop"
+    
     if ! sudo apt update; then
         log 3 "更新软件包列表失败"
         return 1
@@ -2571,6 +2585,5 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # ${0} 是当前执行的命令名称
     # 当两者相等时，表示脚本是被直接执行（比如 ./script.sh）
     # 当两者不相等时，表示脚本是被source/点源方式执行（比如 source script.sh 或 . script.sh）
-    check_and_install_dependencies "jq" "git" "curl" "wget" "sudo" "terminator" "btop"
     main
 fi
