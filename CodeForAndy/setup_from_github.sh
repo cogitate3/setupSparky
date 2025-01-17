@@ -308,7 +308,7 @@ function get_download_link() {
 
 # 过程函数：统一检查软件是否已安装的函数
 # 返回0表示已安装，返回1表示未安装
-check_if_installed() {
+function check_if_installed() {
     local package_name="$1"
     
     # 检查常见的包管理器
