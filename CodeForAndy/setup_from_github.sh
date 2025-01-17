@@ -846,7 +846,7 @@ function setup_from_github() {
 }
 
 log "$HOME/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件到$HOME/logs/$(basename "$0").log"
-log "~/.log.log" 1 "开始安装"
+log "开始安装"
 # setup_from_github "https://github.com/pot-app/pot-desktop/releases" ".*amd64.*\.deb$" "install" "pot"
 # log "~/.log.log" 1 "开始安装"
 setup_from_github "uninstall" "pot"
