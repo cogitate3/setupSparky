@@ -6,6 +6,10 @@ source "$(dirname "$0")/setup_from_github.sh"
 # Set up logging
 log "$HOME/logs/$(basename "$0").log" 1 "Starting setup menu"
 
+# 定义颜色变量
+GREEN="${COLORS[green]}"
+RESET="${COLORS[reset]}"
+
 # 定义软件名称数组（保持顺序）
 app_names=(
     "WaveTerm"
@@ -48,13 +52,13 @@ app_pkgnames=(
 
 # 显示菜单函数
 show_menu() {
-    echo -e "\n=== 软件安装菜单 ==="
-    echo "0. 退出"
+    echo -e "\n${GREEN}=== 软件安装菜单 ===${RESET}"
+    echo -e "${GREEN}0. 退出${RESET}"
     for i in "${!app_names[@]}"; do
-        echo "$((i+1)). 安装 ${app_names[$i]}"
+        echo -e "${GREEN}$((i+1)). 安装 ${app_names[$i]}${RESET}"
     done
-    echo "a. 安装所有软件"
-    echo -e "================="
+    echo -e "${GREEN}a. 安装所有软件${RESET}"
+    echo -e "${GREEN}=================${RESET}"
 }
 
 # 安装指定软件
