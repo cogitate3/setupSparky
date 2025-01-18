@@ -432,7 +432,72 @@ function install_package() {
         return $install_status
     fi
 }
+###############################################################################
+# 下面2个函数的作用：检查依赖，检查deb包的依赖
+# 
+###############################################################################
+# 过程函数：检查和安装依赖的函数
+function check_and_install_dependencies() {
+    local dependencies=("$@")
+    local missing_deps=()
+    
+    # 检查每个依赖是否已安装
+    for dep in "${dependencies[@]}"; do
+        if ! dpkg -l | grep -q "^ii\s*$dep"; then
+            missing_deps+=("$dep")
+        fi
+    done
+    
+    # 如果有缺失的依赖，尝试安装它们
+    if [ ${#missing_deps[@]} -ne 0 ]; then
+        log 1 "安装缺失的依赖: ${missing_deps[*]}"
+        if ! sudo apt update; then
+            log 3 "更新软件包列表失败"
+            return 1
+        fi
+        if ! sudo apt install -y "${missing_deps[@]}"; then
+            log 3 "安装依赖失败: ${missing_deps[*]}"
+            return 1
+        fi
+        log 1 "依赖安装成功"
+    else
+        log 1 "所有依赖已满足"
+    fi
+    return 0
+}
 
+# 过程函数：检查deb包依赖的函数，对于下载的deb包
+function check_deb_dependencies() {
+    local deb_file="$1"
+    
+    # 检查文件是否存在
+    if [ ! -f "$deb_file" ]; then
+        log 3 "deb文件不存在: $deb_file"
+        return 1
+    fi
+    
+    # 获取依赖列表
+    log 1 "检查 $deb_file 的依赖..."
+    local deps=$(dpkg-deb -f "$deb_file" Depends | tr ',' '\n' | sed 's/([^)]*)//g' | sed 's/|.*//g' | tr -d ' ')
+    
+    # 显示依赖
+    log 1 "包含以下依赖:"
+    echo "$deps" | while read -r dep; do
+        if [ ! -z "$dep" ]; then
+            log 1 "- $dep"
+        fi
+    done
+    
+    # 检查并安装依赖
+    if ! check_and_install_dependencies $deps; then
+        log 3 "依赖安装失败"
+        return 1
+    fi
+    
+    return 0
+}
+
+# 过程函数：检测桌面环境的函数,以便决定如何添加自启动
 function detect_desktop_environment() {
     # 首先检查当前会话类型
     if [[ -n "$XDG_CURRENT_DESKTOP" ]]; then
@@ -820,7 +885,7 @@ function setup_from_github() {
         fi
         log 2 "发现新版本，开始更新..."
     else
-        log 1 "未找到 $package_name，开始下载安装"
+        log 1 "未找到 $package_name，开始下载安装..."
     fi
     
     # 获取下载链接
