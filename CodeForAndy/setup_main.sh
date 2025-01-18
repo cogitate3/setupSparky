@@ -45,7 +45,7 @@ app_patterns=(
 app_pkgnames=(
     "waveterm"
     "stretchly"
-    "ABDownloadManager"
+    "abdownloadmanager"
     "localsend"
     "tabby"
     "open-ai-translator"
