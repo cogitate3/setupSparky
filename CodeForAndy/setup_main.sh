@@ -5,7 +5,7 @@ source "$(dirname "$0")/setup_from_github.sh"
 
 # Set up logging
 log "$HOME/logs/$(basename "$0").log" 1 "Starting setup menu"
-log "安装日志记录在${CURRENT_LOG_FILE}"
+log 1 "安装日志记录在${CURRENT_LOG_FILE}"
 
 # 定义颜色变量
 GREEN="${COLORS[green]}"
