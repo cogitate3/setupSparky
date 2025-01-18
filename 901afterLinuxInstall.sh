@@ -2552,7 +2552,8 @@ main() {
 
     # 先设置日志
      
-    log "$HOME/logs/$(basename "$0").log" 1 "日志记录在${CURRENT_LOG_FILE}"
+    log "$HOME/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件路径"
+    log 1 "日志记录在${CURRENT_LOG_FILE}"
     log 1 "更新系统软件包列表..."
     check_and_install_dependencies "jq" "git" "curl" "wget" "sudo" "terminator" "btop"
 
