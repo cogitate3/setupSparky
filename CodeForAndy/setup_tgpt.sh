@@ -72,6 +72,42 @@ Examples:
 EOF
 }
 
+
+# 显示成功信息
+show_success() {
+    echo -e "
+${GREEN}=== tgpt安装成功 ===${NC}
+
+${YELLOW}重要: 请重新打开终端，使环境变量生效${NC}
+${YELLOW}或者: 请运行以下命令使环境变量生效:${NC}
+${GREEN}如果使用bash，source ~/.bashrc${NC} # 如果使用bash
+${GREEN}如果使用zsh，source ~/.zshrc${NC}  # 如果使用zsh
+
+${YELLOW}使用方法:${NC}
+1. 第一次运行时，在终端中输入 ${GREEN}'tgpt -h'${NC} 查看帮助
+2. ${YELLOW}常用命令:${NC}
+   - ${GREEN}tgpt -i${NC}: 多轮对话模式,输入 exit 退出
+   - ${GREEN}tgpt -m${NC}: 对话中,可以输入多行文字,回车换行, Ctrl + D 发送
+
+3. ${YELLOW}Examples:${NC}
+${GREEN}tgpt "What is internet?"${NC}
+${GREEN}tgpt -m${NC}
+${GREEN}tgpt -s "How to update my system?"${NC}
+${GREEN}tgpt --provider duckduckgo "What is 1+1"${NC}
+${GREEN}tgpt --provider openai --key "sk-xxxx" --model "gpt-3.5-turbo" "What is 1+1"${NC}
+${GREEN}cat install.sh | tgpt "Explain the code"${NC}
+
+4. ${YELLOW}Flags:${NC}
+${GREEN}-s, --shell    Generate and Execute shell commands. (Experimental)${NC} 
+${GREEN}-c, --code     Generate Code. (Experimental)${NC}
+${GREEN}-q, --quiet    Gives response back without loading animation${NC}
+${GREEN}-w, --whole    Gives response back as a whole text${NC}
+${GREEN}-img, --image  Generate images from text${NC}
+${GREEN}--provider     Set Provider. Detailed information has been provided below. (Env: AI_PROVIDER)${NC}
+
+"
+}
+
 # 获取远程最新版本
 get_remote_version() {
     local version
@@ -234,17 +270,11 @@ install() {
     log_info "Version: $new_version"
     
     # 显示使用说明（绿色）
-    printf "\n${GREEN}Usage Examples:
-    tgpt \"Your question here\"     Ask a question
-    tgpt --chat                   Start chat mode
-    tgpt --image \"description\"    Generate an image
-    tgpt -h                       Show more options
-
-For more information, visit: https://github.com/aandrew-me/tgpt${NC}\n"
+    show_success 
 }
 
 # 主函数
-steup_tgpt() {
+setup_tgpt() {
     case "${1:-install}" in
         install|"")
             install
@@ -265,5 +295,5 @@ steup_tgpt() {
 
 # 只有当脚本直接运行时才执行主程序
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    steup_tgpt "$@"
+    setup_tgpt "$@"
 fi
