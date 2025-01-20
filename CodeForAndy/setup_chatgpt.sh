@@ -10,11 +10,13 @@
 #   卸载: ./setup_chatgpt.sh uninstall
 ###############################################################################
 
-# Error handling function
-error_exit() {
-    echo "ERROR: $1" >&2
-    exit "${2:-1}"
-}
+source "$(dirname "$0")/log.sh"
+# 设置日志文件
+mkdir -p "$HOME/logs"
+
+# 先设置日志
+log "$HOME/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件路径"
+log 1 "日志记录在${CURRENT_LOG_FILE}"
 
 # Get real user when script is run with sudo
 get_real_user() {
@@ -23,7 +25,8 @@ get_real_user() {
     elif [ -n "$USER" ]; then
         echo "$USER"
     else
-        error_exit "Could not determine the real user"
+        log 3 "Could not determine the real user"
+        exit 1
     fi
 }
 
@@ -32,25 +35,28 @@ get_real_home() {
     local real_user
     real_user=$(get_real_user)
     local home_dir
-    
+
     if [ "$real_user" = "root" ]; then
-        error_exit "This script should not be run as the root user directly. Please use 'sudo' instead."
+        log 3 "This script should not be run as the root user directly. Please use 'sudo' instead."
+        exit 1
     fi
-    
+
     home_dir=$(getent passwd "$real_user" | cut -d: -f6)
     if [ -z "$home_dir" ]; then
-        error_exit "Could not determine home directory for user $real_user"
+        log 3 "Could not determine home directory for user $real_user"
+        exit 1
     fi
-    
+
     echo "$home_dir"
 }
 
 # Check sudo privileges
 check_sudo() {
     if ! sudo -v &>/dev/null; then
-        error_exit "This script requires sudo privileges. Please run with sudo or grant sudo access."
+        log 3 "This script requires sudo privileges. Please run with sudo or grant sudo access."
+        exit 1
     fi
-    
+
     # Keep sudo alive
     while true; do
         sudo -n true
@@ -67,54 +73,64 @@ check_dependencies() {
             missing_deps+=("$cmd")
         fi
     done
-    
+
     if [ ${#missing_deps[@]} -ne 0 ]; then
-        error_exit "Missing required dependencies: ${missing_deps[*]}"
+        log 3 "Missing required dependencies: ${missing_deps[*]}"
+        exit 1
     fi
 }
 
 # Function to install glow
 install_glow() {
-    echo "Installing glow for Markdown rendering..."
-    
+    log 1 "Installing glow for Markdown rendering..."
+
     # Check if system is Debian-based
     if ! command -v apt-get >/dev/null 2>&1; then
-        error_exit "This script currently only supports Debian-based systems"
+        log 3 "This script currently only supports Debian-based systems"
+        exit 1
     fi
 
     # Create keyrings directory if it doesn't exist
-    sudo mkdir -p /etc/apt/keyrings || error_exit "Failed to create keyrings directory"
-    
+    sudo mkdir -p /etc/apt/keyrings || {
+        log 3 "Failed to create keyrings directory"
+        exit 1
+    }
+
     # Download and install GPG key
-    echo "Adding Charm repository GPG key..."
+    log 1 "Adding Charm repository GPG key..."
     if ! curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg; then
-        error_exit "Failed to add Charm GPG key"
+        log 3 "Failed to add Charm GPG key"
+        exit 1
     fi
-    
+
     # Add repository
-    echo "Adding Charm repository..."
-    if ! echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | sudo tee /etc/apt/sources.list.d/charm.list > /dev/null; then
-        error_exit "Failed to add Charm repository"
+    log 1 "Adding Charm repository..."
+    if ! echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | sudo tee /etc/apt/sources.list.d/charm.list >/dev/null; then
+        log 3 "Failed to add Charm repository"
+        exit 1
     fi
-    
+
     # Update package list
-    echo "Updating package list..."
+    log 1 "Updating package list..."
     if ! sudo apt-get update; then
-        error_exit "Failed to update package list"
+        log 3 "Failed to update package list"
+        exit 1
     fi
-    
+
     # Install glow
-    echo "Installing glow..."
+    log 1 "Installing glow..."
     if ! sudo apt-get install -y glow; then
-        error_exit "Failed to install glow"
+        log 3 "Failed to install glow"
+        exit 1
     fi
-    
+
     # Verify installation
     if ! command -v glow >/dev/null 2>&1; then
-        error_exit "Glow installation verification failed"
+        log 3 "Glow installation verification failed"
+        exit 1
     fi
-    
-    echo "Glow installed successfully!"
+
+    log 1 "Glow installed successfully!"
 }
 
 # Function to update shell config files
@@ -139,14 +155,18 @@ update_shell_configs() {
             if [[ "$action" == "add" ]]; then
                 if ! grep -q "source $env_file" "$config"; then
                     # Use real user to modify their own config files
-                    sudo -u "$real_user" tee -a "$config" >/dev/null <<< "source $env_file" || \
-                        error_exit "Failed to update $config"
+                    sudo -u "$real_user" tee -a "$config" >/dev/null <<<"source $env_file" ||
+                        {
+                            log 3 "Failed to update $config"
+                            exit 1
+                        }
                     updated=true
                 fi
             elif [[ "$action" == "remove" ]]; then
                 # Use real user to modify their own config files
                 if ! sudo -u "$real_user" sed -i "/source ${escaped_env_file}/d" "$config"; then
-                    error_exit "Failed to update $config"
+                    log 3 "Failed to update $config"
+                    exit 1
                 fi
                 updated=true
             fi
@@ -154,10 +174,10 @@ update_shell_configs() {
     done
 
     if $updated; then
-        echo "Shell configurations have been updated for user $real_user"
-        echo "Please restart your shell or run 'source ~/.bashrc' or 'source ~/.zshrc' to apply changes."
+        log 1 "Shell configurations have been updated for user $real_user"
+        log 1 "Please restart your shell or run 'source ~/.bashrc' or 'source ~/.zshrc' to apply changes."
     else
-        echo "No shell configurations were updated for user $real_user"
+        log 1 "No shell configurations were updated for user $real_user"
     fi
 }
 
@@ -165,7 +185,7 @@ update_shell_configs() {
 manage_chatgpt_sh() {
     local action="$1"
     local install_path="/usr/local/bin/chatgpt.sh"
-    
+
     # Get correct home directory
     local real_home
     real_home=$(get_real_home)
@@ -175,12 +195,18 @@ manage_chatgpt_sh() {
     # Validate real user and home directory
     local real_user
     real_user=$(get_real_user)
-    echo "Operating for user: $real_user (home: $real_home)"
+    log 1 "Operating for user: $real_user (home: $real_home)"
 
     # Validate input
-    [[ -z "$action" ]] && error_exit "Action parameter is required. Use 'install' or 'uninstall'"
-    [[ "$action" != "install" && "$action" != "uninstall" ]] && \
-        error_exit "Invalid action: $action. Use 'install' or 'uninstall'"
+    [[ -z "$action" ]] && {
+        log 3 "Action parameter is required. Use 'install' or 'uninstall'"
+        exit 1
+    }
+    [[ "$action" != "install" && "$action" != "uninstall" ]] &&
+        {
+            log 3 "Invalid action: $action. Use 'install' or 'uninstall'"
+            exit 1
+        }
 
     # Check dependencies
     check_dependencies
@@ -192,62 +218,68 @@ manage_chatgpt_sh() {
     }
 
     if [[ "$action" == "install" ]]; then
-        echo "Installing chatgpt.sh..."
-        
+        log 1 "Installing chatgpt.sh..."
+
         # Verify sudo access at the start
         check_sudo
-        
+
         # First install glow if not present
         if ! command -v glow >/dev/null 2>&1; then
-            echo "Glow is not installed. Installing..."
+            log 1 "Glow is not installed. Installing..."
             install_glow
         else
-            echo "Glow is already installed."
+            log 1 "Glow is already installed."
         fi
 
         # Check write permissions
         if [[ ! -w "$(dirname "$install_path")" ]]; then
-            error_exit "No write permission to $(dirname "$install_path"). Try running with sudo."
+            log 3 "No write permission to $(dirname "$install_path"). Try running with sudo."
+            exit 1
         fi
 
         # Download chatgpt.sh
         local temp_file=$(mktemp)
         if ! curl -s -o "$temp_file" https://raw.githubusercontent.com/0xacx/chatGPT-shell-cli/main/chatgpt.sh; then
             rm -f "$temp_file"
-            error_exit "Failed to download chatgpt.sh"
+            log 3 "Failed to download chatgpt.sh"
+            exit 1
         fi
 
         # Verify download
         if [[ ! -s "$temp_file" ]]; then
             rm -f "$temp_file"
-            error_exit "Downloaded file is empty"
+            log 3 "Downloaded file is empty"
+            exit 1
         fi
 
         # Move to final location
         if ! mv "$temp_file" "$install_path"; then
             rm -f "$temp_file"
-            error_exit "Failed to install chatgpt.sh to $install_path"
+            log 3 "Failed to install chatgpt.sh to $install_path"
+            exit 1
         fi
 
         # Set permissions (755 = rwxr-xr-x)
         if ! chmod 755 "$install_path"; then
-            error_exit "Failed to set executable permissions for chatgpt.sh"
+            log 3 "Failed to set executable permissions for chatgpt.sh"
+            exit 1
         fi
 
         # Ensure the script is owned by root but readable/executable by all
         if ! chown root:root "$install_path"; then
-            error_exit "Failed to set ownership for chatgpt.sh"
+            log 3 "Failed to set ownership for chatgpt.sh"
+            exit 1
         fi
 
         # Handle API key
         while true; do
             read -p "Enter your OpenAI API key: " openai_key
             if [[ -z "$openai_key" ]]; then
-                echo "API key cannot be empty. Please try again."
+                log 1 "API key cannot be empty. Please try again."
                 continue
             fi
             if [[ ! "$openai_key" =~ ^sk-[A-Za-z0-9]{48}$ ]]; then
-                echo "Warning: API key format looks incorrect. Continue anyway? (y/n)"
+                log 1 "Warning: API key format looks incorrect. Continue anyway? (y/n)"
                 read -r response
                 [[ "$response" != "y" ]] && continue
             fi
@@ -255,84 +287,100 @@ manage_chatgpt_sh() {
         done
 
         # Create backup directory if it doesn't exist
-        sudo -u "$real_user" mkdir -p "$backup_dir" || error_exit "Failed to create backup directory"
+        sudo -u "$real_user" mkdir -p "$backup_dir" || {
+            log 3 "Failed to create backup directory"
+            exit 1
+        }
 
         # Backup existing env file if it exists
         if [[ -f "$env_file" ]]; then
-            sudo -u "$real_user" cp "$env_file" "${env_file}.backup" || \
-                error_exit "Failed to backup existing env file"
+            sudo -u "$real_user" cp "$env_file" "${env_file}.backup" ||
+                {
+                    log 3 "Failed to backup existing env file"
+                    exit 1
+                }
         fi
 
         # Save configurations with proper ownership
         {
             echo "export OPENAI_KEY=$openai_key"
             echo "export MARKDOWN_RENDER=glow"
-        } | sudo -u "$real_user" tee "$env_file" >/dev/null || error_exit "Failed to save configurations"
+        } | sudo -u "$real_user" tee "$env_file" >/dev/null || {
+            log 3 "Failed to save configurations"
+            exit 1
+        }
 
         # Update shell configurations
         update_shell_configs "$env_file" "add"
 
-        echo "Installation completed successfully!"
+        log 1 "Installation completed successfully!"
 
     elif [[ "$action" == "uninstall" ]]; then
-        echo "Uninstalling chatgpt.sh..."
-        
+        log 1 "Uninstalling chatgpt.sh..."
+
         # Verify sudo access
         check_sudo
-        
+
         # Create backup directory
-        sudo -u "$real_user" mkdir -p "$backup_dir" || error_exit "Failed to create backup directory"
+        sudo -u "$real_user" mkdir -p "$backup_dir" || {
+            log 3 "Failed to create backup directory"
+            exit 1
+        }
 
         # Backup existing files
         if [[ -f "$install_path" ]]; then
             # 使用sudo进行复制，然后修改所有权
             if ! sudo cp "$install_path" "$backup_dir/chatgpt.sh.backup"; then
-                error_exit "Failed to backup chatgpt.sh"
+                log 3 "Failed to backup chatgpt.sh"
+                exit 1
             fi
             # 修改备份文件的所有权
             if ! sudo chown "$real_user:$(id -gn "$real_user")" "$backup_dir/chatgpt.sh.backup"; then
-                error_exit "Failed to change ownership of backup file"
+                log 3 "Failed to change ownership of backup file"
+                exit 1
             fi
         fi
-        
+
         if [[ -f "$env_file" ]]; then
             if ! sudo cp "$env_file" "$backup_dir/chatgpt_env.backup"; then
-                error_exit "Failed to backup env file"
+                log 3 "Failed to backup env file"
+                exit 1
             fi
             if ! sudo chown "$real_user:$(id -gn "$real_user")" "$backup_dir/chatgpt_env.backup"; then
-                error_exit "Failed to change ownership of env backup file"
+                log 3 "Failed to change ownership of env backup file"
+                exit 1
             fi
         fi
 
         # Remove files (使用sudo)
         if ! sudo rm -f "$install_path"; then
-            error_exit "Failed to remove $install_path"
+            log 3 "Failed to remove $install_path"
+            exit 1
         fi
         if ! sudo -u "$real_user" rm -f "$env_file"; then
-            error_exit "Failed to remove $env_file"
+            log 3 "Failed to remove $env_file"
+            exit 1
         fi
 
         # Ask if user wants to remove glow
         read -p "Do you want to remove glow Markdown renderer as well? (y/n) " remove_glow
         if [[ "$remove_glow" == "y" ]]; then
-            sudo apt-get remove -y glow || echo "Warning: Failed to remove glow"
+            sudo apt-get remove -y glow || log 2 "Failed to remove glow"
         fi
 
         # Update shell configurations
         update_shell_configs "$env_file" "remove"
 
-        echo "Uninstallation completed successfully!"
-        echo "Backups saved in $backup_dir"
+        log 1 "Uninstallation completed successfully!"
+        log 1 "Backups saved in $backup_dir"
     fi
 }
-
-
 
 # 检查是否使用sudo运行脚本
 check_root_privileges() {
     if [ "$(id -u)" != "0" ]; then
-        echo "ERROR: This script must be run with sudo privileges." >&2
-        echo "Usage: sudo bash $0 <install|uninstall>" >&2
+        log 1 "ERROR: This script must be run with sudo privileges." >&2
+        log 1 "Usage: sudo bash $0 <install|uninstall>" >&2
         exit 1
     fi
 }
@@ -362,13 +410,13 @@ setup_chatgpt() {
 
     # 验证参数有效性
     case "$1" in
-        install|uninstall)
-            manage_chatgpt_sh "$1"
-            ;;
-        *)
-            print_usage
-            exit 1
-            ;;
+    install | uninstall)
+        manage_chatgpt_sh "$1"
+        ;;
+    *)
+        print_usage
+        exit 1
+        ;;
     esac
 }
 

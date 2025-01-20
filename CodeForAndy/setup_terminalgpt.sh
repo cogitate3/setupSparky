@@ -10,78 +10,31 @@
 #   卸载: ./setup_terminalgpt.sh uninstall
 ###############################################################################
 
-# 定义颜色输出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# 初始化日志系统
+source "$(dirname "$0")/log.sh"
+mkdir -p "$HOME/logs"
+LOG_FILE="$HOME/logs/$(dirname "$0").log"
+set_log_file "$LOG_FILE" || exit 1
 
-# 显示错误信息
-show_error() {
-    echo -e "${RED}错误: $1${NC}" >&2
-}
-
-# 显示警告信息
-show_warning() {
-    echo -e "${YELLOW}警告: $1${NC}"
-}
-
-# 显示成功信息
-show_success() {
-    echo -e "${GREEN}成功: $1${NC}"
-}
-
-# 显示信息
-show_info() {
-    echo -e "${NC}$1${NC}"
-}
-
-# 错误处理函数
-handle_error() {
-    show_error "$1"
-    exit 1
-}
-
-# 定义日志文件
-LOG_FILE="$HOME/.terminalgpt/install.log"
-DEBUG=true
-
-# 创建日志目录
-mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
-log_message() {
-    local level="$1"
-    local message="$2"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo -e "[${timestamp}] [${level}] ${message}" >> "$LOG_FILE"
-    if [[ "$DEBUG" == "true" || "$level" != "DEBUG" ]]; then
-        echo -e "[${level}] ${message}" >&2
-    fi
-}
-
-# 显示使用说明
 show_usage() {
-    echo -e "${GREEN}=== TerminalGPT 安装脚本 ===${NC}
-
-${YELLOW}使用方法:${NC}
-    ${GREEN}$0 install${NC}   - 安装 TerminalGPT
-    ${GREEN}$0 uninstall${NC} - 卸载 TerminalGPT
-
-${YELLOW}示例:${NC}
-    ${GREEN}bash $0 install${NC}     # 安装 TerminalGPT
-    ${GREEN}bash $0 uninstall${NC}   # 卸载 TerminalGPT
-
-${YELLOW}注意:${NC}
-- 安装后需要重新加载终端配置
-"
-    exit 1
+    echo "用法:"
+    echo "  安装: $0 install"
+    echo "  卸载: $0 uninstall"
+    echo "示例:"
+    echo "  $0 install    # 安装 TerminalGPT"
+    echo "  $0 uninstall  # 卸载 TerminalGPT"
 }
 
 # 创建备份目录
 create_backup_dir() {
     local backup_dir="$1"
     if [ ! -d "$backup_dir" ]; then
-        mkdir -p "$backup_dir" 2>/dev/null
-        return $?
+        log 1 "正在创建备份目录: $backup_dir"
+        mkdir -p "$backup_dir" 2>/dev/null || {
+            log 3 "无法创建备份目录: $backup_dir"
+            return 1
+        }
+        log 2 "备份目录创建成功: $backup_dir"
     fi
     return 0
 }
@@ -93,9 +46,16 @@ backup_shell_config() {
     local timestamp="$3"
     local filename=$(basename "$source_file")
     local backup_file="$backup_dir/${filename}_${timestamp}.bak"
-    
-    cp "$source_file" "$backup_file" 2>/dev/null
-    return $?
+
+    log 1 "正在备份配置文件: $source_file -> $backup_file"
+
+    cp "$source_file" "$backup_file" 2>/dev/null || {
+        log 3 "无法备份文件: $source_file"
+        return 1
+    }
+
+    log 2 "配置文件备份成功: $backup_file"
+    return 0
 }
 
 # 清理旧备份
@@ -108,76 +68,145 @@ cleanup_old_backups() {
 setup_aliases() {
     local shell_rc="$1"
     local backup_dir="$HOME/.terminalgpt/backups"
-    
-    log_message "INFO" "配置Shell别名: $shell_rc"
+
+    log 1 "开始配置Shell别名: $shell_rc"
 
     # 创建备份目录
-    mkdir -p "$backup_dir"
-    
+    log 1 "正在创建备份目录: $backup_dir"
+    mkdir -p "$backup_dir" || {
+        log 3 "无法创建备份目录: $backup_dir"
+        return 1
+    }
+    log 2 "备份目录创建成功: $backup_dir"
+
     # 备份原始配置
     if [ -f "$shell_rc" ]; then
-        cp "$shell_rc" "${backup_dir}/$(basename ${shell_rc}).$(date +%Y%m%d_%H%M%S).bak"
-        log_message "DEBUG" "已备份 $shell_rc"
+        log 1 "正在备份原始配置文件: $shell_rc"
+        cp "$shell_rc" "${backup_dir}/$(basename ${shell_rc}).$(date +%Y%m%d_%H%M%S).bak" || {
+            log 3 "无法备份文件: $shell_rc"
+            return 1
+        }
+        log 2 "配置文件备份成功: $shell_rc"
+    else
+        log 2 "未找到配置文件: $shell_rc，将创建新文件"
     fi
 
     # 添加别名
+    log 1 "正在添加TerminalGPT别名"
     {
         echo -e "\n# TerminalGPT aliases"
         echo 'alias gpto="terminalgpt one-shot"'
         echo 'alias gptn="terminalgpt new"'
-    } >> "$shell_rc"
+    } >>"$shell_rc" || {
+        log 3 "无法写入文件: $shell_rc"
+        return 1
+    }
 
-    log_message "INFO" "Shell别名配置完成: $shell_rc"
+    # 验证别名是否添加成功
+    if ! grep -q 'alias gpto=' "$shell_rc" || ! grep -q 'alias gptn=' "$shell_rc"; then
+        log 3 "别名添加失败，请检查文件权限"
+        return 1
+    fi
+
+    log 1 "Shell别名配置成功: $shell_rc"
+    log 2 "请运行 'source $shell_rc' 使配置生效"
+    log 2 "您可以使用以下快捷命令:"
+    log 2 "  gpto - 单次对话模式"
+    log 2 "  gptn - 新建对话模式"
+    return 0
 }
 
 # 配置环境变量
 setup_env_path() {
     local path_line='export PATH="$HOME/.local/bin:$PATH"'
     local shell_configs=("$HOME/.bashrc" "$HOME/.zshrc")
-    
+
+    log 1 "开始配置环境变量PATH"
+
+    # 检查当前PATH是否已包含.local/bin
+    if [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
+        log 2 "当前会话PATH已包含.local/bin"
+    else
+        log 1 "当前会话PATH缺少.local/bin，正在添加"
+        export PATH="$HOME/.local/bin:$PATH"
+        log 2 "当前会话PATH更新成功"
+    fi
+
+    # 更新shell配置文件
     for config in "${shell_configs[@]}"; do
         if [ -f "$config" ]; then
+            log 1 "正在检查配置文件: $config"
             if ! grep -q "^$path_line" "$config"; then
-                echo "$path_line" >> "$config"
-                show_success "已添加PATH配置到 $config"
+                log 1 "正在添加PATH配置到: $config"
+                echo "$path_line" >>"$config" || {
+                    log 3 "无法写入文件: $config"
+                    return 1
+                }
+                log 2 "PATH配置添加成功: $config"
+            else
+                log 2 "PATH配置已存在: $config"
             fi
+        else
+            log 2 "未找到配置文件: $config"
         fi
     done
-    
-    # Immediately update current session's PATH
-    export PATH="$HOME/.local/bin:$PATH"
+
+    # 验证PATH配置
+    if ! command -v pipx &>/dev/null && [ -x "$HOME/.local/bin/pipx" ]; then
+        log 3 "PATH配置失败，无法访问.local/bin目录"
+        return 1
+    fi
+
+    log 1 "环境变量PATH配置完成"
+    return 0
 }
 
 # 安装函数
 install_terminalgpt() {
+    log 1 "开始TerminalGPT安装流程"
+
     # 检查Python版本
-    python_version=$(python3 --version 2>&1 | awk '{print $2}') || handle_error "无法获取Python版本"
+    python_version=$(python3 --version 2>&1 | awk '{print $2}') || {
+        log 3 "无法获取Python版本"
+        exit 1
+    }
     required_version="3.6"
     if [[ $(echo -e "$python_version\n$required_version" | sort -V | head -n1) != "$required_version" ]]; then
-        handle_error "Python版本必须是3.6或更高版本。当前版本为 $python_version"
+        log 3 "Python版本必须是3.6或更高版本。当前版本为 $python_version"
+        exit 1
     fi
 
     # 确保PATH中包含~/.local/bin
     setup_env_path
 
     # 安装pipx
-    if ! command -v pipx &> /dev/null; then
-        show_warning "pipx未安装，正在安装pipx..."
-        python3 -m pip install --user pipx || handle_error "pipx安装失败"
-        python3 -m pipx ensurepath || handle_error "pipx路径配置失败"
-        
+    if ! command -v pipx &>/dev/null; then
+        log 2 "pipx未安装，正在安装pipx..."
+        python3 -m pip install --user pipx || {
+            log 3 "pipx安装失败"
+            exit 1
+        }
+        python3 -m pipx ensurepath || {
+            log 3 "pipx路径配置失败"
+            exit 1
+        }
+
         # 重新加载PATH
         export PATH="$HOME/.local/bin:$PATH"
-        
+
         # 验证pipx安装
-        if ! command -v pipx &> /dev/null; then
-            handle_error "pipx安装后仍无法使用。请运行: source ~/.bashrc 或 source ~/.zshrc"
+        if ! command -v pipx &>/dev/null; then
+            log 3 "pipx安装后仍无法使用。请运行: source ~/.bashrc 或 source ~/.zshrc"
+            exit 1
         fi
     fi
 
     # 安装TerminalGPT
-    echo "正在使用pipx安装TerminalGPT..."
-    pipx install terminalgpt --force || handle_error "TerminalGPT安装失败"
+    log 1 "正在使用pipx安装TerminalGPT..."
+    pipx install terminalgpt --force || {
+        log 3 "TerminalGPT安装失败"
+        exit 1
+    }
 
     # 等待几秒确保安装完成
     sleep 2
@@ -185,57 +214,48 @@ install_terminalgpt() {
     # 检查安装路径
     local terminalgpt_path="$HOME/.local/bin/terminalgpt"
     if [ ! -f "$terminalgpt_path" ]; then
-        handle_error "找不到TerminalGPT可执行文件: $terminalgpt_path"
+        log 3 "找不到TerminalGPT可执行文件: $terminalgpt_path"
+        exit 1
     fi
 
     # 确保文件有执行权限
-    chmod +x "$terminalgpt_path" || handle_error "无法设置执行权限"
+    chmod +x "$terminalgpt_path" || {
+        log 3 "无法设置执行权限"
+        exit 1
+    }
 
     # 配置Shell环境
     setup_aliases "$HOME/.bashrc"
     [ -f "$HOME/.zshrc" ] && setup_aliases "$HOME/.zshrc"
 
-    show_success "TerminalGPT安装完成！"
-
-    # 显示使用说明
-    echo -e "
-${GREEN}=== TerminalGPT安装成功 ===${NC}
-
-${YELLOW}重要: 请运行以下命令使环境变量生效:${NC}
-${GREEN}source ~/.bashrc${NC}  # 如果使用bash
-${GREEN}source ~/.zshrc${NC}   # 如果使用zsh
-
-${YELLOW}使用方法:${NC}
-1. 第一次运行时，在终端中输入 ${GREEN}'terminalgpt install'${NC} 按提示输入openai api key，开始使用
-2. ${YELLOW}快捷命令:${NC}
-   - ${GREEN}gpto${NC}: 单次对话模式
-   - ${GREEN}gptn${NC}: 新建对话模式
-
-${YELLOW}请运行以下命令使配置生效:${NC}
-${GREEN}source ~/.bashrc${NC}
-${GREEN}source ~/.zshrc${NC} (如果使用zsh)
-
-${YELLOW}首次运行说明:${NC}
-首次运行时，输入terminalgpt install程序会自动引导您完成配置：
-- 设置 OpenAI API Key
-- 选择语言模型
-- 设置输出格式
-
-${YELLOW}如果遇到问题，请检查:${NC}
-- API Key是否正确
-- 网络连接是否正常
-- Python环境是否正确
-- PATH环境变量是否包含 ~/.local/bin
-"
+    echo "TerminalGPT安装完成！"
+    echo "安装成功！请按照以下步骤完成配置："
+    echo "1. 运行 'terminalgpt install' 配置API Key"
+    echo "2. 运行 'source ~/.bashrc' 或 'source ~/.zshrc' 使配置生效"
+    echo "3. 使用 'gpto' 或 'gptn' 开始使用"
+    echo ""
+    echo "如果遇到问题，请检查:"
+    echo "- API Key是否正确"
+    echo "- 网络连接是否正常"
+    echo "- Python环境是否正确"
+    echo "- PATH环境变量是否包含 ~/.local/bin"
+    echo "- 查看日志文件: $LOG_FILE"
 }
 
 # 卸载函数
 uninstall_terminalgpt() {
-    echo "正在卸载TerminalGPT..."
-    
+    log 1 "开始TerminalGPT卸载流程"
+
     # 使用pipx卸载
-    if command -v pipx &> /dev/null; then
-        pipx uninstall terminalgpt || handle_error "TerminalGPT卸载失败"
+    if command -v pipx &>/dev/null; then
+        log 1 "正在使用pipx卸载TerminalGPT..."
+        pipx uninstall terminalgpt || {
+            log 3 "TerminalGPT卸载失败"
+            exit 1
+        }
+        log 2 "pipx卸载完成"
+    else
+        log 2 "pipx未安装，跳过pipx卸载步骤"
     fi
 
     # 定义要删除的目录列表
@@ -249,15 +269,17 @@ uninstall_terminalgpt() {
     # 遍历并删除每个目录
     for dir in "${dirs_to_remove[@]}"; do
         if [ -e "$dir" ]; then
-            echo "删除目录: $dir"
+            log 1 "正在删除目录: $dir"
             rm -rf "$dir" 2>/dev/null || {
-                show_warning "无法删除目录: $dir"
-                # 如果普通删除失败，尝试使用sudo
-                echo "尝试使用sudo删除..."
+                log 2 "无法删除目录: $dir，尝试使用sudo"
                 sudo rm -rf "$dir" 2>/dev/null || {
-                    show_error "无法删除目录: $dir，请手动删除"
+                    log 3 "无法删除目录: $dir，请手动删除"
+                    exit 1
                 }
             }
+            log 2 "成功删除目录: $dir"
+        else
+            log 2 "目录不存在，跳过删除: $dir"
         fi
     done
 
@@ -265,51 +287,86 @@ uninstall_terminalgpt() {
     local config_files=("$HOME/.bashrc" "$HOME/.zshrc")
     for config in "${config_files[@]}"; do
         if [ -f "$config" ]; then
+            log 1 "正在清理配置文件: $config"
             sed -i '/# TerminalGPT aliases/d' "$config"
             sed -i '/alias gpto/d' "$config"
             sed -i '/alias gptn/d' "$config"
-            log_message "DEBUG" "已清理配置: $config"
+            log 2 "成功清理配置文件: $config"
+        else
+            log 2 "配置文件不存在，跳过清理: $config"
         fi
     done
-    
+
     # 确保删除本地bin目录中的符号链接
     if [ -L "$HOME/.local/bin/terminalgpt" ]; then
-        rm -f "$HOME/.local/bin/terminalgpt"
+        log 1 "正在删除符号链接: $HOME/.local/bin/terminalgpt"
+        rm -f "$HOME/.local/bin/terminalgpt" || {
+            log 3 "无法删除符号链接"
+            exit 1
+        }
+        log 2 "成功删除符号链接"
     fi
 
-    show_success "TerminalGPT已完全卸载！"
-    echo "请运行 'source ~/.bashrc' (和 'source ~/.zshrc' 如果使用zsh) 使配置生效"
-}                       
-
+    log 1 "TerminalGPT已完全卸载！"
+    log 1 "请运行以下命令完成清理："
+    log 1 "1. 运行 'source ~/.bashrc' 或 'source ~/.zshrc' 使配置生效"
+    log 1 "2. 检查并删除以下目录（如果存在）："
+    log 1 "   - ~/.terminalgpt"
+    log 1 "   - ~/.config/terminalgpt"
+    log 1 "3. 检查PATH环境变量是否包含 ~/.local/bin"
+    log 1 "4. 查看日志文件: $LOG_FILE 获取更多信息"
+}
 # 主程序
 setup_terminalgpt() {
+    log 1 "开始执行TerminalGPT安装脚本"
+
     # 检查参数个数
     if [ $# -ne 1 ]; then
-        show_error "参数错误"
-        echo -e "\n${YELLOW}正确用法:${NC}"
-        echo -e "  ${GREEN}bash $0 install${NC}     安装 TerminalGPT"
-        echo -e "  ${GREEN}bash $0 uninstall${NC}   卸载 TerminalGPT"
-        exit 1
+        log 3 "参数错误：需要1个参数，但提供了$#个"
+        show_usage
+        return 1
     fi
+
+    # 记录传入的命令
+    log 2 "接收到的命令参数: $1"
 
     # 处理命令
     case "$1" in
-        "install")
-            install_terminalgpt
-            ;;
-        "uninstall")
-            uninstall_terminalgpt
-            ;;
-        *)
-            show_error "无效的命令: $1"
-            echo -e "\n${YELLOW}可用命令:${NC}"
-            echo -e "  ${GREEN}install${NC}    安装 TerminalGPT"
-            echo -e "  ${GREEN}uninstall${NC}  卸载 TerminalGPT"
-            echo -e "\n${YELLOW}示例:${NC}"
-            echo -e "  ${GREEN}bash $0 install${NC}"
-            exit 1
-            ;;
+    "install")
+        log 1 "开始安装TerminalGPT"
+        install_terminalgpt || {
+            log 3 "TerminalGPT安装失败"
+            return 1
+        }
+        log 2 "TerminalGPT安装过程完成"
+        log 1 "安装成功！请按照以下步骤完成配置："
+        log 1 "1. 运行 'terminalgpt install' 配置API Key"
+        log 1 "2. 运行 'source ~/.bashrc' 或 'source ~/.zshrc' 使配置生效"
+        log 1 "3. 使用 'gpto' 或 'gptn' 开始使用"
+        log 1 "4. 查看日志文件: $LOG_FILE 获取更多信息"
+        ;;
+    "uninstall")
+        log 1 "开始卸载TerminalGPT"
+        uninstall_terminalgpt || {
+            log 3 "TerminalGPT卸载失败"
+            return 1
+        }
+        log 2 "TerminalGPT卸载过程完成"
+        log 1 "卸载成功！请运行以下命令清理环境："
+        log 1 "1. 运行 'source ~/.bashrc' 或 'source ~/.zshrc' 使配置生效"
+        log 1 "2. 检查并删除 ~/.terminalgpt 和 ~/.config/terminalgpt 目录"
+        log 1 "3. 查看日志文件: $LOG_FILE 获取更多信息"
+        ;;
+    *)
+        log 3 "无效的命令: $1"
+        log 2 "显示使用说明"
+        show_usage
+        return 1
+        ;;
     esac
+
+    log 1 "TerminalGPT脚本执行完成"
+    return 0
 }
 
 # 只有当脚本直接运行时才执行主程序

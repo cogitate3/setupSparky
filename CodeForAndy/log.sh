@@ -82,7 +82,7 @@ set_log_file() {
     if ! touch "$file_path" 2>/dev/null; then
         echo "错误: 无法创建或访问文件 $file_path" >&2
         return $E_FILE_ERROR
-    }
+    fi
     
     CURRENT_LOG_FILE="$file_path"
     debug "日志文件设置为: $CURRENT_LOG_FILE"
