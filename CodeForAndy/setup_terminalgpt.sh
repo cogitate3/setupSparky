@@ -16,13 +16,22 @@ mkdir -p "$HOME/logs"
 LOG_FILE="$HOME/logs/$(dirname "$0").log"
 set_log_file "$LOG_FILE" || exit 1
 
+# 显示使用说明
 show_usage() {
-    echo "用法:"
-    echo "  安装: $0 install"
-    echo "  卸载: $0 uninstall"
-    echo "示例:"
-    echo "  $0 install    # 安装 TerminalGPT"
-    echo "  $0 uninstall  # 卸载 TerminalGPT"
+    echo -e "${GREEN}=== TerminalGPT 安装脚本 ===${NC}
+
+${YELLOW}使用方法:${NC}
+    ${GREEN}$0 install${NC}   - 安装 TerminalGPT
+    ${GREEN}$0 uninstall${NC} - 卸载 TerminalGPT
+
+${YELLOW}示例:${NC}
+    ${GREEN}bash $0 install${NC}     # 安装 TerminalGPT
+    ${GREEN}bash $0 uninstall${NC}   # 卸载 TerminalGPT
+
+${YELLOW}注意:${NC}
+- 安装后需要重新加载终端配置
+"
+    exit 1
 }
 
 # 创建备份目录
