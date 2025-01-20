@@ -25,36 +25,6 @@ check_root() {
     log 1 "Root权限检查通过"
 }
 
-# 过程函数：检查和安装依赖的函数
-check_and_install_dependencies() {
-    local dependencies=("$@")
-    local missing_deps=()
-    
-    # 检查每个依赖是否已安装
-    for dep in "${dependencies[@]}"; do
-        if ! dpkg -l | grep -q "^ii\s*$dep"; then
-            missing_deps+=("$dep")
-        fi
-    done
-    
-    # 如果有缺失的依赖，尝试安装它们
-    if [ ${#missing_deps[@]} -ne 0 ]; then
-        log 1 "安装缺失的依赖: ${missing_deps[*]}"
-        if ! sudo apt update; then
-            log 3 "更新软件包列表失败"
-            return 1
-        fi
-        if ! sudo apt install -y "${missing_deps[@]}"; then
-            log 3 "安装依赖失败: ${missing_deps[*]}"
-            return 1
-        fi
-        log 1 "依赖安装成功"
-    else
-        log 1 "所有依赖已满足"
-    fi
-    return 0
-}
-
 # 过程函数：检查deb包依赖的函数，对于下载的deb包
 check_deb_dependencies() {
     local deb_file="$1"
@@ -162,6 +132,42 @@ check_if_installed() {
     return 1
 }
 
+# 检查并安装缺失的依赖
+check_and_install_dependencies() {
+    local dependencies=("$@")
+    
+    if [ ${#dependencies[@]} -eq 0 ]; then
+        log 3 "未提供任何依赖项，请检查调用"
+        return 1
+    fi
+
+    local missing_deps=()
+    
+    # 使用 check_if_installed 检查每个依赖是否已安装
+    for dep in "${dependencies[@]}"; do
+        if ! check_if_installed "$dep"; then
+            missing_deps+=("$dep")
+        fi
+    done
+    
+    # 如果有缺失的依赖，尝试安装它们
+    if [ ${#missing_deps[@]} -ne 0 ]; then
+        log 1 "安装缺失的依赖: ${missing_deps[*]}"
+        if ! sudo apt update; then
+            log 3 "更新软件包列表失败"
+            return 1
+        fi
+        if ! sudo apt install -y "${missing_deps[@]}"; then
+            log 3 "安装依赖失败: ${missing_deps[*]}"
+            return 1
+        fi
+        log 1 "依赖安装成功"
+    else
+        log 1 "所有依赖已满足"
+    fi
+    return 0
+}
+
 # 过程函数：统一获取软件版本的函数
 get_package_version() {
     local package_name="$1"
@@ -176,6 +182,298 @@ get_package_version() {
     fi
 }
 
+# 通用的Debian软件包安装/卸载函数
+# 参数1: package_name - 软件包名称
+# 参数2: action - 动作(install/uninstall)，可选，默认为install
+# 返回值: 成功返回0，失败返回1
+function setup_debian_package() {
+    local package_name="$1"
+    local action="${2:-install}"  # 如果未提供第二个参数，默认为install
+
+    # 参数验证
+    if [ -z "$package_name" ]; then
+        log 3 "参数错误: 需要提供软件包名称"
+        return 1
+    fi
+
+    if [ "$action" = "install" ]; then
+        log 1 "检查 $package_name 是否已安装"
+        if check_if_installed "$package_name"; then
+            # 获取本地版本
+            local local_version=$(dpkg -l | grep "^ii\s*$package_name" | awk '{print $3}')
+            log 2 "$package_name 已安装，本地版本: $local_version"
+            return 0
+        fi
+
+        # # 检查并安装依赖（包括常用中文字体）
+        # local dependencies=("curl" "fonts-wqy-zenhei" "fonts-noto-cjk" "fonts-wqy-microhei" "xfonts-wqy")
+        # if ! check_and_install_dependencies "${dependencies[@]}"; then
+        #     log 3 "安装 $package_name 依赖失败"
+        #     return 1
+        # fi
+
+        # 安装软件包
+        if ! sudo apt install -y "$package_name"; then
+            log 3 "安装 $package_name 失败"
+            return 1
+        fi
+
+        # 验证安装
+        if ! check_if_installed "$package_name"; then
+            log 3 "$package_name 安装失败"
+            return 1
+        fi
+
+        log 2 "$package_name 安装完成"
+        return 0
+
+    elif [ "$action" = "uninstall" ]; then
+        log 1 "检查 $package_name 是否已安装"
+        if ! check_if_installed "$package_name"; then
+            log 2 "$package_name 未安装"
+            return 0
+        fi
+
+        # 卸载软件包
+        if ! sudo apt purge -y "$package_name"; then
+            log 3 "卸载 $package_name 失败"
+            return 1
+        fi
+
+        log 2 "$package_name 卸载完成"
+        return 0
+
+    else
+        log 3 "不支持的动作: $action (应为 install 或 uninstall)"
+        return 1
+    fi
+}
+
+# 通用的GitHub软件安装/卸载函数
+# 用法1（安装）: setup_from_github <github_url> <download_regex> [install] <package_name>
+# 用法2（卸载）: setup_from_github uninstall <package_name>
+function setup_from_github() {
+    local github_url=""
+    local download_regex=""
+    local operation="install"
+    local package_name=""
+    
+    # 参数解析
+    case $# in
+        2)
+            # 如果第一个参数是 uninstall，则只需要包名
+            if [ "$1" = "uninstall" ]; then
+                operation="uninstall"
+                package_name="$2"
+            else
+                log 3 "参数错误。卸载用法: setup_from_github uninstall <package_name>"
+                return 1
+            fi
+            ;;
+        3|4)
+            # 完整参数模式
+            github_url="$1"
+            download_regex="$2"
+            if [ $# -eq 4 ]; then
+                operation="$3"
+                package_name="$4"
+            else
+                package_name="$3"
+            fi
+            ;;
+        *)
+            log 3 "参数错误。用法："
+            log 3 "安装: setup_from_github <github_url> <download_regex> [install] <package_name>"
+            log 3 "卸载: setup_from_github uninstall <package_name>"
+            return 1
+            ;;
+    esac
+
+    # 卸载操作
+    if [ "$operation" = "uninstall" ]; then
+        log 1 "检查是否已安装 $package_name"
+        if ! check_if_installed "$package_name"; then
+            log 1 "$package_name 未安装，无需卸载"
+            return 0
+        fi
+
+        if sudo apt purge -y "$package_name"; then
+            log 2 "$package_name 卸载成功"
+            # 清理依赖
+            sudo apt autoremove -y
+            return 0
+        else
+            log 3 "$package_name 卸载失败"
+            return 1
+        fi
+    fi
+
+    # 安装操作需要验证必要参数
+    if [ -z "$github_url" ] || [ -z "$download_regex" ] || [ -z "$package_name" ]; then
+        log 3 "安装时缺少必要参数"
+        log 3 "用法: setup_from_github <github_url> <download_regex> [install] <package_name>"
+        return 1
+    fi
+
+    # 检查是否已安装
+    if check_if_installed "$package_name"; then
+        # 获取本地版本
+        local local_version=$(dpkg -l | grep "^ii\s*$package_name" | awk '{print $3}')
+        log 1 "$package_name 已安装，本地版本: $local_version"
+        
+        # 获取远程版本
+        get_download_link "$github_url"
+        local remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        
+        # 比较版本号
+        if [[ "$local_version" == *"$remote_version"* ]]; then
+            log 2 "$package_name 已经是最新版本"
+            return 0
+        fi
+        log 2 "发现新版本，开始更新..."
+    else
+        log 1 "未找到 $package_name，开始下载安装..."
+    fi
+    
+    # 获取下载链接
+    get_download_link "$github_url" "$download_regex"
+    local download_url=${DOWNLOAD_URL}
+    
+    if [ -z "$download_url" ]; then
+        log 3 "无法获取下载链接"
+        return 1
+    fi
+    
+    # 下载并安装包
+    install_package "$download_url"
+    
+    # 验证安装结果
+    if check_if_installed "$package_name"; then
+        log 2 "$package_name 安装完成"
+        return 0
+    else
+        log 3 "$package_name 安装失败"
+        return 1
+    fi
+}
+
+# 函数：安装或卸载 FSearch
+function setup_fsearch() {
+    local action=$1
+
+    if [[ -z "$action" ]]; then
+        log 3 "请提供操作参数 (install 或 uninstall)"
+        return 1
+    fi
+
+    case "$action" in
+        install)
+            log 1 "检查是否已安装 FSearch..."
+            if check_if_installed "fsearch"; then
+                version=$(get_package_version "fsearch" "fsearch --version")
+                log 2 "FSearch 已安装, 版本是: $version"
+                return 0
+            fi
+
+            log 1 "开始安装 FSearch..."
+
+            # 检查必要的依赖
+            local deps=("curl" "apt-transport-https" "software-properties-common" "gpg")
+            if ! check_and_install_dependencies "${deps[@]}"; then
+                log 3 "安装依赖失败，无法继续安装 FSearch"
+                return 1
+            fi
+
+            # 添加 FSearch 软件源
+            log 1 "添加 FSearch 软件源..."
+            echo 'deb http://download.opensuse.org/repositories/home:/cboxdoerfer/Debian_12/ /' | sudo tee /etc/apt/sources.list.d/home:cboxdoerfer.list > /dev/null
+            if [ $? -ne 0 ]; then
+                log 3 "添加 FSearch 软件源失败"
+                return 1
+            fi
+
+            # 下载并添加 GPG 密钥
+            log 1 "下载并添加 GPG 密钥..."
+            if ! curl -fsSL https://download.opensuse.org/repositories/home:cboxdoerfer/Debian_12/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home_cboxdoerfer.gpg > /dev/null; then
+                log 3 "下载 GPG 密钥失败，请检查网络连接或访问 FSearch 官网获取帮助"
+                return 1
+            fi
+
+            # 更新软件包列表
+            log 1 "更新软件包列表..."
+            sudo apt update
+            if [ $? -ne 0 ]; then
+                log 3 "更新软件包列表失败"
+                return 1
+            fi
+
+            # 安装 FSearch
+            log 1 "安装 FSearch..."
+            sudo apt install -y fsearch
+            if [ $? -ne 0 ]; then
+                log 3 "安装 FSearch 失败"
+                log 3 "可能的原因："
+                log 3 "1. 网络连接问题"
+                log 3 "2. 软件源问题"
+                log 3 "3. 依赖包问题"
+                log 3 "解决方案："
+                log 3 "1. 检查网络连接"
+                log 3 "2. 运行 'sudo apt update' 确认软件源可用"
+                log 3 "3. 查看 /var/log/apt/term.log 获取详细错误信息"
+                return 1
+            fi
+
+            # 验证安装
+            if check_if_installed "fsearch"; then
+                version=$(get_package_version "fsearch" "fsearch --version")
+                log 2 "FSearch 安装成功, 版本: $version"
+                return 0
+            else
+                log 3 "FSearch 安装验证失败"
+                return 1
+            fi
+            ;;
+        uninstall)
+            log 1 "开始卸载 FSearch..."
+            if ! check_if_installed "fsearch"; then
+                log 2 "FSearch 未安装，无需卸载"
+                return 0
+            fi
+
+            # 卸载 FSearch
+            sudo apt remove -y fsearch
+            if [ $? -ne 0 ]; then
+                log 3 "卸载 FSearch 失败"
+                return 1
+            fi
+
+            # 删除软件源和 GPG 密钥
+            log 1 "删除 FSearch 软件源和 GPG 密钥..."
+            sudo rm -f /etc/apt/sources.list.d/home:cboxdoerfer.list
+            sudo rm -f /etc/apt/trusted.gpg.d/home_cboxdoerfer.gpg
+            if [ $? -ne 0 ]; then
+                log 3 "删除软件源或 GPG 密钥失败"
+                return 1
+            fi
+
+            # 更新软件包列表
+            log 1 "更新软件包列表..."
+            sudo apt update
+            if [ $? -ne 0 ]; then
+                log 3 "更新软件包列表失败"
+                return 1
+            fi
+
+            log 2 "FSearch 卸载完成"
+            return 0
+            ;;
+        *)
+            log 3 "无效的操作参数，请使用 install 或 uninstall"
+            return 1
+            ;;
+    esac
+}
 
 # 主要安装和卸载函数开始
 # 桌面系统增强必备
