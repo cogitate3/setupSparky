@@ -2479,8 +2479,8 @@ show_menu() {
         "06. AB Download Manager下载工具"
         "07. LocalSend 局域网传输工具"
         "08. SpaceFM 双面板文件管理器"
-        "09. Krusader 双面板文件管理器"
-        "10. Konsole KDE's Terminal Emulator"
+        # "09. Krusader 双面板文件管理器"
+        # "10. Konsole KDE's Terminal Emulator"
         "11. 安装字体和字体管理器 fnt"
     )
 
@@ -2560,8 +2560,8 @@ handle_menu() {
         06) install_ab_download_manager ;;
         07) install_localsend ;;
         08) install_spacefm ;;
-        09) install_krusader ;;
-        10) install_konsole ;;
+        # 09) install_krusader ;;
+        # 10) install_konsole ;;
         11) sudo bash -c "source './005install_fonts.sh'; install_fonts" ;;
         19)
             # 创建数组存储安装结果
@@ -2617,17 +2617,17 @@ handle_menu() {
                 install_results_19["spacefm"]="失败"
             fi
             
-            if install_krusader; then
-                install_results_19["krusader"]="成功"
-            else
-                install_results_19["krusader"]="失败"
-            fi
+            # if install_krusader; then
+            #     install_results_19["krusader"]="成功"
+            # else
+            #     install_results_19["krusader"]="失败"
+            # fi
             
-            if install_konsole; then
-                install_results_19["konsole"]="成功"
-            else
-                install_results_19["konsole"]="失败"
-            fi
+            # if install_konsole; then
+            #     install_results_19["konsole"]="成功"
+            # else
+            #     install_results_19["konsole"]="失败"
+            # fi
             
             # 打印安装结果汇总
             log 1 "\n=== 软件安装结果汇总 ==="
@@ -2806,8 +2806,8 @@ handle_menu() {
         106) uninstall_ab_download_manager ;;
         107) uninstall_localsend ;;
         108) uninstall_spacefm ;;
-        109) uninstall_krusader ;;
-        110) uninstall_konsole ;;
+        # 109) uninstall_krusader ;;
+        # 110) uninstall_konsole ;;
 
         119) uninstall_plank
             uninstall_angrysearch
@@ -2816,9 +2816,9 @@ handle_menu() {
             uninstall_stretchly
             uninstall_ab_download_manager
             uninstall_localsend
-            uninstall_spacefm
-            uninstall_krusader
-            uninstall_konsole ;;
+            uninstall_spacefm ;;
+            # uninstall_krusader
+            # uninstall_konsole ;;
 
         120) uninstall_tabby ;;
         121) uninstall_telegram ;;
