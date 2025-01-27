@@ -19,11 +19,44 @@ source 010add_autostart_app.sh
 # check_root函数
 check_root() {
     if [ $(id -u) -ne 0 ]; then
-        log 3 "必须使用root权限运行此脚本"
+        echo "必须使用root权限运行此脚本"
         exit 1
     fi
-    log 1 "Root权限检查通过"
+    echo "Root权限检查通过"
 }
+
+# Get real user when script is run with sudo
+get_real_user() {
+    if [ -n "$SUDO_USER" ]; then
+        echo "$SUDO_USER"
+    elif [ -n "$USER" ]; then
+        echo "$USER"
+    else
+        echo "Could not determine the real user"
+        exit 1
+    fi
+}
+
+# Get real user's home directory
+get_real_home() {
+    local real_user
+    real_user=$(get_real_user)
+    local home_dir
+
+    if [ "$real_user" = "root" ]; then
+        echo "This script should not be run as the root user directly. Please use 'sudo' instead."
+        exit 1
+    fi
+
+    home_dir=$(getent passwd "$real_user" | cut -d: -f6)
+    if [ -z "$home_dir" ]; then
+        echo "Could not determine home directory for user $real_user"
+        exit 1
+    fi
+
+    echo "$home_dir"
+}
+## 以上函数，是在log函数初始化之前调用的，所以不能使用log函数
 
 # 过程函数：检查deb包依赖的函数，对于下载的deb包
 check_deb_dependencies() {
@@ -2846,11 +2879,12 @@ main() {
     # 系统更新，分开执行并检查错误
     # 先确保日志目录存在
     # LOG_DIR="$HOME/logs"
-    mkdir -p "$HOME/logs"
+    real_home=$(get_real_home)
+    mkdir -p "$real_home/logs"
 
     # 先设置日志
      
-    log "$HOME/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件路径"
+    log "$real_home/logs/$(basename "$0").log" 1 "第一条消息，同时设置日志文件路径"
     log 1 "日志记录在${CURRENT_LOG_FILE}"
     log 1 "更新系统软件包列表..."
     check_and_install_dependencies "jq" "git" "curl" "wget" "sudo" "terminator" "btop"
