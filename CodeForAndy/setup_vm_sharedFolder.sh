@@ -1,4 +1,13 @@
 #!/bin/bash
+###############################################################################
+# 脚本名称：setup_vm_sharedFolder.sh
+# 作用：安装/卸载 chatGPT 终端
+# 作者：deepseek cogitate3
+# 源代码：https://github.com/0xacx/chatGPT-shell-cli
+# 版本：1.0
+# 用法：
+#   安装: ./setup_vm_sharedFolder.sh 
+###############################################################################
 
 # 检查是否以 root 权限运行
 if [[ $EUID -ne 0 ]]; then
