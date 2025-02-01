@@ -3,7 +3,7 @@
 # 脚本名称：setup_vm_sharedFolder.sh
 # 作用：安装/卸载 chatGPT 终端
 # 作者：deepseek cogitate3
-# 源代码：https://github.com/0xacx/chatGPT-shell-cli
+# 源代码：https://github.com/cogitate3/setupSparkyLinux/
 # 版本：1.0
 # 用法：
 #   安装: ./setup_vm_sharedFolder.sh 

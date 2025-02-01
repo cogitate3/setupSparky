@@ -592,6 +592,9 @@ function install_angrysearch() {
         # LATEST_VERSION="v1.0.4"
     fi
     
+    # 要安装依赖python3-pyqt5
+    check_and_install_dependencies "python3-pyqt5"
+
     log 1 "获取远程最新版本下载链接..."
     get_assets_links "https://github.com/DoTheEvo/ANGRYsearch/releases"
     get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
@@ -602,7 +605,7 @@ function install_angrysearch() {
     DOWNLOAD_URL="https://github.com/DoTheEvo/ANGRYsearch/archive/refs/tags/${LATEST_VERSION}.tar.gz"
     angrysearch_download_link=${DOWNLOAD_URL}
     log 1 "手动设置的远程最新版本下载链接: ${angrysearch_download_link}"
-    
+ 
 
     # 下载并安装
     install_package ${angrysearch_download_link}
@@ -2020,7 +2023,6 @@ function uninstall_eg() {
     return 0
 }
 
-# 函数：安装 eggs 命令行系统备份
 function install_eggs() {
     log 1 "检查是否已安装"
     if check_if_installed "eggs"; then
@@ -2028,67 +2030,191 @@ function install_eggs() {
         return 0
     fi
 
-    log 1 "检测到未安装eggs，准备git clone安装代码到$HOME/Downloads/eggs_install目录来安装开始安装 eggs..."
-    # 检查并安装依赖
-    local dependencies=("squashfs-tools" "xorriso" "grub-pc-bin" "grub-efi-amd64-bin" "mtools")
+    log 1 "安装必要依赖..."
+    local dependencies=("git" "tar" "build-essential" "squashfs-tools" "xorriso" "grub-pc-bin" "grub-efi-amd64-bin" "mtools")
     if ! check_and_install_dependencies "${dependencies[@]}"; then
-        log 3 "安装依赖失败"
+        log 3 "依赖安装失败"
         return 1
     fi
 
+    log 1 "创建临时安装目录..."
+    install_dir=$(mktemp -d)
+    trap 'rm -rf "$install_dir"' EXIT
 
-    log 1 "准备$HOME/Downloads/eggs_install文件夹来接收clone后的代码"
-    local install_dir="$HOME/Downloads/eggs_install"
-    if [ -d "$install_dir" ]; then
-        rm -rf "$install_dir"
-    fi
-    mkdir -p "$install_dir" || { log 3 "无法创建目录 $install_dir"; return 1; }
-
-    log 1 "开始git clone安装"
+    log 1 "克隆官方仓库..."
     for i in {1..3}; do
-        git clone https://github.com/pieroproietti/get-eggs "$install_dir" && break || echo "Attempt $i failed. Retrying..." && sleep 5
+        git clone https://github.com/pieroproietti/get-eggs "$install_dir" && break || {
+            log 2 "克隆尝试 $i/3 失败，5秒后重试..."
+            sleep 5
+            rm -rf "$install_dir"
+            mkdir -p "$install_dir"
+        }
     done
 
-    # 检查 git clone 是否成功
-    if [ ! -d "$install_dir/.git" ]; then
-        log 3 "下载失败，无法找到 git 目录"
-        return 1
-    fi
-    log 1 "git clone 完成"
-
-    # 进入安装目录
-    cd "$install_dir" || { log 3 "无法进入目录 $install_dir"; return 1; }
-    log 2 "替换安装代码中的ppa.sh文件，加入对sparky7.5的支持，即在is_debian函数中添加orion-belt字符串"
-    sed -i 's/        trixie | excalibur | noble )/        trixie | excalibur | noble | orion-belt )/' ppa.sh
-    if ! sudo ./get-eggs.sh; then
-        log 3 "eggs 安装失败"
+    # 修正后的sed命令
+    log 1 "添加SparkyLinux支持..."
+    modify_pattern='s/\(trixie | excalibur | noble \)/\1 | orion-belt /'
+    if ! sed -i.bak "${modify_pattern}" "$install_dir/debs.sh"; then
+        log 3 "配置文件修改失败"
         return 1
     fi
 
-    log 1 "eggs 安装完成，还需要更改eggs的配置文件"
-    sudo sed -i '/# bookworm derivated/a - id: sparky\n  distroLike: Debian\n  family: debian\n  ids:\n    - orion-belt # SparkyLinux 7' /usr/lib/penguins-eggs/conf/derivatives.yaml
-    sudo eggs dad -d
+    # 添加验证步骤
+    log 1 "验证修改是否成功..."
+    if ! grep -q 'orion-belt' "$install_dir/debs.sh"; then
+        log 3 "Sparky支持添加失败，原始文件内容："
+        cat "$install_dir/debs.sh" >&2
+        return 1
+    fi
+
+    log 1 "执行官方安装脚本..."
+    (
+        cd "$install_dir" || return 1
+        if ! sudo ./get-eggs.sh; then
+            log 3 "官方安装脚本执行失败"
+            return 1
+        fi
+    )
+
+    log 1 "验证安装..."
+    if ! eggs --version; then
+        log 3 "安装验证失败"
+        return 1
+    fi
+
+    log 1 "清理临时文件..."
+    rm -rf "$install_dir"
+
+    log 1 "eggs安装成功，接下来修改配置文件"
+
+    log 1 "添加SparkyLinux 7.5到官方配置..."
+    if ! sudo sed -i '/^    - Sparky  # SparkyLinux 7$/a \    - orion-belt # SparkyLinux 7.5' \
+        /usr/lib/penguins-eggs/conf/derivatives.yaml; then
+        log 3 "sed命令执行失败"
+        return 1
+    fi
+
+    log 1 "重新生成配置..."
+    for i in {1..3}; do
+        if sudo eggs dad -d; then
+            break
+        else
+            log 2 "配置尝试 $i/3 失败，10秒后重试..."
+            sleep 10
+        fi
+    done
+
+    # 更新后的验证命令（已生效）
+    log 1 "验证Sparky支持..."
+    if ! eggs status | grep -i -E 'Sparky|orion-belt' | grep -q 'orion-belt'; then
+        log 3 "最终验证失败"
+        return 1
+    fi
+
+    log 1 "eggs安装配置完成"
+
+    log 1 "配置Shell自动补全..."
+    user_home=$(eval echo ~${SUDO_USER:-$USER})
+    
+    # 添加bash补全
+    if [ -f "$user_home/.bashrc" ]; then
+        echo -e "\n# eggs autocomplete (auto-added)" >> "$user_home/.bashrc"
+        echo 'eval "$(eggs autocomplete script bash)"' >> "$user_home/.bashrc"
+        log 1 "已配置bash自动补全"
+    fi
+
+    # 添加zsh补全
+    if [ -f "$user_home/.zshrc" ]; then
+        echo -e "\n# eggs autocomplete (auto-added)" >> "$user_home/.zshrc"
+        echo 'eval "$(eggs autocomplete script zsh)"' >> "$user_home/.zshrc"
+        log 1 "已配置zsh自动补全"
+    fi
+
+    # 刷新当前shell配置
+    current_shell=$(basename "$SHELL")
+    case $current_shell in
+        bash)
+            [ -f "$user_home/.bashrc" ] && source "$user_home/.bashrc"
+            ;;
+        zsh)
+            [ -f "$user_home/.zshrc" ] && source "$user_home/.zshrc"
+            ;;
+        *)
+            log 2 "当前shell $current_shell 不支持自动刷新，请手动执行："
+            echo "对于bash: source ~/.bashrc"
+            echo "对于zsh: source ~/.zshrc"
+            ;;
+    esac
     return 0
 }
 
-# 函数：卸载 eggs 命令行系统备份
 function uninstall_eggs() {
     log 1 "检查是否已安装"
-    if ! check_if_installed "eggs"; then
+    # 检测所有可能的安装方式
+    local installed=false
+    if [ -x "$(command -v eggs)" ]; then
+        installed=true
+    fi
+
+    if ! $installed; then
         log 1 "eggs 未安装"
         return 0
     fi
 
-    # 卸载 eggs
-    log 1 "开始卸载 eggs..."
-    if ! sudo apt purge -y penguins-eggs; then
-        log 3 "卸载 eggs 失败"
+    log 1 "开始完整卸载流程..."
+    
+    # 移除npm安装版本
+    if npm list -g | grep -q 'penguins-eggs'; then
+        log 1 "移除npm全局安装版本..."
+        if ! sudo npm uninstall -g penguins-eggs; then
+            log 3 "npm卸载失败"
+            return 1
+        fi
+    fi
+
+    # 移除apt安装版本
+    if dpkg -l | grep -q 'penguins-eggs'; then
+        log 1 "移除apt安装版本..."
+        if ! sudo apt purge -y penguins-eggs; then
+            log 3 "apt卸载失败"
+            return 1
+        fi
+    fi
+
+    log 1 "清理残留文件和配置..."
+    # 安全删除文件（仅当存在时）
+    [ -f "/etc/apt/sources.list.d/penguins-eggs-ppa.list" ] && sudo rm -v /etc/apt/sources.list.d/penguins-eggs-ppa.list
+    [ -f "/usr/share/keyrings/penguins-eggs-ppa.gpg" ] && sudo rm -v /usr/share/keyrings/penguins-eggs-ppa.gpg
+    
+    log 1 "清理自动补全配置..."
+    user_home=$(eval echo ~${SUDO_USER:-$USER})
+    
+    # 清理bash配置
+    if [ -f "$user_home/.bashrc" ]; then
+        sed -i '/# eggs autocomplete (auto-added)/d' "$user_home/.bashrc"
+        sed -i '/eggs autocomplete script bash/d' "$user_home/.bashrc"
+        log 1 "已移除bash自动补全"
+    fi
+
+    # 清理zsh配置
+    if [ -f "$user_home/.zshrc" ]; then
+        sed -i '/# eggs autocomplete (auto-added)/d' "$user_home/.zshrc"
+        sed -i '/eggs autocomplete script zsh/d' "$user_home/.zshrc"
+        log 1 "已移除zsh自动补全"
+    fi
+
+    # 额外清理npm残留
+    if [ -d "/usr/lib/node_modules/penguins-eggs" ]; then
+        sudo rm -rfv /usr/lib/node_modules/penguins-eggs
+    fi
+
+    log 1 "验证卸载结果..."
+    if [ -x "$(command -v eggs)" ]; then
+        log 3 "卸载不完全，仍有残留"
         return 1
     fi
 
-    sudo rm -rf /etc/apt/sources.list.d/penguins-eggs-ppa.list
-    sudo rm -rf /usr/share/keyrings/penguins-eggs-ppa.gpg
-    log 1 "eggs 卸载完成，并删除软件库配置"
+    log 1 "eggs 已完全卸载"
     return 0
 }
 

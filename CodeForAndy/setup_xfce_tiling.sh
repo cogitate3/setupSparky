@@ -3,7 +3,8 @@
 # 脚本名称：setup_xfce_tiling.sh
 # XFCE4 四向窗口平铺一键配置脚本 (键名修正版)
 # 功能：Win+←/→/↑/↓ 实现左/右/上/下半屏平铺
-# 源代码：https://github.com/0xacx/chatGPT-shell-cli
+# 作者：deepseek cogitate3
+# 源代码：https://github.com/cogitate3/setupSparkyLinux/
 # 版本：1.0
 # 用法：
 #   安装: ./setup_xfce_tiling.sh 
