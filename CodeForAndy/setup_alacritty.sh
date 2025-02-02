@@ -15,8 +15,16 @@
 # 配置文件URL
 CONFIG_URL="URLABCD"
 
+# 创建日志目录和文件
+LOG_DIR="$HOME/.logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/install_alacritty_$(date +%Y%m%d_%H%M%S).log"
+touch "$LOG_FILE"
+
 # 引入日志模块
 source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
+# 设置日志文件
+set_log_file "$LOG_FILE"
 
 # 安装步骤追踪
 declare -a INSTALL_STEPS=()
@@ -290,12 +298,6 @@ uninstall_alacritty() {
 
 # 初始化
 init_installation() {
-    # 创建日志目录和文件
-    LOG_DIR="$HOME/.logs/alacritty"
-    mkdir -p "$LOG_DIR"
-    LOG_FILE="$LOG_DIR/install_$(date +%Y%m%d_%H%M%S).log"
-    touch "$LOG_FILE"
-
     # 创建临时目录
     tmp_dir=$(mktemp -d)
 
@@ -305,7 +307,6 @@ init_installation() {
     trap 'handle_error "Script interrupted"' INT TERM
 
     log 1 "Installation started at $(date)"
-    log 1 "Log file: $LOG_FILE"
 }
 
 # 安装 JetBrains Mono 字体
@@ -393,8 +394,14 @@ setup_alacritty() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # 脚本被直接执行
     if [ -z "$BASH_VERSION" ]; then
-        log_error "This script must be run using bash."
-        log_info "Usage: bash $(basename "$0") <command>"
+        log 3 "This script must be run using bash."
+        log 3 "Usage: bash $(basename "$0") <command>"
+        exit 1
+    fi
+
+    # 验证日志文件是否正确初始化
+    if [ -z "$LOG_FILE" ] || [ ! -f "$LOG_FILE" ]; then
+        log 3 "Error: Log file not properly initialized"
         exit 1
     fi
 
@@ -402,7 +409,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 else
     # 脚本被source，只导出函数
     if [[ $SOURCED -eq 1 ]]; then
-        log_info "Script is being sourced. Functions are now available."
+        log 1 "Script is being sourced. Functions are now available."
     fi
 fi
 

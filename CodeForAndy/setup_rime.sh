@@ -64,7 +64,14 @@ check_desktop_environment() {
     # 检查是否支持XDG标准
     if [ ! -d "$XDG_CONFIG_HOME" ]; then
         echo -e "${RED}警告: 系统可能不完全遵循XDG标准${NC}"
-        read -p "是否继续？[y/N] " response
+        echo -n "是否继续？[Y/n] (5秒后自动选择y) "
+        for i in {5..1}; do
+            echo -n "$i "
+            sleep 1
+        done
+        read -t 0.1 -n 1 response
+        echo
+        response=${response:-y}
         if [[ ! "$response" =~ ^[Yy]$ ]]; then
             echo -e "${RED}操作已取消${NC}"
             exit 1
@@ -445,14 +452,15 @@ EOF
 remove_existing_input_methods() {
     echo -e "${BLUE}检测到系统中可能存在其他输入法，需要先卸载它们...${NC}"
     echo -e "${RED}警告: 即将卸载ibus、fcitx和fcitx5（如果存在）${NC}"
-    read -p "是否继续？[y/N] " response
-    
-    if [[ "$response" =~ ^[Yy]$ ]]; then
-        echo -e "${GREEN}开始卸载现有输入法...${NC}"
-        apt remove -y ibus ibus-* fcitx* > /dev/null 2>&1
-        apt autoremove -y > /dev/null 2>&1
-        echo -e "${GREEN}现有输入法已卸载${NC}"
-    else
+    echo -n "是否继续？[Y/n] (5秒后自动选择y) "
+    for i in {5..1}; do
+        echo -n "$i "
+        sleep 1
+    done
+    read -t 0.1 -n 1 response
+    echo
+    response=${response:-y}
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
         echo -e "${RED}操作已取消${NC}"
         exit 1
     fi
@@ -461,7 +469,14 @@ remove_existing_input_methods() {
 # 提示重启
 prompt_restart() {
     echo -e "${RED}重要: 需要重启系统才能使更改生效${NC}"
-    read -p "是否现在重启系统？[y/N] " response
+    echo -n "是否现在重启系统？[Y/n] (5秒后自动选择y) "
+    for i in {5..1}; do
+        echo -n "$i "
+        sleep 1
+    done
+    read -t 0.1 -n 1 response
+    echo
+    response=${response:-y}
     if [[ "$response" =~ ^[Yy]$ ]]; then
         echo -e "${GREEN}系统将在5秒后重启...${NC}"
         sleep 5
