@@ -361,7 +361,7 @@ function setup_from_github() {
         
         # 比较版本号
         if [[ "$local_version" == *"$remote_version"* ]]; then
-            log 2 "$package_name 已经是最新版本"
+            log 2 "$package_name 已经是最新版本，无需更新，返回主菜单"
             return 0
         fi
         log 2 "发现新版本，开始更新..."
@@ -391,7 +391,7 @@ function setup_from_github() {
     fi
 }
 
-# 函数：安装或卸载 FSearch
+# 函数：安装 FSearch
 function setup_fsearch() {
     local action=$1
 
@@ -580,58 +580,85 @@ function install_angrysearch() {
         
         # 比较版本号，检查本地版本是否包含远程版本
         if [[ "$local_version" == *"$remote_version"* ]]; then
-            # 如果远程本地版本包含远程版本，则说明是最新版本。例如本地1.0.4.1，远程1.0.4，说明已经是最新版
-            # 例如本地是1.0.4.1，远程是1.0.5，说明是最新版本
-            # 第壹次安装时，两者肯定时相同的，后面只有远程的版本号更新过，才会出现不一致。则只可能说明有新版了。
             log 2 "angrysearch 已经是最新版本，无需更新，返回主菜单"
             return 0
-        fi
-        log 2 "发现新版本，开始更新..."
-    else
-        log 2 "angrysearch未安装，开始下载"
-        # LATEST_VERSION="v1.0.4"
-    fi
-    
-    # 要安装依赖python3-pyqt5
-    check_and_install_dependencies "python3-pyqt5"
-
-    log 1 "获取远程最新版本下载链接..."
-    get_assets_links "https://github.com/DoTheEvo/ANGRYsearch/releases"
-    get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
-    # 从LATEST_VERSION中提取版本号（去掉v前缀）
-    remote_version=${LATEST_VERSION#v}
-    log 1 "远程最新版本: $remote_version"
-    log 1 "angrysearch github releases只提供源代码的压缩包，无法使用get_download_link函数获得最新版下载链接，手动设置远程最新版本下载链接"
-    DOWNLOAD_URL="https://github.com/DoTheEvo/ANGRYsearch/archive/refs/tags/${LATEST_VERSION}.tar.gz"
-    angrysearch_download_link=${DOWNLOAD_URL}
-    log 1 "手动设置的远程最新版本下载链接: ${angrysearch_download_link}"
+        else
+            log 2 "发现新版本，开始更新..."
+            # 获取最新的下载链接,要先将之前保存的下载链接清空
+            DOWNLOAD_URL=""
+            get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
+            # 从LATEST_VERSION中提取版本号（去掉v前缀）
+            remote_version=${LATEST_VERSION#v}
+            log 1 "远程最新版本: $remote_version"
+            angrysearch_download_link=${DOWNLOAD_URL}
+            log 1 "手动设置的远程最新版本下载链接: ${angrysearch_download_link}"
  
 
-    # 下载并安装
-    install_package ${angrysearch_download_link}
-    if [ $? -eq 2 ]; then
-        # 下面的目录来自函数install_package，程序都是下载到/tmp/downloads中
-        cd /tmp/downloads
+            # 下载并安装
+            install_package ${angrysearch_download_link}
+            if [ $? -eq 2 ]; then
+                # 下面的目录来自函数install_package，程序都是下载到/tmp/downloads中
+                cd /tmp/downloads
         
-        extracted_dir=$(tar -tzf ${LATEST_VERSION}.tar.gz | head -1 | cut -f1 -d"/")
-        log 1 "获取解压目录名: ${extracted_dir}"
+                extracted_dir=$(tar -tzf ${LATEST_VERSION}.tar.gz | head -1 | cut -f1 -d"/")
+                log 1 "获取解压目录名: ${extracted_dir}"
         
-        tar -zxvf "${ARCHIVE_FILE}"
-        cd "${extracted_dir}"
-        sudo ./install.sh
+                tar -zxvf "${ARCHIVE_FILE}"
+                cd "${extracted_dir}"
+                sudo ./install.sh
         
-        # 验证安装结果
-        if check_if_installed "angrysearch"; then
-            log 2 "angrysearch 安装完成"
-            return 0
-        else
-            log 3 "angrysearch 安装失败"
+                # 验证安装结果
+                if check_if_installed "angrysearch"; then
+                    log 2 "angrysearch 安装完成"
+                    return 0
+                else
+                    log 3 "angrysearch 安装失败"
+                    return 1
+                fi
+            fi
+
+            add_autostart_app "angrysearch" "angrysearch" "yes"
             return 1
         fi
-    fi
+        return 0
+    else
+        # 获取最新的下载链接,要先将之前保存的下载链接清空
+        log 1 "开始安装angrysearch..."
+        DOWNLOAD_URL=""
+        get_download_link "https://github.com/DoTheEvo/ANGRYsearch/releases"
+        # 从LATEST_VERSION中提取版本号（去掉v前缀）
+        remote_version=${LATEST_VERSION#v}
+        log 1 "远程最新版本: $remote_version"
+        angrysearch_download_link=${DOWNLOAD_URL}
+        log 1 "手动设置的远程最新版本下载链接: ${angrysearch_download_link}"
+ 
 
-    add_autostart_app "angrysearch" "angrysearch" "yes"
-    return 1
+        # 下载并安装
+        install_package ${angrysearch_download_link}
+        if [ $? -eq 2 ]; then
+            # 下面的目录来自函数install_package，程序都是下载到/tmp/downloads中
+            cd /tmp/downloads
+        
+            extracted_dir=$(tar -tzf ${LATEST_VERSION}.tar.gz | head -1 | cut -f1 -d"/")
+            log 1 "获取解压目录名: ${extracted_dir}"
+        
+            tar -zxvf "${ARCHIVE_FILE}"
+            cd "${extracted_dir}"
+            sudo ./install.sh
+        
+            # 验证安装结果
+            if check_if_installed "angrysearch"; then
+                log 2 "angrysearch 安装完成"
+                return 0
+            else
+                log 3 "angrysearch 安装失败"
+                return 1
+            fi
+        fi
+
+        add_autostart_app "angrysearch" "angrysearch" "yes"
+        return 1
+    fi
 }
 
 # 函数：卸载 angrysearch 类似everything的快速查找工具
@@ -724,13 +751,12 @@ function uninstall_pot_desktop() {
 function install_geany() {
     log 1 “检查是否已安装”
     if check_if_installed "geany"; then
-        log 1 "Geany已经安装"
         version=$(get_package_version "geany" "geany --version")
-        log 1 "Geany版本: $version"
+        log 2 "Geany 已安装最新版本: $version , 返回主菜单"
         return 0
     fi
 
-    log 2 "开始安装geany..."
+    log 1 "开始安装geany..."
     
     # 更新软件包列表并安装geany
     log 1 "更新软件包列表并安装Geany..."
@@ -743,7 +769,7 @@ function install_geany() {
     # 验证安装
     if check_if_installed "geany"; then
         version=$(get_package_version "geany" "geany --version")
-        log 2 "Geany安装成功,版本是: $version"
+        log 2 "Geany安装成功, 版本是: $version"
         return 0
     else
         log 3 "Geany安装验证失败"
@@ -777,7 +803,7 @@ function uninstall_geany() {
 }
 # 函数：安装 stretchly 定时休息桌面
 function install_stretchly() {
-    # 检测是否已安装
+    # 检测是否已经安装了stretchly
     if check_if_installed "stretchly"; then
         # 获取本地版本
         local_version=$(dpkg -l | grep  "^ii\s*stretchly" | awk '{print $3}')
@@ -843,7 +869,7 @@ function install_ab_download_manager() {
     # 检查是否已经安装了ab-download-manager
     if check_if_installed "abdownloadmanager"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*abdownloadmanager" | awk '{print $3}')
+        local_version=$(dpkg -l | grep "^ii\s*abdownloadmanager" | awk '{print $3}')
         log 2 "ab-download-manager已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -916,7 +942,7 @@ function install_localsend() {
     # 检测是否已经安装了localsend
     if check_if_installed "localsend"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*localsend" | awk '{print $3}')
+        local_version=$(dpkg -l | grep "^ii\s*localsend" | awk '{print $3}')
         log 2 "localsend已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -1135,7 +1161,7 @@ function install_tabby() {
     # 检测是否已安装
     if check_if_installed "tabby"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*tabby" | awk '{print $3}')
+        local local_version=$(dpkg -l | grep  "^ii\s*tabby" | awk '{print $3}')
         log 2 "Tabby已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -1598,34 +1624,34 @@ function uninstall_pdfarranger() {
     return 0
 }
 
-# # 函数：安装 WPS Office
-# function install_wps() {
-#     # 检查是否已安装
-#     if check_if_installed "wps-office"; then
-#         log 2 "WPS Office 已安装"
-#         return 0
-#     fi
+# 函数：安装 WPS Office
+function install_wps() {
+    # 检查是否已安装
+    if check_if_installed "wps-office"; then
+        log 2 "WPS Office 已安装"
+        return 0
+    fi
 
-#     cd ~/Downloads
-#     wget https://wps-linux-personal.wpscdn.cn/wps/download/ep/Linux2019/11664/wps-office_11.1.0.11664_amd64.deb
-#     sudo dpkg -i wps-office_11.1.0.11664_amd64.deb
-#     sudo apt-mark hold wps-office  # 阻止 WPS 自动更新
-#     log 2 "WPS Office 安装完成。已阻止自动更新"
-# }
+    cd ~/Downloads
+    wget https://wps-linux-365.wpscdn.cn/wps/download/ep/Linux365/19829/wps-office_12.8.2.19829.AK.preload.sw_amd64.deb
+    sudo dpkg -i wps-office_12.8.2.19829.AK.preload.sw_amd64.deb
+    sudo apt-mark hold wps-office  # 阻止 WPS 自动更新
+    log 2 "WPS Office 安装完成。已阻止自动更新"
+}
 
-# # 函数：卸载 WPS Office
-# function uninstall_wps() {
-#     log 1 “检查是否已安装”
-#     if ! check_if_installed "wps-office"; then
-#         log 1 "WPS Office 未安装"
-#         return 0
-#     fi
+# 函数：卸载 WPS Office
+function uninstall_wps() {
+    log 1 “检查是否已安装”
+    if ! check_if_installed "wps-office"; then
+        log 1 "WPS Office 未安装"
+        return 0
+    fi
 
-#     sudo apt-mark unhold wps-office
-#     sudo apt purge -y wps-office
-#     sudo apt autoremove -y
-#     log 1 "WPS Office 卸载完成"
-# }
+    sudo apt-mark unhold wps-office
+    sudo apt purge -y wps-office
+    sudo apt autoremove -y
+    log 1 "WPS Office 卸载完成"
+}
 
 
 # 命令行增强工具
@@ -1684,7 +1710,7 @@ function install_micro() {
         log 2 "micro 已经是最新版本，无需更新，返回主菜单"
         return 0
     else
-        log 2 "发现新版本，开始更新..."
+        log 2 "发现新版本，开始下载安装..."
     fi
 
     local install_dir="/tmp/micro_install"
@@ -2054,7 +2080,7 @@ function install_eggs() {
     # 修正后的sed命令
     log 1 "添加SparkyLinux支持..."
     modify_pattern='s/\(trixie | excalibur | noble \)/\1 | orion-belt /'
-    if ! sed -i.bak "${modify_pattern}" "$install_dir/debs.sh"; then
+    if ! sed -i "${modify_pattern}" "$install_dir/debs.sh"; then
         log 3 "配置文件修改失败"
         return 1
     fi
@@ -2386,7 +2412,6 @@ function uninstall_flatpak() {
     fi
 
     # 清理配置文件和依赖
-    log 1 "清理Flatpak配置和依赖..."
     sudo apt purge -y flatpak
     sudo apt autoremove -y
 
@@ -2505,7 +2530,7 @@ function install_docker_and_docker_compose() {
     # 添加Docker存储库
     echo \
     "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-    $codename stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    $codename stable main" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     if [ $? -ne 0 ]; then
         log 3 "添加Docker存储库失败"
         return 1
@@ -2598,16 +2623,17 @@ function uninstall_docker_and_docker_compose() {
 show_menu() {
     desktop_enhance=(
         "01. Plank 快捷启动器"
-        "02. angrysearch 类似everything的快速查找工具"
+        "02. fSearch 类似everything的快速查找工具"
         "03. Pot-desktop 翻译工具"
         "04. Geany 简洁清凉的文字编辑器"
         "05. stretchly 定时休息设置"
         "06. AB Download Manager下载工具"
         "07. LocalSend 局域网传输工具"
-        "08. SpaceFM 双面板文件管理器"
+        "08. WPS Office 解决微软的办公软件"
+        # "08. SpaceFM 双面板文件管理器"
         # "09. Krusader 双面板文件管理器"
         # "10. Konsole KDE's Terminal Emulator"
-        "11. 安装字体和字体管理器 fnt"
+        "09. 安装字体和字体管理器 fnt"
     )
 
     command_enhance=(
@@ -2648,7 +2674,7 @@ show_menu() {
     
     yellow "桌面系统增强必备:"
     display_items 2 "${desktop_enhance[@]}"
-    yellow "19. 安装全部1-10软件            119. 卸载全部1-10软件"
+    yellow "19. 安装全部1-11软件            119. 卸载全部1-11软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 
@@ -2659,12 +2685,12 @@ show_menu() {
 
     yellow "命令行增强工具:"
     display_items 2 "${cli_enhance[@]}"
-    yellow "39. 安装全部30-35软件            139. 卸载全部30-35软件"
+    yellow "39. 安装全部30-36软件            139. 卸载全部30-36软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "软件库工具:"
     display_items 2 "${software_library[@]}"
-    yellow "49. 安装全部40-42软件            149. 卸载全部40-42软件"
+    yellow "49. 安装全部40-43软件            149. 卸载全部40-43软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     yellow "0. 退出脚本"
@@ -2679,20 +2705,18 @@ handle_menu() {
     case $choice in
         # 桌面系统增强必备
         01) install_plank ;;
-        02) install_angrysearch ;;
+        02) setup_fsearch install ;;
         03) install_pot_desktop ;;
         04) install_geany ;;
         05) install_stretchly ;;
         06) install_ab_download_manager ;;
         07) install_localsend ;;
-        08) install_spacefm ;;
-        # 09) install_krusader ;;
-        # 10) install_konsole ;;
-        11) sudo bash -c "source './005install_fonts.sh'; install_fonts" ;;
+        08) install_wps ;;
+        09) sudo bash -c "source './005install_fonts.sh'; install_fonts" ;;
         19)
             # 创建数组存储安装结果
             declare -A install_results_19
-            local apps=("plank" "angrysearch" "Pot-desktop" "geany" "stretchly" "ab-download-manager" "localsend" "spacefm" "krusader" "konsole")
+            local apps=("plank" "fSearch" "Pot-desktop" "geany" "stretchly" "ab-download-manager" "localsend" "wps" "fnt")
             
             # 执行安装并记录结果
             if install_plank; then
@@ -2701,10 +2725,10 @@ handle_menu() {
                 install_results_19["plank"]="失败"
             fi
             
-            if install_angrysearch; then
-                install_results_19["angrysearch"]="成功"
+            if setup_fsearch install; then
+                install_results_19["fSearch"]="成功"
             else
-                install_results_19["angrysearch"]="失败"
+                install_results_19["fSearch"]="失败"
             fi
             
             if install_pot_desktop; then
@@ -2737,23 +2761,17 @@ handle_menu() {
                 install_results_19["localsend"]="失败"
             fi
             
-            if install_spacefm; then
-                install_results_19["spacefm"]="成功"
+            if install_wps; then
+                install_results_19["wps"]="成功"
             else
-                install_results_19["spacefm"]="失败"
+                install_results_19["wps"]="失败"
             fi
             
-            # if install_krusader; then
-            #     install_results_19["krusader"]="成功"
-            # else
-            #     install_results_19["krusader"]="失败"
-            # fi
-            
-            # if install_konsole; then
-            #     install_results_19["konsole"]="成功"
-            # else
-            #     install_results_19["konsole"]="失败"
-            # fi
+            if sudo bash -c "source './005install_fonts.sh'; install_fonts"; then
+                install_results_19["fnt"]="成功"
+            else
+                install_results_19["fnt"]="失败"
+            fi
             
             # 打印安装结果汇总
             log 1 "\n=== 软件安装结果汇总 ==="
@@ -2771,6 +2789,7 @@ handle_menu() {
         24) install_windsurf ;;
         25) install_pdfarranger ;;
         26) install_warp_terminal ;;
+        
         29) 
            # 创建数组存储安装结果
             declare -A install_results_29
@@ -2824,8 +2843,7 @@ handle_menu() {
             for app in "${apps[@]}"; do
                 printf "%-20s: %s\n" "$app" "${install_results_29[$app]}"
             done
-            log 1 "\n======================"
-            ;;                    
+            ;;
       
         # 命令行增强工具
         30) install_neofetch ;;
@@ -2882,14 +2900,13 @@ handle_menu() {
            for app in "${apps[@]}"; do
                printf "%-20s: %s\n" "$app" "${install_results_39[$app]}"
            done
-           log 1 "\n======================"
            ;;
            
         # 软件库工具
         40) install_docker_and_docker_compose ;;
         41) install_snap ;;
         42) install_flatpak ;;
-        43) install_homebrew;;
+        43) install_homebrew ;;
         49) 
             # 创建数组存储安装结果
             declare -A install_results_49
@@ -2931,7 +2948,7 @@ handle_menu() {
         105) uninstall_stretchly ;;
         106) uninstall_ab_download_manager ;;
         107) uninstall_localsend ;;
-        108) uninstall_spacefm ;;
+        108) uninstall_wps ;;
         # 109) uninstall_krusader ;;
         # 110) uninstall_konsole ;;
 
@@ -2942,7 +2959,7 @@ handle_menu() {
             uninstall_stretchly
             uninstall_ab_download_manager
             uninstall_localsend
-            uninstall_spacefm ;;
+            uninstall_wps ;;
             # uninstall_krusader
             # uninstall_konsole ;;
 
