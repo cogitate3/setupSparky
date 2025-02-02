@@ -567,8 +567,7 @@ function install_angrysearch() {
     # 检测是否已安装
     if check_if_installed "angrysearch"; then
         # 获取本地版本
-        local_version="1.0.4"
-        # local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
+        local local_version=$(dpkg -l | grep  "^ii\s*angrysearch" | awk '{print $3}')
         log 2 "angrysearch已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -681,7 +680,7 @@ function install_pot_desktop() {
    # 检测是否已安装
     if check_if_installed "pot"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*pot" | awk '{print $3}')
+        local local_version=$(dpkg -l | grep  "^ii\s*pot" | awk '{print $3}')
         log 1 "pot-desktop已安装，本地版本: $local_version"
     else
         log 1 "未找到pot-desktop，开始获得下载链接，请耐心等待"
@@ -806,7 +805,7 @@ function install_stretchly() {
     # 检测是否已经安装了stretchly
     if check_if_installed "stretchly"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*stretchly" | awk '{print $3}')
+        local local_version=$(dpkg -l | grep  "^ii\s*stretchly" | awk '{print $3}')
         log 2 "stretchly已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -869,7 +868,7 @@ function install_ab_download_manager() {
     # 检查是否已经安装了ab-download-manager
     if check_if_installed "abdownloadmanager"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep "^ii\s*abdownloadmanager" | awk '{print $3}')
+        local local_version=$(dpkg -l | grep "^ii\s*abdownloadmanager" | awk '{print $3}')
         log 2 "ab-download-manager已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -942,7 +941,7 @@ function install_localsend() {
     # 检测是否已经安装了localsend
     if check_if_installed "localsend"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep "^ii\s*localsend" | awk '{print $3}')
+        local local_version=$(dpkg -l | grep "^ii\s*localsend" | awk '{print $3}')
         log 2 "localsend已安装，本地版本: $local_version"
         
         # 获取远程最新版本
@@ -1448,7 +1447,7 @@ function install_VLC() {
     # 检查是否已安装
     if check_if_installed "vlc"; then
         # 获取本地版本
-        local_version=$(dpkg -l | grep  "^ii\s*vlc" | awk '{print $3}')
+        local local_version=$(dpkg -l | grep  "^ii\s*vlc" | awk '{print $3}')
         log 2 "VLC已安装，本地版本: $local_version"
         return 0    
     fi
@@ -1664,7 +1663,7 @@ function install_neofetch() {
     fi
 
     log 1 "开始安装neofetch..."
-    sudo apt install neofetch
+    sudo apt install neofetch -y
     if [ $? -ne 0 ]; then
         log 3 "安装neofetch失败"
         return 1
@@ -2674,7 +2673,7 @@ show_menu() {
     
     yellow "桌面系统增强必备:"
     display_items 2 "${desktop_enhance[@]}"
-    yellow "19. 安装全部1-11软件            119. 卸载全部1-11软件"
+    yellow "19. 安装全部1-9软件            119. 卸载全部1-9软件"
     green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 
@@ -2852,11 +2851,11 @@ handle_menu() {
         33) install_eg ;;
         34) install_eggs ;;
         35) install_double_esc_sudo ;;
-        36) sudo bash ./009install_zsh_omz.sh install ;;
+        36) sudo bash "$(dirname "$0")/009install_zsh_omz.sh" install ;;
         39) 
            # 创建数组存储安装结果
            declare -A install_results_39
-           local apps=("neofetch" "micro" "cheat.sh" "eg" "eggs" "double-esc-sudo")
+           local apps=("neofetch" "micro" "cheat.sh" "eg" "eggs" "double-esc-sudo" "zsh-omz")
            
            # 执行安装并记录结果
            if install_neofetch; then
@@ -2893,6 +2892,12 @@ handle_menu() {
                install_results_39["double-esc-sudo"]="成功"
            else
                install_results_39["double-esc-sudo"]="失败"
+           fi
+           
+           if sudo bash "$(dirname "$0")/009install_zsh_omz.sh" install; then
+               install_results_39["zsh-omz"]="成功"
+           else
+               install_results_39["zsh-omz"]="失败"
            fi
            
            # 打印安装结果汇总
@@ -2986,7 +2991,7 @@ handle_menu() {
         133) uninstall_eg ;;
         134) uninstall_eggs ;;
         135) uninstall_double_esc_sudo ;;
-        136) sudo bash./009install_zsh_omz.sh uninstall ;;
+        136) sudo bash "$(dirname "$0")/009install_zsh_omz.sh" uninstall ;;
 
         139) uninstall_neofetch
             uninstall_micro
