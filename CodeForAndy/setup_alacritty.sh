@@ -13,7 +13,7 @@
 (return 0 2>/dev/null) && SOURCED=1 || SOURCED=0
 
 # 配置文件URL
-CONFIG_URL="URLABCD"
+CONFIG_URL="https://raw.githubusercontent.com/cogitate3/setupSparkyLinux/refs/heads/develop/config/.alacrittyForLinux.toml"
 
 # 创建日志目录和文件
 LOG_DIR="$HOME/.logs"
@@ -140,8 +140,25 @@ download_config() {
     mkdir -p "$temp_dir" || handle_error "Failed to create temporary config directory"
 
     log 1 "Downloading configuration file..."
-    if ! curl -sSL "$CONFIG_URL" -o "$temp_download"; then
-        handle_error "Failed to download configuration file"
+    local max_retries=3
+    local retry_count=0
+    local success=false
+
+    while [ $retry_count -lt $max_retries ] && [ "$success" = false ]; do
+        retry_count=$((retry_count + 1))
+        if curl -sSL "$CONFIG_URL" -o "$temp_download"; then
+            success=true
+            log 1 "Download successful on attempt $retry_count"
+        else
+            if [ $retry_count -lt $max_retries ]; then
+                log 2 "Download attempt $retry_count failed, retrying in 3 seconds..."
+                sleep 3
+            fi
+        fi
+    done
+
+    if [ "$success" = false ]; then
+        handle_error "Failed to download configuration file after $max_retries attempts"
     fi
 
     # 验证下载的文件
@@ -324,12 +341,12 @@ install_font() {
     mkdir -p "$FONT_DIR" || handle_error "Failed to create fonts directory"
 
     # 下载并安装字体
-    FONT_ZIP="$tmp_dir/JetBrainsMono.tar.xz"
-    FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.3.0/JetBrainsMono.tar.xz"
+    FONT_ZIP="$tmp_dir/Meslo.tar.xz"
+    FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.3.0/Meslo.tar.xz"
 
-    log 1 "Downloading JetBrains Mono font..."
+    log 1 "Downloading Meslo font..."
     if ! wget -q "$FONT_URL" -O "$FONT_ZIP"; then
-        handle_error "Failed to download JetBrains Mono font"
+        handle_error "Failed to download Meslo font"
     fi
 
     log 1 "Extracting font files..."
@@ -346,7 +363,7 @@ install_font() {
         handle_error "Failed to update font cache"
     fi
 
-    register_step "Install font" "rm -rf $FONT_DIR/JetBrains*"
+    register_step "Install font" "rm -rf $FONT_DIR/Meslo*"
 }
 
 # 主程序
